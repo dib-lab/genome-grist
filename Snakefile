@@ -5,7 +5,8 @@ rule all:
     input:
         expand("inputs/raw/{sample}_1.fastq.gz", sample = SAMPLES),
         expand("outputs/trim/{sample}_R1.trim.fq.gz", sample=SAMPLES),
-        expand("outputs/abundtrim/{sample}.abundtrim.fq.gz", sample=SAMPLES)
+        expand("outputs/abundtrim/{sample}.abundtrim.fq.gz", sample=SAMPLES),
+        expand("outputs/minimap/{s}.x.2.bam", s=SAMPLES)
 
 rule download_reads:
     output: 
@@ -44,6 +45,19 @@ rule kmer_trim_reads:
     interleave-reads.py {input} | 
         trim-low-abund.py -C 3 -Z 18 -M 30e9 -V - -o {output}
     '''
+
+rule minimap:
+    output:
+        bam="outputs/minimap/{sra_id}.x.{g}.bam",
+    input:
+        query = "inputs/genomes/{g}.fa",
+        metagenome = "outputs/abundtrim/{sra_id}.abundtrim.fq.gz",
+    conda: "env-minimap2.yml"
+    threads: 4
+    shell: """
+        minimap2 -ax sr -t {threads} {input.query} {input.metagenome} | \
+            samtools view -b -F 4 - | samtools sort - > {output.bam}
+    """
 
 rule sgc_bin_queries:
     input: 
@@ -101,3 +115,4 @@ rule megahit_unmapped_reads:
     mv {wildcards.sample}_megahit/{wildcards.sample}.contigs.fa {output}
     rm -rf {wildcards.sample}_megahit
     '''
+
