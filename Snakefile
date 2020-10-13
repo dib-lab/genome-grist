@@ -10,6 +10,7 @@ rule all:
         expand("outputs/minimap/{s}.x.{g}.bam", s=SAMPLES, g=GENOMES),
         expand("outputs/minimap/depth/{s}.x.{g}.txt", s=SAMPLES, g=GENOMES),
         expand("outputs/minimap/{s}.x.{g}.mapped.fastq", s=SAMPLES, g=GENOMES),
+        expand("outputs/minimap/{s}.x.{g}.read-names.txt", s=SAMPLES, g=GENOMES),
 
 rule download_reads:
     output: 
@@ -83,3 +84,14 @@ rule samtools_depth:
     shell: """
         samtools depth -aa {input.bam} > {output.depth}
     """
+
+rule read_names:
+    output:
+        names="outputs/minimap/{bam}.read-names.txt",
+    input:
+        mapped="outputs/minimap/{bam}.mapped.fastq",
+    run:
+        import screed
+        with open(output.names, 'wt') as fp:
+           for record in screed.open(input.mapped):
+              fp.write(f"{record.name}\n")
