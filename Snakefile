@@ -1,12 +1,15 @@
 # https://www.ebi.ac.uk/ena/browser/view/SRR606249
 SAMPLES = ['SRR606249']
+GENOMES = ['2', '63', '47']
 
 rule all:
     input:
         expand("inputs/raw/{sample}_1.fastq.gz", sample = SAMPLES),
         expand("outputs/trim/{sample}_R1.trim.fq.gz", sample=SAMPLES),
         expand("outputs/abundtrim/{sample}.abundtrim.fq.gz", sample=SAMPLES),
-        expand("outputs/minimap/{s}.x.2.bam", s=SAMPLES)
+        expand("outputs/minimap/{s}.x.{g}.bam", s=SAMPLES, g=GENOMES),
+        expand("outputs/minimap/depth/{s}.x.{g}.txt", s=SAMPLES, g=GENOMES),
+        expand("outputs/minimap/{s}.x.{g}.mapped.fastq", s=SAMPLES, g=GENOMES),
 
 rule download_reads:
     output: 
@@ -50,7 +53,7 @@ rule minimap:
     output:
         bam="outputs/minimap/{sra_id}.x.{g}.bam",
     input:
-        query = "inputs/genomes/{g}.fa",
+        query = "inputs/genomes/{g}.fa.gz",
         metagenome = "outputs/abundtrim/{sra_id}.abundtrim.fq.gz",
     conda: "env-minimap2.yml"
     threads: 4
@@ -59,60 +62,24 @@ rule minimap:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
-rule sgc_bin_queries:
-    input: 
-        conf = "inputs/conf/{sample}_conf.yml",
-        reads = "outputs/abundtrim/{sample}.abundtrim.fq.gz",
-        cmag = ["inputs/cmag/GCA_001430905.1_ASM143090v1_genomic.fna.gz"]
-    output: "{sample}_k31_r1_search_oh0/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.gz"
-    shell:'''
-    python -m spacegraphcats {input.conf} extract_contigs extract_reads --nolock
-    '''
+rule samtools_fastq:
+    output:
+        mapped="outputs/minimap/{bam}.mapped.fastq",
+    input:
+        bam="outputs/minimap/{bam}.bam",
+    conda: "env-minimap2.yml"
+    threads: 4
+    shell: """
+        samtools bam2fq {input.bam} > {output.mapped}
+    """
 
-rule index_cmag:
-    input: "inputs/cmag/GCA_001430905.1_ASM143090v1_genomic.fna.gz"
-    output: "inputs/cmag/GCA_001430905.1_ASM143090v1_genomic.fna.gz.bwt"
-    conda: 'env.yml'
-    shell:'''
-    bwa index {input}
-    '''
-    
-rule map_nbhd_reads:
-    input: 
-        nbhd_reads="{sample}_k31_r1_search_oh0/GCA_001430905.1_ASM143090v1_genomic.fna.gz.cdbg_ids.reads.fa.gz",
-        cmag="inputs/cmag/GCA_001430905.1_ASM143090v1_genomic.fna.gz",
-        index="inputs/cmag/GCA_001430905.1_ASM143090v1_genomic.fna.gz.bwt"
-    output: "outputs/map_nbhd_reads/{sample}_nbhd.sam"
-    conda: 'env.yml'
-    shell:'''
-    bwa mem -t 4 {input.cmag} {input.nbhd_reads} > {output}
-    '''
-
-rule sam_unmapped_reads:
-    input: "outputs/map_nbhd_reads/{sample}_nbhd.sam"
-    output: "outputs/map_nbhd_reads/{sample}_unmapped.sam"
-    conda: 'env.yml'
-    shell:'''
-    samtools view -f 4 {input} > {output}
-    ''' 
-
-rule unmapped_reads_to_fastq:
-    input: "outputs/map_nbhd_reads/{sample}_unmapped.sam"
-    output: "outputs/map_nbhd_reads/{sample}_unmapped.fa"
-    conda: 'env.yml'
-    shell:'''
-    samtools fasta {input} > {output}
-    '''
-
-rule megahit_unmapped_reads:
-    input: "outputs/map_nbhd_reads/{sample}_unmapped.fa"
-    output: "outputs/megahit/{sample}.contigs.fa"
-    conda: 'env.yml'
-    shell:'''
-    megahit -r {input} --min-contig-len 142 \
-        --out-dir {wildcards.sample}_megahit \
-        --out-prefix {wildcards.sample}
-    mv {wildcards.sample}_megahit/{wildcards.sample}.contigs.fa {output}
-    rm -rf {wildcards.sample}_megahit
-    '''
-
+rule samtools_depth:
+    output:
+        depth="outputs/minimap/depth/{bam}.txt",
+    input:
+        bam="outputs/minimap/{bam}.bam",
+    conda: "env-minimap2.yml"
+    threads: 4
+    shell: """
+        samtools depth -aa {input.bam} > {output.depth}
+    """
