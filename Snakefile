@@ -9,8 +9,11 @@ rule all:
         expand("outputs/abundtrim/{sample}.abundtrim.fq.gz", sample=SAMPLES),
         expand("outputs/minimap/{s}.x.{g}.bam", s=SAMPLES, g=GENOMES),
         expand("outputs/minimap/depth/{s}.x.{g}.txt", s=SAMPLES, g=GENOMES),
-        expand("outputs/minimap/{s}.x.{g}.mapped.fastq", s=SAMPLES, g=GENOMES),
-        expand("outputs/minimap/{s}.x.{g}.read-names.txt", s=SAMPLES, g=GENOMES),
+        expand("outputs/minimap/{s}.x.{g}.mapped.fq.gz", s=SAMPLES, g=GENOMES),
+        expand("outputs/minimap/{s}.x.{g}.leftover.fq.gz", s=SAMPLES,
+               g=GENOMES),
+        expand("outputs/leftover/{s}.x.{g}.bam", s=SAMPLES, g=GENOMES),
+        expand("outputs/leftover/depth/{s}.x.{g}.txt", s=SAMPLES, g=GENOMES),
 
 rule download_reads:
     output: 
@@ -31,7 +34,7 @@ rule adapter_trim:
         r2 = 'outputs/trim/{sample}_R2.trim.fq.gz',
         o1 = 'outputs/trim/{sample}_o1.trim.fq.gz',
         o2 = 'outputs/trim/{sample}_o2.trim.fq.gz'
-    conda: 'env.yml'
+    conda: 'env/trim.yml'
     shell:'''
      trimmomatic PE {input.r1} {input.r2} \
              {output.r1} {output.o1} {output.r2} {output.o2} \
@@ -44,7 +47,7 @@ rule kmer_trim_reads:
         "outputs/trim/{sample}_R1.trim.fq.gz", 
         "outputs/trim/{sample}_R2.trim.fq.gz"
     output: "outputs/abundtrim/{sample}.abundtrim.fq.gz"
-    conda: 'env.yml'
+    conda: 'env/trim.yml'
     shell:'''
     interleave-reads.py {input} | 
         trim-low-abund.py -C 3 -Z 18 -M 30e9 -V - -o {output}
@@ -56,7 +59,7 @@ rule minimap:
     input:
         query = "inputs/genomes/{g}.fa.gz",
         metagenome = "outputs/abundtrim/{sra_id}.abundtrim.fq.gz",
-    conda: "env-minimap2.yml"
+    conda: "env/minimap2.yml"
     threads: 4
     shell: """
         minimap2 -ax sr -t {threads} {input.query} {input.metagenome} | \
@@ -65,33 +68,72 @@ rule minimap:
 
 rule samtools_fastq:
     output:
-        mapped="outputs/minimap/{bam}.mapped.fastq",
+        mapped="outputs/minimap/{bam}.mapped.fq.gz",
     input:
         bam="outputs/minimap/{bam}.bam",
-    conda: "env-minimap2.yml"
+    conda: "env/minimap2.yml"
     threads: 4
     shell: """
-        samtools bam2fq {input.bam} > {output.mapped}
+        samtools bam2fq {input.bam} | gzip > {output.mapped}
     """
 
 rule samtools_depth:
     output:
-        depth="outputs/minimap/depth/{bam}.txt",
+        depth="outputs/{dir}/depth/{bam}.txt",
     input:
-        bam="outputs/minimap/{bam}.bam",
-    conda: "env-minimap2.yml"
+        bam="outputs/{dir}/{bam}.bam",
+    conda: "env/minimap2.yml"
     threads: 4
     shell: """
         samtools depth -aa {input.bam} > {output.depth}
     """
 
-rule read_names:
-    output:
-        names="outputs/minimap/{bam}.read-names.txt",
+
+rule sourmash_reads:
     input:
-        mapped="outputs/minimap/{bam}.mapped.fastq",
-    run:
-        import screed
-        with open(output.names, 'wt') as fp:
-           for record in screed.open(input.mapped):
-              fp.write(f"{record.name}\n")
+        metagenome = "outputs/abundtrim/{sra_id}.abundtrim.fq.gz",
+    output:
+        sig = "outputs/sigs/{sra_id}.abundtrim.sig"
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash compute -k 21,31,51 --scaled=1000 {input} -o {output} \
+           --name {wildcards.sra_id}
+    """
+
+
+rule sourmash_gather_reads:
+    input:
+        sig = "outputs/sigs/{sra_id}.abundtrim.sig",
+        db = 'test.db.sbt.json'
+    output:
+        csv = "outputs/{sra_id}.gather.csv"
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash gather {input.sig} {input.db} -o {output.csv}
+    """
+
+
+rule extract_leftover_reads:
+    input:
+        expand("outputs/minimap/{{s}}.x.{g}.mapped.fq.gz", g=GENOMES),
+        csv = "outputs/{s}.gather.csv",
+    output:
+        expand("outputs/minimap/{{s}}.x.{g}.leftover.fq.gz", g=GENOMES)
+    conda: "env/sourmash.yml"
+    shell: """
+        scripts/subtract-gather.py {input.csv}
+    """
+
+
+rule map_leftover_reads:
+    output:
+        bam="outputs/leftover/{sra_id}.x.{g}.bam",
+    input:
+        query = "inputs/genomes/{g}.fa.gz",
+        reads = "outputs/minimap/{sra_id}.x.{g}.leftover.fq.gz",
+    conda: "env/minimap2.yml"
+    threads: 4
+    shell: """
+        minimap2 -ax sr -t {threads} {input.query} {input.reads} | \
+            samtools view -b -F 4 - | samtools sort - > {output.bam}
+    """

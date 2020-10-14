@@ -1,3 +1,6 @@
 .snakemake/
 inputs/
 outputs/
+*~
+test.db.sbt.json
+.sbt.test.db
