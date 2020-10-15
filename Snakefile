@@ -1,19 +1,19 @@
 # https://www.ebi.ac.uk/ena/browser/view/SRR606249
 SAMPLES = ['SRR606249']
-GENOMES = ['2', '63', '47']
+GENOMES = [str(i) for i in range(0, 64)]
 
 rule all:
     input:
-        expand("inputs/raw/{sample}_1.fastq.gz", sample = SAMPLES),
-        expand("outputs/trim/{sample}_R1.trim.fq.gz", sample=SAMPLES),
-        expand("outputs/abundtrim/{sample}.abundtrim.fq.gz", sample=SAMPLES),
-        expand("outputs/minimap/{s}.x.{g}.bam", s=SAMPLES, g=GENOMES),
-        expand("outputs/minimap/depth/{s}.x.{g}.txt", s=SAMPLES, g=GENOMES),
-        expand("outputs/minimap/{s}.x.{g}.mapped.fq.gz", s=SAMPLES, g=GENOMES),
-        expand("outputs/minimap/{s}.x.{g}.leftover.fq.gz", s=SAMPLES,
-               g=GENOMES),
-        expand("outputs/leftover/{s}.x.{g}.bam", s=SAMPLES, g=GENOMES),
-        expand("outputs/leftover/depth/{s}.x.{g}.txt", s=SAMPLES, g=GENOMES),
+        expand("outputs/minimap/depth/summary.csv"),
+        expand("outputs/leftover/depth/summary.csv"),
+
+rule zip:
+    shell: """
+        zip -r podar-mapping.zip outputs/leftover/depth/summary.csv \
+                outputs/minimap/depth/summary.csv \
+                outputs/*.gather.csv
+    """
+
 
 rule download_reads:
     output: 
@@ -88,6 +88,32 @@ rule samtools_depth:
         samtools depth -aa {input.bam} > {output.depth}
     """
 
+rule summarize_samtools_depth:
+    output: "outputs/{dir}/depth/summary.csv"
+    input:
+        expand("outputs/{{dir}}/depth/{s}.x.{g}.txt", s=SAMPLES, g=GENOMES)
+    run:
+        import pandas as pd
+
+        runs = {}
+        for sra_stat in input:
+            print(f'reading from {sra_stat}...')
+            data = pd.read_table(sra_stat, names=["contig", "pos", "coverage"])
+            sra_id = sra_stat.split("/")[-1].split(".")[0]
+            genome_id = sra_stat.split("/")[-1].split(".")[2]
+
+            d = {}
+            value_counts = data['coverage'].value_counts()
+            d['genome bp'] = int(len(data))
+            d['missed'] = int(value_counts.get(0, 0))
+            d['percent missed'] = 100 * d['missed'] / d['genome bp']
+            d['coverage'] = data['coverage'].sum() / len(data)
+            d['genome_id'] = genome_id
+            d['sample_id'] = sra_id
+            runs[genome_id] = d
+
+        pd.DataFrame(runs).T.to_csv(output[0])
+
 
 rule sourmash_reads:
     input:
@@ -104,7 +130,7 @@ rule sourmash_reads:
 rule sourmash_gather_reads:
     input:
         sig = "outputs/sigs/{sra_id}.abundtrim.sig",
-        db = 'test.db.sbt.json'
+        db = 'test.sbt.zip'
     output:
         csv = "outputs/{sra_id}.gather.csv"
     conda: "env/sourmash.yml"
