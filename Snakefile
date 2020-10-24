@@ -1,3 +1,5 @@
+import glob
+
 # https://www.ebi.ac.uk/ena/browser/view/SRR606249
 SAMPLES = ['SRR606249']
 GENOMES = [str(i) for i in range(0, 64)]
@@ -123,7 +125,7 @@ rule sourmash_reads:
     conda: "env/sourmash.yml"
     shell: """
         sourmash compute -k 21,31,51 --scaled=1000 {input} -o {output} \
-           --name {wildcards.sra_id}
+           --name {wildcards.sra_id} --track-abundance
     """
 
 
@@ -162,4 +164,51 @@ rule map_leftover_reads:
     shell: """
         minimap2 -ax sr -t {threads} {input.query} {input.reads} | \
             samtools view -b -F 4 - | samtools sort - > {output.bam}
+    """
+
+rule sourmash_gather_reads_podar:
+    input:
+        sig = "outputs/sigs/SRR606249.abundtrim.sig",
+        db = 'test.sbt.zip'
+    output:
+        csv = "outputs/big/SRR606249.x.podar.gather.csv"
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash gather {input.sig} {input.db} -o {output.csv}
+    """
+
+rule sourmash_gather_reads_genbank:
+    input:
+        sig = "outputs/sigs/SRR606249.abundtrim.sig",
+        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+    output:
+        csv = "outputs/big/SRR606249.x.genbank.gather.csv",
+        matches = "outputs/big/SRR606249.x.genbank.gather.sig",
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
+    """
+
+rule sourmash_gather_reads_ter1:
+    input:
+        sig = "/home/tereiter/github/2020-ibd/outputs/sigs/p8808mo11.sig",
+        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+    output:
+        csv = "outputs/big/p8808mo11.x.genbank.gather.csv",
+        matches = "outputs/big/p8808mo11.x.genbank.gather.sig"
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
+    """
+
+rule sourmash_gather_reads_ter2:
+    input:
+        sig = "/home/tereiter/github/2020-ibd/outputs/sigs/p8808mo9.sig",
+        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+    output:
+        csv = "outputs/big/p8808mo9.x.genbank.gather.csv",
+        matches = "outputs/big/p8808mo9.x.genbank.gather.sig"
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
     """
