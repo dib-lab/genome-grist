@@ -182,10 +182,11 @@ rule sourmash_gather_reads_genbank:
         sig = "outputs/sigs/SRR606249.abundtrim.sig",
         db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
     output:
-        csv = "outputs/big/SRR606249.x.genbank.gather.csv"
+        csv = "outputs/big/SRR606249.x.genbank.gather.csv",
+        matches = "outputs/big/SRR606249.x.genbank.gather.sig",
     conda: "env/sourmash.yml"
     shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv}
+        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
     """
 
 rule sourmash_gather_reads_ter1:
@@ -193,10 +194,11 @@ rule sourmash_gather_reads_ter1:
         sig = "/home/tereiter/github/2020-ibd/outputs/sigs/p8808mo11.sig",
         db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
     output:
-        csv = "outputs/big/p8808mo11.x.genbank.gather.csv"
+        csv = "outputs/big/p8808mo11.x.genbank.gather.csv",
+        matches = "outputs/big/p8808mo11.x.genbank.gather.sig"
     conda: "env/sourmash.yml"
     shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv}
+        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
     """
 
 rule sourmash_gather_reads_ter2:
@@ -204,8 +206,9 @@ rule sourmash_gather_reads_ter2:
         sig = "/home/tereiter/github/2020-ibd/outputs/sigs/p8808mo9.sig",
         db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
     output:
-        csv = "outputs/big/p8808mo9.x.genbank.gather.csv"
+        csv = "outputs/big/p8808mo9.x.genbank.gather.csv",
+        matches = "outputs/big/p8808mo9.x.genbank.gather.sig"
     conda: "env/sourmash.yml"
     shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv}
+        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
     """
