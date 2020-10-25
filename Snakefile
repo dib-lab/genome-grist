@@ -134,10 +134,11 @@ rule sourmash_gather_reads:
         sig = "outputs/sigs/{sra_id}.abundtrim.sig",
         db = 'test.sbt.zip'
     output:
-        csv = "outputs/{sra_id}.gather.csv"
+        csv = "outputs/{sra_id}.gather.csv",
+        out = "outputs/{sra_id}.gather.out",
     conda: "env/sourmash.yml"
     shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv}
+        sourmash gather {input.sig} {input.db} -o {output.csv} > {output.out}
     """
 
 
