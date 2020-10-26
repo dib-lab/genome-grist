@@ -9,6 +9,14 @@
 (7) run mapping on “leftover” reads to genomes
 (8) summarize all mapping results for comparison and graphing
 
+## Why grist
+
+NOT:
+https://en.wikipedia.org/wiki/Grist_(computing)
+
+THIS:
+https://en.wikipedia.org/wiki/Grist
+
 ## Leftover text
 
 [podar ref genomes](https://osf.io/vbhy5/download)
