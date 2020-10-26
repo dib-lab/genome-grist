@@ -1,13 +1,59 @@
-import glob
+import glob, os, csv
 
-# https://www.ebi.ac.uk/ena/browser/view/SRR606249
-SAMPLES = ['SRR606249']
-GENOMES = [str(i) for i in range(0, 64)]
+#SAMPLE='SRR606249'
+#SAMPLE='p8808mo11'
+SAMPLE='p8808mo9'
+GATHER_CSV=f'outputs/big/{SAMPLE}.x.genbank.gather.csv'
+
+sourmash_db = 'all-gather-genomes.sbt.zip'
+
+
+#gather_csv = ['outputs/big/p8808mo11.x.genbank.gather.csv',
+#              'outputs/big/p8808mo9.x.genbank.gather.csv',
+#              '']
+
+mapping_targets = []
+with open(GATHER_CSV, 'rt') as fp:
+   r = csv.DictReader(fp)
+   for row in r:
+      acc = row['name'].split(' ')[0]
+      mapping_targets.append(f'outputs/minimap/{SAMPLE}.x.{acc}.bam')
+
+
+# load in all the genomes; this could be changed to a more targeted approach!
+acc_to_genome = {}
+for filename in glob.glob('genomes/*.fna.gz'):
+    basename = os.path.basename(filename)
+    acc = basename.split('_')[:2]
+    acc = '_'.join(acc)
+    acc_to_genome[acc] = filename
+
+genome_accs = []
+with open(GATHER_CSV, 'rt') as fp:
+   r = csv.DictReader(fp)
+   for row in r:
+      acc = row['name'].split(' ')[0]
+      genome_accs.append(acc)
+
+if 'GCA_002160645.1' in genome_accs:
+    genome_accs.remove('GCA_002160645.1')
+
+def input_acc_to_genome(w):
+    return acc_to_genome[w.acc]
+
+
 
 rule all:
     input:
-        expand("outputs/minimap/depth/summary.csv"),
-        expand("outputs/leftover/depth/summary.csv"),
+        expand(f"outputs/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz",
+               acc=genome_accs),
+        expand(f"outputs/leftover/{SAMPLE}.x.{{acc}}.bam",
+               acc=genome_accs)
+
+#rule all:
+#    input:
+#        expand("outputs/minimap/depth/summary.csv"),
+#        expand("outputs/leftover/depth/summary.csv"),
 
 rule zip:
     shell: """
@@ -57,9 +103,9 @@ rule kmer_trim_reads:
 
 rule minimap:
     output:
-        bam="outputs/minimap/{sra_id}.x.{g}.bam",
+        bam="outputs/minimap/{sra_id}.x.{acc}.bam",
     input:
-        query = "inputs/genomes/{g}.fa.gz",
+        query = input_acc_to_genome,
         metagenome = "outputs/abundtrim/{sra_id}.abundtrim.fq.gz",
     conda: "env/minimap2.yml"
     threads: 4
@@ -93,7 +139,7 @@ rule samtools_depth:
 rule summarize_samtools_depth:
     output: "outputs/{dir}/depth/summary.csv"
     input:
-        expand("outputs/{{dir}}/depth/{s}.x.{g}.txt", s=SAMPLES, g=GENOMES)
+        "outputs/{{dir}}/depth/{s}.x.{g}.txt"
     run:
         import pandas as pd
 
@@ -132,7 +178,7 @@ rule sourmash_reads:
 rule sourmash_gather_reads:
     input:
         sig = "outputs/sigs/{sra_id}.abundtrim.sig",
-        db = 'test.sbt.zip'
+        db = sourmash_db,
     output:
         csv = "outputs/{sra_id}.gather.csv",
         out = "outputs/{sra_id}.gather.out",
@@ -144,10 +190,7 @@ rule sourmash_gather_reads:
 
 rule extract_leftover_reads:
     input:
-        expand("outputs/minimap/{{s}}.x.{g}.mapped.fq.gz", g=GENOMES),
         csv = "outputs/{s}.gather.csv",
-    output:
-        expand("outputs/minimap/{{s}}.x.{g}.leftover.fq.gz", g=GENOMES)
     conda: "env/sourmash.yml"
     shell: """
         scripts/subtract-gather.py {input.csv}
@@ -156,10 +199,10 @@ rule extract_leftover_reads:
 
 rule map_leftover_reads:
     output:
-        bam="outputs/leftover/{sra_id}.x.{g}.bam",
+        bam="outputs/leftover/{sra_id}.x.{acc}.bam",
     input:
-        query = "inputs/genomes/{g}.fa.gz",
-        reads = "outputs/minimap/{sra_id}.x.{g}.leftover.fq.gz",
+        query = input_acc_to_genome,
+        reads = "outputs/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
