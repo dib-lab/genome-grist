@@ -1,4 +1,4 @@
-# genome-grist - download genomes from NCBI, and map metagenomes to them
+# genome-grist - map Illumina metagenomes to GenBank genomes
 
 (1) download a metagenome
 (2) process it into trimmed reads, and make a [sourmash signature](https://sourmash.readthedocs.io/)
