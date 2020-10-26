@@ -1,8 +1,8 @@
 import glob, os, csv
 
 #SAMPLE='SRR606249'
-#SAMPLE='p8808mo11'
-SAMPLE='p8808mo9'
+SAMPLE='p8808mo11'
+#SAMPLE='p8808mo9'
 GATHER_CSV=f'outputs/big/{SAMPLE}.x.genbank.gather.csv'
 
 sourmash_db = 'all-gather-genomes.sbt.zip'
@@ -48,17 +48,15 @@ rule all:
         expand(f"outputs/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz",
                acc=genome_accs),
         expand(f"outputs/leftover/{SAMPLE}.x.{{acc}}.bam",
-               acc=genome_accs)
+               acc=genome_accs),
+        f"outputs/minimap/depth/{SAMPLE}.summary.csv",
+        f"outputs/leftover/depth/{SAMPLE}.summary.csv"
 
-#rule all:
-#    input:
-#        expand("outputs/minimap/depth/summary.csv"),
-#        expand("outputs/leftover/depth/summary.csv"),
 
 rule zip:
     shell: """
-        zip -r podar-mapping.zip outputs/leftover/depth/summary.csv \
-                outputs/minimap/depth/summary.csv \
+        zip -r transfer.zip outputs/leftover/depth/*.summary.csv \
+                outputs/minimap/depth/*.summary.csv \
                 outputs/*.gather.csv
     """
 
@@ -131,15 +129,15 @@ rule samtools_depth:
     input:
         bam="outputs/{dir}/{bam}.bam",
     conda: "env/minimap2.yml"
-    threads: 4
     shell: """
         samtools depth -aa {input.bam} > {output.depth}
     """
 
 rule summarize_samtools_depth:
-    output: "outputs/{dir}/depth/summary.csv"
+    output: f"outputs/{{dir}}/depth/{SAMPLE}.summary.csv"
     input:
-        "outputs/{{dir}}/depth/{s}.x.{g}.txt"
+        expand("outputs/{{dir}}/depth/{s}.x.{g}.txt",
+               s=SAMPLE, g=genome_accs)
     run:
         import pandas as pd
 
@@ -188,9 +186,15 @@ rule sourmash_gather_reads:
     """
 
 
+# @CTB update subtract-gather to take sample ID as param
 rule extract_leftover_reads:
     input:
-        csv = "outputs/{s}.gather.csv",
+        csv = GATHER_CSV,
+        reads = expand(f"outputs/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz",
+                       acc=genome_accs),
+    output:
+        expand(f"outputs/minimap/{SAMPLE}.x.{{acc}}.leftover.fq.gz",
+               acc=genome_accs),
     conda: "env/sourmash.yml"
     shell: """
         scripts/subtract-gather.py {input.csv}
