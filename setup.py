@@ -1,5 +1,11 @@
 from setuptools import setup, find_packages
 
+# read the contents of your README file
+from os import path
+this_directory = path.abspath(path.dirname(__file__))
+with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+   long_description = f.read()
+
 CLASSIFIERS = [
     "Environment :: Console",
     "Environment :: MacOS X",
@@ -33,5 +39,7 @@ setup(
     setup_requires = [ "setuptools>=38.6.0",
                        'setuptools_scm', 'setuptools_scm_git_archive' ],
     use_scm_version = {"write_to": "genome_grist/version.py"},
-    install_requires = ['snakemake>=5.10', 'click>=7']
+    install_requires = ['snakemake>=5.10', 'click>=7'],
+    long_description=long_description,
+    long_description_content_type="text/markdown",
 )
