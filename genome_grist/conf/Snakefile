@@ -1,16 +1,11 @@
 import glob, os, csv
 
-#SAMPLE='SRR606249'
-SAMPLE='p8808mo11'
-#SAMPLE='p8808mo9'
+SAMPLE=config['sample']
+print(f'sample: {SAMPLE}')
+
 GATHER_CSV=f'outputs/big/{SAMPLE}.x.genbank.gather.csv'
 
-sourmash_db = 'all-gather-genomes.sbt.zip'
-
-
-#gather_csv = ['outputs/big/p8808mo11.x.genbank.gather.csv',
-#              'outputs/big/p8808mo9.x.genbank.gather.csv',
-#              '']
+sourmash_db = 'all-gather-genomes.sbt.zip'   # CTB add to conf
 
 mapping_targets = []
 with open(GATHER_CSV, 'rt') as fp:
@@ -22,7 +17,7 @@ with open(GATHER_CSV, 'rt') as fp:
 
 # load in all the genomes; this could be changed to a more targeted approach!
 acc_to_genome = {}
-for filename in glob.glob('genomes/*.fna.gz'):
+for filename in glob.glob('genomes/*.fna.gz'):   # CTB add to conf
     basename = os.path.basename(filename)
     acc = basename.split('_')[:2]
     acc = '_'.join(acc)
@@ -40,7 +35,6 @@ if 'GCA_002160645.1' in genome_accs:
 
 def input_acc_to_genome(w):
     return acc_to_genome[w.acc]
-
 
 
 rule all:
