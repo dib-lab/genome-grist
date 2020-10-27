@@ -6,3 +6,7 @@ test.db.sbt.json
 .sbt.test.db
 __pycache__
 .eggs
+build/
+dist/
+genome_grist.egg-info/
+genome_grist/version.py

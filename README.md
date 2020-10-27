@@ -1,5 +1,8 @@
 # genome-grist - map Illumina metagenomes to GenBank genomes
 
+<a href="https://pypi.org/project/genome-grist/"><img alt="PyPI" src="https://badge.fury.io/py/genome-grist.svg"></a>
+<a href="https://github.com/dib-lab/pybbhash/blob/latest/LICENSE.txt"><img alt="License: 3-Clause BSD" src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg"></a>
+
 (1) download a metagenome
 (2) process it into trimmed reads, and make a [sourmash signature](https://sourmash.readthedocs.io/)
 (3) search the sourmash signature with 'gather' against sourmash databases, e.g. all of genbank
