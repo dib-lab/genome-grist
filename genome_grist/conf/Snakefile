@@ -259,3 +259,15 @@ rule sourmash_gather_reads_ter2:
     shell: """
         sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
     """
+
+rule sourmash_gather_reads_twofoo_head:
+    input:
+        sig = "outputs/sigs/twofoo-head.abundtrim.sig",
+        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+    output:
+        csv = "outputs/genbank/twofoo-head.x.genbank.gather.csv",
+        matches = "outputs/genbank/twofoo-head.x.genbank.gather.sig",
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
+    """
