@@ -8,17 +8,19 @@ GATHER_CSV=f'outputs/big/{SAMPLE}.x.genbank.gather.csv'
 sourmash_db = 'all-gather-genomes.sbt.zip'   # CTB add to conf
 
 genome_accs = []
+gather_rows = []
 if os.path.exists(GATHER_CSV):
     with open(GATHER_CSV, 'rt') as fp:
        r = csv.DictReader(fp)
        for row in r:
+           gather_rows.append(row)
            acc = row['name'].split(' ')[0]
            genome_accs.append(acc)
 
 
 # load in all the genomes; this could be changed to a more targeted approach!
 acc_to_genome = {}
-for filename in glob.glob('genomes/*.fna.gz'):   # CTB add to conf
+for filename in glob.glob('outputs/genomes/*.fna.gz'):   # CTB add to conf
     basename = os.path.basename(filename)
     acc = basename.split('_')[:2]
     acc = '_'.join(acc)
@@ -42,6 +44,31 @@ rule all:
         f"outputs/minimap/depth/{SAMPLE}.summary.csv",
         f"outputs/leftover/depth/{SAMPLE}.summary.csv"
 
+
+rule download_matching_genomes:
+    input:
+        csv = GATHER_CSV,
+        url_file = f"outputs/genbank/{SAMPLE}.genomes.urls.txt"
+    output:
+        genomes_dir = "outputs/genomes/"
+    conda: 'env/wget.yml'
+    shell: """
+        wget -i {input.url_file} -nc -P {output.genomes_dir} --limit-rate=400k
+    """
+
+rule get_matching_genome_urls:
+    input:
+        csv = GATHER_CSV,
+    output:
+        url_file = f"outputs/genbank/{SAMPLE}.genomes.urls.txt"
+    run:
+        from genome_grist.genbank_genomes import url_for_accession
+        with open(output.url_file, 'wt') as fp:
+            for acc in genome_accs:
+                genome_url = url_for_accession(acc)
+                if not genome_url:
+                    raise Exception(f'cannot resolve genome url {acc}')
+                print(genome_url, file=fp)
 
 # print out the configuration
 rule showconf:
@@ -196,7 +223,7 @@ rule extract_leftover_reads:
                acc=genome_accs),
     conda: "env/sourmash.yml"
     shell: """
-        scripts/subtract-gather.py {input.csv}
+        python -m genome_grist.subtract_gather {input.csv}
     """
 
 

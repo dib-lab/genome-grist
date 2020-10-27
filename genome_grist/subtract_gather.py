@@ -34,7 +34,9 @@ def main():
     pairs = []
     fail = False
     for row in rows:
-        acc = row['name'].split('_')[:2]
+        acc = row['name'].split(' ')[0]
+        assert acc.startswith('GC')
+        acc = acc.split('_')[:2]
         acc = '_'.join(acc)
 
         filename = f'outputs/minimap/{sample_id}.x.{acc}.mapped.fq.gz'
