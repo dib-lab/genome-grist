@@ -3,22 +3,30 @@ import glob, os, csv
 SAMPLE=config['sample']
 print(f'sample: {SAMPLE}')
 
-GATHER_CSV=f'outputs/big/{SAMPLE}.x.genbank.gather.csv'
+outdir = config.get('outdir', 'outputs')
+print('XXX', outdir)
 
-sourmash_db = 'all-gather-genomes.sbt.zip'   # CTB add to conf
+GATHER_CSV=f'{outdir}/big/{SAMPLE}.x.genbank.gather.csv'
+
+sourmash_db = config.get('db', 'all-gather-genomes.sbt.zip')   # CTB add to conf
 
 genome_accs = []
+gather_rows = []
 if os.path.exists(GATHER_CSV):
+    print(f'{GATHER_CSV} exists!')
     with open(GATHER_CSV, 'rt') as fp:
        r = csv.DictReader(fp)
        for row in r:
+           gather_rows.append(row)
            acc = row['name'].split(' ')[0]
            genome_accs.append(acc)
+else:
+    print(f'{GATHER_CSV} does not exist.')
 
 
 # load in all the genomes; this could be changed to a more targeted approach!
 acc_to_genome = {}
-for filename in glob.glob('genomes/*.fna.gz'):   # CTB add to conf
+for filename in glob.glob('{outdir}genomes/*.fna.gz'):   # CTB add to conf
     basename = os.path.basename(filename)
     acc = basename.split('_')[:2]
     acc = '_'.join(acc)
@@ -33,15 +41,44 @@ def input_acc_to_genome(w):
 
 ###
 
+wildcard_constraints:
+    size="\d+",
+    sra_id='[a-zA-Z0-9._-]+'                   # should be everything but /
+
 rule all:
     input:
-        expand(f"outputs/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz",
+        expand(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz",
                acc=genome_accs),
-        expand(f"outputs/leftover/{SAMPLE}.x.{{acc}}.bam",
+        expand(f"{outdir}/leftover/{SAMPLE}.x.{{acc}}.bam",
                acc=genome_accs),
-        f"outputs/minimap/depth/{SAMPLE}.summary.csv",
-        f"outputs/leftover/depth/{SAMPLE}.summary.csv"
+        f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
+        f"{outdir}/leftover/depth/{SAMPLE}.summary.csv"
 
+
+rule download_matching_genomes:
+    input:
+        csv = GATHER_CSV,
+        url_file = f"{outdir}/genbank/{SAMPLE}.genomes.urls.txt"
+    output:
+        genomes_dir = directory(outdir + "/genomes/")
+    conda: 'env/wget.yml'
+    shell: """
+        wget -i {input.url_file} -nc -P {output.genomes_dir} --limit-rate=400k
+    """
+
+rule get_matching_genome_urls:
+    input:
+        csv = GATHER_CSV,
+    output:
+        url_file = f"{outdir}/genbank/{SAMPLE}.genomes.urls.txt"
+    run:
+        from genome_grist.genbank_genomes import url_for_accession
+        with open(output.url_file, 'wt') as fp:
+            for acc in genome_accs:
+                genome_url = url_for_accession(acc)
+                if not genome_url:
+                    raise Exception(f'cannot resolve genome url {acc}')
+                print(genome_url, file=fp)
 
 # print out the configuration
 rule showconf:
@@ -54,9 +91,9 @@ rule showconf:
 
 rule zip:
     shell: """
-        zip -r transfer.zip outputs/leftover/depth/*.summary.csv \
-                outputs/minimap/depth/*.summary.csv \
-                outputs/*.gather.csv
+        zip -r transfer.zip {outdir}leftover/depth/*.summary.csv \
+                {outdir}minimap/depth/*.summary.csv \
+                {outdir}*.gather.csv
     """
 
 
@@ -89,9 +126,9 @@ rule adapter_trim:
 
 rule kmer_trim_reads:
     input: 
-        "outputs/trim/{sample}_R1.trim.fq.gz", 
-        "outputs/trim/{sample}_R2.trim.fq.gz"
-    output: "outputs/abundtrim/{sample}.abundtrim.fq.gz"
+        outdir + "/trim/{sample}_R1.trim.fq.gz", 
+        outdir + "/trim/{sample}_R2.trim.fq.gz"
+    output: outdir + "/abundtrim/{sample}.abundtrim.fq.gz"
     conda: 'env/trim.yml'
     shell:'''
     interleave-reads.py {input} | 
@@ -103,7 +140,7 @@ rule minimap:
         bam="outputs/minimap/{sra_id}.x.{acc}.bam",
     input:
         query = input_acc_to_genome,
-        metagenome = "outputs/abundtrim/{sra_id}.abundtrim.fq.gz",
+        metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -133,7 +170,7 @@ rule samtools_depth:
     """
 
 rule summarize_samtools_depth:
-    output: f"outputs/{{dir}}/depth/{SAMPLE}.summary.csv"
+    output: f"{outdir}/{{dir}}/depth/{SAMPLE}.summary.csv"
     input:
         expand("outputs/{{dir}}/depth/{s}.x.{g}.txt",
                s=SAMPLE, g=genome_accs)
@@ -162,9 +199,9 @@ rule summarize_samtools_depth:
 
 rule sourmash_reads:
     input:
-        metagenome = "outputs/abundtrim/{sra_id}.abundtrim.fq.gz",
+        metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
     output:
-        sig = "outputs/sigs/{sra_id}.abundtrim.sig"
+        sig = outdir + "/sigs/{sra_id}.abundtrim.sig"
     conda: "env/sourmash.yml"
     shell: """
         sourmash compute -k 21,31,51 --scaled=1000 {input} -o {output} \
@@ -174,11 +211,11 @@ rule sourmash_reads:
 
 rule sourmash_gather_reads:
     input:
-        sig = "outputs/sigs/{sra_id}.abundtrim.sig",
+        sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
         db = sourmash_db,
     output:
-        csv = "outputs/{sra_id}.gather.csv",
-        out = "outputs/{sra_id}.gather.out",
+        csv = outdir + "/{sra_id}.gather.csv",
+        out = outdir + "/{sra_id}.gather.out",
     conda: "env/sourmash.yml"
     shell: """
         sourmash gather {input.sig} {input.db} -o {output.csv} > {output.out}
@@ -189,14 +226,14 @@ rule sourmash_gather_reads:
 rule extract_leftover_reads:
     input:
         csv = GATHER_CSV,
-        reads = expand(f"outputs/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz",
+        reads = expand(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz",
                        acc=genome_accs),
     output:
-        expand(f"outputs/minimap/{SAMPLE}.x.{{acc}}.leftover.fq.gz",
+        expand(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.leftover.fq.gz",
                acc=genome_accs),
     conda: "env/sourmash.yml"
     shell: """
-        scripts/subtract-gather.py {input.csv}
+        python -m genome_grist.subtract_gather {input.csv}
     """
 
 
@@ -205,7 +242,7 @@ rule map_leftover_reads:
         bam="outputs/leftover/{sra_id}.x.{acc}.bam",
     input:
         query = input_acc_to_genome,
-        reads = "outputs/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
+        reads = outdir + "/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -215,10 +252,10 @@ rule map_leftover_reads:
 
 rule sourmash_gather_reads_podar:
     input:
-        sig = "outputs/sigs/SRR606249.abundtrim.sig",
+        sig = outdir + "/sigs/SRR606249.abundtrim.sig",
         db = 'test.sbt.zip'
     output:
-        csv = "outputs/big/SRR606249.x.podar.gather.csv"
+        csv = outdir + "/big/SRR606249.x.podar.gather.csv"
     conda: "env/sourmash.yml"
     shell: """
         sourmash gather {input.sig} {input.db} -o {output.csv}
@@ -226,11 +263,11 @@ rule sourmash_gather_reads_podar:
 
 rule sourmash_gather_reads_genbank:
     input:
-        sig = "outputs/sigs/SRR606249.abundtrim.sig",
+        sig = outdir + "/sigs/SRR606249.abundtrim.sig",
         db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
     output:
-        csv = "outputs/big/SRR606249.x.genbank.gather.csv",
-        matches = "outputs/big/SRR606249.x.genbank.gather.sig",
+        csv = outdir + "/big/SRR606249.x.genbank.gather.csv",
+        matches = outdir + "/big/SRR606249.x.genbank.gather.sig",
     conda: "env/sourmash.yml"
     shell: """
         sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
@@ -241,8 +278,8 @@ rule sourmash_gather_reads_ter1:
         sig = "/home/tereiter/github/2020-ibd/outputs/sigs/p8808mo11.sig",
         db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
     output:
-        csv = "outputs/big/p8808mo11.x.genbank.gather.csv",
-        matches = "outputs/big/p8808mo11.x.genbank.gather.sig"
+        csv = outdir + "/big/p8808mo11.x.genbank.gather.csv",
+        matches = outdir + "/big/p8808mo11.x.genbank.gather.sig"
     conda: "env/sourmash.yml"
     shell: """
         sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
@@ -253,8 +290,20 @@ rule sourmash_gather_reads_ter2:
         sig = "/home/tereiter/github/2020-ibd/outputs/sigs/p8808mo9.sig",
         db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
     output:
-        csv = "outputs/big/p8808mo9.x.genbank.gather.csv",
-        matches = "outputs/big/p8808mo9.x.genbank.gather.sig"
+        csv = outdir + "/big/p8808mo9.x.genbank.gather.csv",
+        matches = outdir + "/big/p8808mo9.x.genbank.gather.sig"
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
+    """
+
+rule sourmash_gather_reads_twofoo_head:
+    input:
+        sig = outdir + "/sigs/twofoo-head.abundtrim.sig",
+        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+    output:
+        csv = outdir + "/genbank/twofoo-head.x.genbank.gather.csv",
+        matches = outdir + "/genbank/twofoo-head.x.genbank.gather.sig",
     conda: "env/sourmash.yml"
     shell: """
         sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
