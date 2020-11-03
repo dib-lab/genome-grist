@@ -98,13 +98,21 @@ rule zip:
 
 
 rule download_reads:
-    output: 
-        r1='inputs/raw/{sample}_1.fastq.gz',
-        r2='inputs/raw/{sample}_2.fastq.gz'
-    shell:'''
-    wget -O {output.r1} ftp://ftp.ebi.ac.uk/vol1/fastq/SRR606/SRR606249/SRR606249_1.fastq.gz
-    wget -O {output.r2} ftp://ftp.ebi.ac.uk/vol1/fastq/SRR606/SRR606249/SRR606249_2.fastq.gz
-    '''
+    output:
+        "outputs/raw/{sra_id}.fastq.gz",
+    conda: "env/sra.yml"
+    shell: '''
+        fastq-dump --skip-technical  \
+               --readids \
+               --read-filter pass \
+               --dumpbase \
+               --split-spot \
+               --clip \
+               -Z \
+               {wildcards.sra_id} | \
+               perl -ne 's/\.([12]) /\/$1 /; print $_' | \
+               gzip > {output}
+        '''
 
 rule adapter_trim:
     input:
