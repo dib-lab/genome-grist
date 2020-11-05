@@ -60,7 +60,7 @@ rule download_matching_genomes:
         csv = GATHER_CSV,
         url_file = f"{outdir}/genbank/{SAMPLE}.genomes.urls.txt"
     output:
-        genomes_dir = directory(outdir + "/genomes/")
+        genomes_dir = directory("outputs/genomes/")
     conda: 'env/wget.yml'
     shell: """
         wget -i {input.url_file} -nc -P {output.genomes_dir} --limit-rate=400k
@@ -114,6 +114,17 @@ rule download_reads:
                gzip > {output}
         '''
 
+rule split_reads:
+    input:
+        "outputs/raw/{sample}.fastq.gz"
+    output:
+        r1 = "inputs/raw/{sample}_1.fastq.gz",
+        r2 = 'inputs/raw/{sample}_2.fastq.gz',
+    conda: 'env/trim.yml'
+    shell: '''
+        split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2} {input}
+    '''
+
 rule adapter_trim:
     input:
         r1 = "inputs/raw/{sample}_1.fastq.gz",
@@ -140,7 +151,7 @@ rule kmer_trim_reads:
     conda: 'env/trim.yml'
     shell:'''
     interleave-reads.py {input} | 
-        trim-low-abund.py -C 3 -Z 18 -M 30e9 -V - -o {output}
+        trim-low-abund.py -C 3 -Z 18 -M 60e9 -V - -o {output}
     '''
 
 rule minimap:
@@ -312,6 +323,30 @@ rule sourmash_gather_reads_twofoo_head:
     output:
         csv = outdir + "/genbank/twofoo-head.x.genbank.gather.csv",
         matches = outdir + "/genbank/twofoo-head.x.genbank.gather.sig",
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
+    """
+
+rule sourmash_gather_reads_hu:
+    input:
+        sig = "outputs/sigs/SRR1976948.abundtrim.sig",
+        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+    output:
+        csv = "outputs/genbank/SRR1976948.x.genbank.gather.csv",
+        matches = "outputs/genbank/SRR1976948.x.genbank.gather.sig",
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
+    """
+
+rule sourmash_gather_reads_hu_remaining:
+    input:
+        sig = "outputs/sigs/SRR1976948.abundtrim.remaining.sig",
+        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+    output:
+        csv = "outputs/genbank/SRR1976948-remaining.x.genbank.gather.csv",
+        matches = "outputs/genbank/SRR1976948-remaining.x.genbank.gather.sig",
     conda: "env/sourmash.yml"
     shell: """
         sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
