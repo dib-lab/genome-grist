@@ -114,6 +114,17 @@ rule download_reads:
                gzip > {output}
         '''
 
+rule split_reads:
+    input:
+        "outputs/raw/{sample}.fastq.gz"
+    output:
+        r1 = "inputs/raw/{sample}_1.fastq.gz",
+        r2 = 'inputs/raw/{sample}_2.fastq.gz',
+    conda: 'env/trim.yml'
+    shell: '''
+        split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2} {input}
+    '''
+
 rule adapter_trim:
     input:
         r1 = "inputs/raw/{sample}_1.fastq.gz",
@@ -140,7 +151,7 @@ rule kmer_trim_reads:
     conda: 'env/trim.yml'
     shell:'''
     interleave-reads.py {input} | 
-        trim-low-abund.py -C 3 -Z 18 -M 30e9 -V - -o {output}
+        trim-low-abund.py -C 3 -Z 18 -M 60e9 -V - -o {output}
     '''
 
 rule minimap:
