@@ -298,6 +298,7 @@ rule make_notebook:
 
 rule make_html:
     input:
+        source_nb='genome_grist/notebooks/report-sample.ipynb',
         notebook = outdir + f'/reports/report-{SAMPLE}.ipynb'
     output:
         outdir + f'/reports/report-{SAMPLE}.html'
