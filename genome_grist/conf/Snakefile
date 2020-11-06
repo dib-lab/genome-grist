@@ -258,7 +258,7 @@ rule make_notebook:
     conda: 'env/papermill.yml'
     shell: """
         papermill {input.nb} - -k charcoal \
-              -p sample {SAMPLE:q} -p render '' \
+              -p sample_id {SAMPLE:q} -p render '' \
               > {output}
     """
 #     --cwd {report_dir} \
