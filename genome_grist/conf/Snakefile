@@ -95,9 +95,9 @@ rule showconf:
 
 rule zip:
     shell: """
-        zip -r transfer.zip {outdir}leftover/depth/*.summary.csv \
-                {outdir}minimap/depth/*.summary.csv \
-                {outdir}*.gather.csv
+        zip -r transfer.zip {outdir}/leftover/depth/*.summary.csv \
+                {outdir}/minimap/depth/*.summary.csv \
+                {outdir}/*.gather.csv
     """
 
 
