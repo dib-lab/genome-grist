@@ -254,15 +254,16 @@ rule make_notebook:
         nb='genome_grist/notebooks/report-sample.ipynb',
         kernel_set = rules.set_kernel.output
     output:
-        outdir + f'/reports/report-{SAMPLE}.ipynb'
+        nb = outdir + f'/reports/report-{SAMPLE}.ipynb',
+    params:
+        cwd = outdir + '/reports/'
     conda: 'env/papermill.yml'
     shell: """
         papermill {input.nb} - -k charcoal \
               -p sample_id {SAMPLE:q} -p render '' \
-              > {output}
+              --cwd {params.cwd} \
+              > {output.nb}
     """
-#     --cwd {report_dir} \
-
 
 rule make_html:
     input:
