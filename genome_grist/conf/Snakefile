@@ -3,7 +3,8 @@ import glob, os, csv
 SAMPLE=config['sample']
 print(f'sample: {SAMPLE}')
 
-outdir = config.get('outdir', 'outputs')
+outdir = config.get('outdir', 'outputs/')
+outdir = outdir.rstrip('/')
 print('XXX', outdir)
 
 GATHER_CSV=f'{outdir}/big/{SAMPLE}.x.genbank.gather.csv'
