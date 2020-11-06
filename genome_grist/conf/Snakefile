@@ -59,6 +59,36 @@ rule all:
         f"{outdir}/leftover/depth/{SAMPLE}.summary.csv"
 
 
+# top-level targets:
+# - download_reads
+# - trim_reads
+# - smash_reads
+# - gather_genbank @CTB not yet done
+# - download_matching_genomes
+# - map_reads
+# - summarize
+
+rule download_reads:
+    input:
+        url_file = f"{outdir}/raw/{SAMPLE}.fastq.gz"
+
+rule trim_reads:
+    input:
+        url_file = f"{outdir}/abundtrim/{SAMPLE}.abundtrim.fq.gz"
+
+rule smash_reads:
+    input:
+        url_file = f"{outdir}/sigs/{SAMPLE}.abundtrim.sig"
+
+rule map_reads:
+    input:
+        f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
+        f"{outdir}/leftover/depth/{SAMPLE}.summary.csv"
+
+rule summarize:
+    input:
+        outdir + f'/reports/report-{SAMPLE}.html'
+
 rule download_matching_genomes:
     input:
         csv = GATHER_CSV,
@@ -122,7 +152,7 @@ rule zip:
     """
 
 
-rule download_reads:
+rule download_sra_general:
     output:
         "outputs/raw/{sra_id}.fastq.gz",
     conda: "env/sra.yml"
