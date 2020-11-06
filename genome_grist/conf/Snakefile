@@ -197,8 +197,8 @@ rule summarize_samtools_depth:
         import pandas as pd
 
         runs = {}
-        for sra_stat in input:
-            print(f'reading from {sra_stat}...')
+        for n, sra_stat in enumerate(input):
+            print(f'reading from {sra_stat} - {n+1}/{len(input)}...')
             data = pd.read_table(sra_stat, names=["contig", "pos", "coverage"])
             sra_id = sra_stat.split("/")[-1].split(".")[0]
             genome_id = sra_stat.split("/")[-1].split(".")[2]
