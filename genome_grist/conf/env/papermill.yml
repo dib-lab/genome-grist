@@ -1,0 +1,10 @@
+# conda environment configuration for snakemake --use-conda
+channels:
+    - conda-forge
+    - bioconda
+    - defaults
+dependencies:
+    - papermill>=2.1.2,<3
+    - notebook>=6,<7
+    - plotly>=4.9.0,<5
+    - ipykernel

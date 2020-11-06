@@ -151,7 +151,7 @@ rule kmer_trim_reads:
     conda: 'env/trim.yml'
     shell:'''
     interleave-reads.py {input} | 
-        trim-low-abund.py -C 3 -Z 18 -M 60e9 -V - -o {output}
+        trim-low-abund.py -C 3 -Z 18 -M 10e9 -V - -o {output}
     '''
 
 rule minimap:
@@ -240,6 +240,40 @@ rule sourmash_gather_reads:
         sourmash gather {input.sig} {input.db} -o {output.csv} > {output.out}
     """
 
+rule set_kernel:
+    output:
+        f"{outdir}/.kernel.set"
+    conda: 'env/papermill.yml'
+    shell: """
+        python -m ipykernel install --user --name charcoal
+        touch {output}
+    """
+
+rule make_notebook:
+    input:
+        nb='genome_grist/notebooks/report-sample.ipynb',
+        kernel_set = rules.set_kernel.output
+    output:
+        outdir + f'/reports/report-{SAMPLE}.ipynb'
+    conda: 'env/papermill.yml'
+    shell: """
+        papermill {input.nb} - -k charcoal \
+              -p sample {SAMPLE:q} -p render '' \
+              > {output}
+    """
+#     --cwd {report_dir} \
+
+
+rule make_html:
+    input:
+        notebook = outdir + f'/reports/report-{SAMPLE}.ipynb'
+    output:
+        outdir + f'/reports/report-{SAMPLE}.html'
+    conda: 'env/papermill.yml'
+    shell: """
+        python -m nbconvert {input.notebook} --to html --stdout --no-input --ExecutePreprocessor.kernel_name=charcoal > {output}
+    """
+     
 
 # @CTB update subtract-gather to take sample ID as param
 rule extract_leftover_reads:
