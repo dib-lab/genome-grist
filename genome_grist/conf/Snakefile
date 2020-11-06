@@ -70,19 +70,40 @@ rule download_matching_genomes:
         wget -i {input.url_file} -nc -P {output.genomes_dir} --limit-rate=400k
     """
 
+rule extract_genome_accs_from_gather:
+    input:
+        csv = GATHER_CSV,
+    output:
+        acc_file = f"{outdir}/genbank/{SAMPLE}.genomes.accs.txt"
+    run:
+        with open(output.acc_file, 'wt') as fp:
+           print("\n".join(genome_accs), file=fp)
+
+rule get_matching_genome_info:
+    input:
+        csv = GATHER_CSV,
+        acc_file = f"{outdir}/genbank/{SAMPLE}.genomes.accs.txt"
+    output:
+        info_file = f"{outdir}/genbank/{SAMPLE}.genomes.info.csv"
+    shell: """
+        python -m genome_grist.genbank_genomes {input.acc_file} \
+          -o {output.info_file}
+    """
+
+
 rule get_matching_genome_urls:
     input:
         csv = GATHER_CSV,
+        info_file = f"{outdir}/genbank/{SAMPLE}.genomes.info.csv"
     output:
         url_file = f"{outdir}/genbank/{SAMPLE}.genomes.urls.txt"
     run:
         from genome_grist.genbank_genomes import url_for_accession
-        with open(output.url_file, 'wt') as fp:
-            for acc in genome_accs:
-                genome_url, report_url = url_for_accession(acc)
-                if not genome_url:
-                    raise Exception(f'cannot resolve genome url {acc}')
-                print(genome_url, file=fp)
+        with open(input.info_file, 'rt') as rfp:
+            with open(output.url_file, 'wt') as ofp:
+                r = csv.DictReader(rfp)
+                for row in r:
+                    print(row["genome_url"], file=ofp)
 
 # print out the configuration
 rule showconf:
@@ -97,7 +118,7 @@ rule zip:
     shell: """
         zip -r transfer.zip {outdir}/leftover/depth/*.summary.csv \
                 {outdir}/minimap/depth/*.summary.csv \
-                {outdir}/*.gather.csv
+                {outdir}/*.gather.csv {outdir}/genbank/*.csv
     """
 
 

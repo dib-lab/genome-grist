@@ -40,35 +40,43 @@ def main():
         acc = '_'.join(acc)
 
         filename = f'outputs/minimap/{sample_id}.x.{acc}.mapped.fq.gz'
-        outfile = f'outputs/minimap/{sample_id}.x.{acc}.leftover.fq.gz'
+        overlapping = f'outputs/minimap/{sample_id}.x.{acc}.overlap.fq.gz'
+        leftover = f'outputs/minimap/{sample_id}.x.{acc}.leftover.fq.gz'
 
         if not os.path.exists(filename):
             print(f'ERROR: input filename {filename} does not exist. Will exit.')
             fail = True
 
-        pairs.append((acc, filename, outfile))
+        pairs.append((acc, filename, overlapping, leftover))
 
     if fail:
         print(f'Some required input files not found - exiting.')
         sys.exit(-1)
 
     ignore_reads = set()
-    for (acc, filename, outfile) in pairs:
-        fp = gzip.open(outfile, 'wt')
+    for (acc, filename, overlapping, leftover) in pairs:
+        overlap_fp = gzip.open(overlapping, 'wt')
+        leftover_fp = gzip.open(leftover, 'wt')
 
         print(f'reading sequences from {filename};')
-        print(f'writing remaining to {outfile}')
+        print(f'writing overlapping to {overlapping}')
+        print(f'writing remaining to {leftover}')
+
         n_wrote = 0
         for record in screed.open(filename):
+            fq = f'@{record.name}\n{record.sequence}\n+\n{record.quality}\n'
             if record.name in ignore_reads:
-                continue
-            ignore_reads.add(record.name)
-
-            fp.write(f'@{record.name}\n{record.sequence}\n+\n{record.quality}\n')
+                overlap_fp.write(fq)
+            else:
+                ignore_reads.add(record.name)
+                leftover_fp.write(fq)
             n_wrote += 1
 
-        print(f'wrote {n_wrote} records for {sample_id}.x.{acc};')
+        print(f'wrote {n_wrote} leftover records for {sample_id}.x.{acc};')
         print(f'{len(ignore_reads)} total reads to ignore moving forward.')
+
+    # <-- here is where we can go through the input reads and output unmapped.
+    # (OR, save 'ignore_reads' and let another script handle it.)
 
     return 0
 
