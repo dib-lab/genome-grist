@@ -7,4 +7,4 @@ dependencies:
  - screed
  - pip
  - pip:
-   - http://github.com/dib-lab/genome-grist/archive/latest.zip
+   - git+https://github.com/dib-lab/genome-grist.git#egg=genome-grist
