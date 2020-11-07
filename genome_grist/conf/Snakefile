@@ -2,36 +2,35 @@
 # - download_reads
 # - trim_reads
 # - smash_reads
-# - gather_genbank @CTB not yet done
+# - gather_genbank
 # - download_matching_genomes
 # - map_reads
 # - summarize
 
 import glob, os, csv
 
+# we have "semi-wildcard" rules that depend on gather output only - they
+# all depend on having the GATHER_CSV present.
 SAMPLE=config['sample']
 print(f'sample: {SAMPLE}')
-
 ABUNDTRIM_MEMORY=10e9
 
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
-print('XXX', outdir)
-
-GATHER_CSV=f'{outdir}/big/{SAMPLE}.x.genbank.gather.csv'
 
 sourmash_db = config.get('db', 'all-gather-genomes.sbt.zip')   # CTB add to conf
 
+GATHER_CSV=f'{outdir}/genbank/{SAMPLE}.x.genbank.gather.csv'
+
 genome_accs = []
-gather_rows = []
 if os.path.exists(GATHER_CSV):
-    print(f'{GATHER_CSV} exists!')
+    print(f'gather output {GATHER_CSV} exists!')
     with open(GATHER_CSV, 'rt') as fp:
        r = csv.DictReader(fp)
        for row in r:
-           gather_rows.append(row)
            acc = row['name'].split(' ')[0]
            genome_accs.append(acc)
+    print(f'loaded {len(genome_accs)} accessions from gather results.')
 else:
     print(f'{GATHER_CSV} does not exist.')
 
@@ -52,7 +51,11 @@ if 'GCA_002160645.1' in genome_accs:
     genome_accs.remove('GCA_002160645.1')
 
 def input_acc_to_genome(w):
-    return acc_to_genome[w.acc]
+    "dynamically look up accession in genomes output dir => ref genome path"
+    genomes_pattern = f'{outdir}/genomes/{w.acc}*.fna.gz'
+    lof = glob.glob(genomes_pattern)
+    assert len(lof) == 1
+    return lof[0]
 
 ###
 
@@ -62,12 +65,7 @@ wildcard_constraints:
 
 rule all:
     input:
-        expand(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz",
-               acc=genome_accs),
-        expand(f"{outdir}/leftover/{SAMPLE}.x.{{acc}}.bam",
-               acc=genome_accs),
-        f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
-        f"{outdir}/leftover/depth/{SAMPLE}.summary.csv"
+        GATHER_CSV
 
 
 rule download_reads:
@@ -85,7 +83,12 @@ rule smash_reads:
 
 rule gather_genbank:
     input:
-        url_file = f"{outdir}/big/{SAMPLE}.x.genbank.gather.csv"
+        url_file = GATHER_CSV
+
+rule download_matching_genomes:
+    input:
+        genome = expand(outdir + "/genomes/{acc}.fna.gz",
+                        acc=genome_accs)
 
 rule map_reads:
     input:
@@ -164,12 +167,12 @@ rule kmer_trim_reads:
             trim-low-abund.py -C 3 -Z 18 -M {ABUNDTRIM_MEMORY} -V - -o {output}
     """
 
-# wildcard rule for mapping abuntrim reads and producing a bam
+# wildcard rule for mapping abundtrim reads and producing a bam
 rule minimap:
     output:
         bam = outdir + "/minimap/{sra_id}.x.{acc}.bam",
     input:
-        query = input_acc_to_genome,
+        query = outdir + "/genomes/{acc}.fna.gz",
         metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
     conda: "env/minimap2.yml"
     threads: 4
@@ -201,11 +204,11 @@ rule samtools_depth:
         samtools depth -aa {input.bam} > {output.depth}
     """
 
-# NON-WILDCARD rule for summarize depth into a CSV
+# SEMI-WILDCARD rule for summarize depth into a CSV
 rule summarize_samtools_depth:
     output: f"{outdir}/{{dir}}/depth/{SAMPLE}.summary.csv"
     input:
-        expand("{outdir}/{{dir}}/depth/{s}.x.{g}.txt",
+        expand(outdir + "/{{dir}}/depth/{s}.x.{g}.txt",
                s=SAMPLE, g=genome_accs)
     run:
         import pandas as pd
@@ -236,7 +239,7 @@ rule summarize_samtools_depth:
         pd.DataFrame(runs).T.to_csv(output[0])
 
 # wildcard rule for computing sourmash signature from abundtrim reads
-rule sourmash_reads:
+rule sourmash_reads_genbank:
     input:
         metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
     output:
@@ -272,13 +275,17 @@ rule set_kernel:
     """
 
 
-# NON-WILDCARD rule for papermill -> reporting notebook
+# NON-WILDCARD rule for papermill -> reporting notebook + html
 rule make_notebook:
     input:
-        nb='genome_grist/notebooks/report-sample.ipynb',
-        kernel_set = rules.set_kernel.output
+        nb = 'genome_grist/notebooks/report-sample.ipynb',
+        all_csv = f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
+        depth_csv = f"{outdir}/leftover/depth/{SAMPLE}.summary.csv",
+        gather_csv = GATHER_CSV,
+        kernel_set = rules.set_kernel.output,
     output:
         nb = outdir + f'/reports/report-{SAMPLE}.ipynb',
+        html = outdir + f'/reports/report-{SAMPLE}.html',
     params:
         cwd = outdir + '/reports/'
     conda: 'env/papermill.yml'
@@ -287,21 +294,9 @@ rule make_notebook:
               -p sample_id {SAMPLE:q} -p render '' \
               --cwd {params.cwd} \
               > {output.nb}
+        python -m nbconvert {output.nb} --to html --stdout --no-input \
+             --ExecutePreprocessor.kernel_name=genome_grist > {output.html}
     """
-
-# NON-WILDCARD rule for notebook to html
-rule make_html:
-    input:
-        source_nb='genome_grist/notebooks/report-sample.ipynb',
-        notebook = outdir + f'/reports/report-{SAMPLE}.ipynb'
-    output:
-        outdir + f'/reports/report-{SAMPLE}.html'
-    conda: 'env/papermill.yml'
-    shell: """
-        python -m nbconvert {input.notebook} --to html --stdout --no-input \
-             --ExecutePreprocessor.kernel_name=genome_grist > {output}
-    """
-     
 
 # NON-WILDCARD rule for mapped reads to leftover reads
 # @CTB update subtract-gather to take sample ID as param
@@ -319,13 +314,14 @@ rule extract_leftover_reads:
         python -m genome_grist.subtract_gather {input.csv}
     """
 
-# NON-WILDCARD rule for mapping leftover reads to genomes -> BAM
+# rule for mapping leftover reads to genomes -> BAM
 rule map_leftover_reads:
-    output:
-        bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
     input:
+        all_csv = f"{outdir}/minimap/depth/{{sra_id}}.summary.csv",
         query = input_acc_to_genome,
         reads = outdir + "/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
+    output:
+        bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -374,29 +370,24 @@ rule get_matching_genome_info:
           -o {output.info_file}
     """
 
-
-# wildcard rule for extracting download URLs from genome info file
-rule get_matching_genome_urls:
+# NON-WILDCARD/gather-dependent rule for downloading actual genomes
+rule download_matching_genomes_one_by_one:
     input:
-        info_file = outdir + "/genbank/{sra_id}.genomes.info.csv"
+        info_file = outdir + f"/genbank/{SAMPLE}.genomes.info.csv"
     output:
-        url_file = outdir + "/genbank/{sra_id}.genomes.urls.txt"
+        genome = outdir + "/genomes/{acc}.fna.gz"
     run:
-        from genome_grist.genbank_genomes import url_for_accession
-        with open(input.info_file, 'rt') as rfp:
-            with open(output.url_file, 'wt') as ofp:
-                r = csv.DictReader(rfp)
-                for row in r:
-                    print(row["genome_url"], file=ofp)
+        with open(input.info_file, 'rt') as infp:
+            r = csv.DictReader(infp)
+            for row in r:
+                acc = row['acc']
+                if acc != wildcards.acc: continue
+                url = row['genome_url']
+                name = row['ncbi_tax_name']
 
-# NON-WILDCARD rule for downloading actual genomes
-rule download_matching_genomes:
-    input:
-        url_file = outdir + "/genbank/{SAMPLE}.genomes.urls.txt"
-    output:
-        genomes_dir = directory(outdir + "/genomes/")
-    conda: 'env/wget.yml'
-    shell: """
-        wget -i {input.url_file} -nc -P {output.genomes_dir} --limit-rate=400k
-    """
-
+                print(f"downloading genome for acc {acc}/{name} from NCBI...")
+                with open(output.genome, 'wb') as outfp:
+                    with urllib.request.urlopen(url) as response:
+                        content = response.read()
+                        outfp.write(content)
+                        print(f"...wrote {len(content)} bytes to {output.genome}")
