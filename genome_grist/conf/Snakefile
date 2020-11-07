@@ -1,7 +1,18 @@
+# top-level targets:
+# - download_reads
+# - trim_reads
+# - smash_reads
+# - gather_genbank @CTB not yet done
+# - download_matching_genomes
+# - map_reads
+# - summarize
+
 import glob, os, csv
 
 SAMPLE=config['sample']
 print(f'sample: {SAMPLE}')
+
+ABUNDTRIM_MEMORY=10e9
 
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
@@ -59,18 +70,10 @@ rule all:
         f"{outdir}/leftover/depth/{SAMPLE}.summary.csv"
 
 
-# top-level targets:
-# - download_reads
-# - trim_reads
-# - smash_reads
-# - gather_genbank @CTB not yet done
-# - download_matching_genomes
-# - map_reads
-# - summarize
-
 rule download_reads:
     input:
-        url_file = f"{outdir}/raw/{SAMPLE}.fastq.gz"
+        f"{outdir}/raw/{SAMPLE}_1.fastq.gz",
+        f"{outdir}/raw/{SAMPLE}_2.fastq.gz"
 
 rule trim_reads:
     input:
@@ -98,7 +101,7 @@ rule download_matching_genomes:
         csv = GATHER_CSV,
         url_file = f"{outdir}/genbank/{SAMPLE}.genomes.urls.txt"
     output:
-        genomes_dir = directory("outputs/genomes/")
+        genomes_dir = directory(outdir + "/genomes/")
     conda: 'env/wget.yml'
     shell: """
         wget -i {input.url_file} -nc -P {output.genomes_dir} --limit-rate=400k
@@ -156,9 +159,11 @@ rule zip:
     """
 
 
-rule download_sra_general:
+# wildcard rule for downloading SRA IDs.
+rule wc_download_sra:
     output:
-        "outputs/raw/{sra_id}.fastq.gz",
+        r1 = outdir + "/raw/{sra_id}_1.fastq.gz",
+        r2 = outdir + '/raw/{sra_id}_2.fastq.gz',
     conda: "env/sra.yml"
     shell: '''
         fastq-dump --skip-technical  \
@@ -170,52 +175,45 @@ rule download_sra_general:
                -Z \
                {wildcards.sra_id} | \
                perl -ne 's/\.([12]) /\/$1 /; print $_' | \
-               gzip > {output}
+               split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2}
         '''
 
-rule split_reads:
-    input:
-        "outputs/raw/{sample}.fastq.gz"
-    output:
-        r1 = "inputs/raw/{sample}_1.fastq.gz",
-        r2 = 'inputs/raw/{sample}_2.fastq.gz',
-    conda: 'env/trim.yml'
-    shell: '''
-        split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2} {input}
-    '''
-
+# wildcard rule for adapter trimming
 rule adapter_trim:
     input:
-        r1 = "inputs/raw/{sample}_1.fastq.gz",
-        r2 = 'inputs/raw/{sample}_2.fastq.gz',
-        adapters = 'inputs/adapters.fa'
+        r1 = outdir + "/raw/{sample}_1.fastq.gz",
+        r2 = outdir + "/raw/{sample}_2.fastq.gz",
+        adapters = "inputs/adapters.fa"
     output:
-        r1 = 'outputs/trim/{sample}_R1.trim.fq.gz',
-        r2 = 'outputs/trim/{sample}_R2.trim.fq.gz',
-        o1 = 'outputs/trim/{sample}_o1.trim.fq.gz',
-        o2 = 'outputs/trim/{sample}_o2.trim.fq.gz'
+        r1 = outdir + '/trim/{sample}_R1.trim.fq.gz',
+        r2 = outdir + '/trim/{sample}_R2.trim.fq.gz',
+        o1 = outdir + '/trim/{sample}_o1.trim.fq.gz',
+        o2 = outdir + '/trim/{sample}_o2.trim.fq.gz'
     conda: 'env/trim.yml'
-    shell:'''
-     trimmomatic PE {input.r1} {input.r2} \
+    shell: """
+        trimmomatic PE {input.r1} {input.r2} \
              {output.r1} {output.o1} {output.r2} {output.o2} \
              ILLUMINACLIP:{input.adapters}:2:0:15 MINLEN:25  \
              LEADING:2 TRAILING:2 SLIDINGWINDOW:4:2
-    '''
+    """
 
+# wildcard rule for k-mer abundance trimming
 rule kmer_trim_reads:
     input: 
         outdir + "/trim/{sample}_R1.trim.fq.gz", 
         outdir + "/trim/{sample}_R2.trim.fq.gz"
-    output: outdir + "/abundtrim/{sample}.abundtrim.fq.gz"
+    output:
+        outdir + "/abundtrim/{sample}.abundtrim.fq.gz"
     conda: 'env/trim.yml'
-    shell:'''
-    interleave-reads.py {input} | 
-        trim-low-abund.py -C 3 -Z 18 -M 10e9 -V - -o {output}
-    '''
+    shell: """
+        interleave-reads.py {input} | 
+            trim-low-abund.py -C 3 -Z 18 -M {ABUNDTRIM_MEMORY} -V - -o {output}
+    """
 
+# wildcard rule for mapping abuntrim reads and producing a bam
 rule minimap:
     output:
-        bam="outputs/minimap/{sra_id}.x.{acc}.bam",
+        bam = outdir + "/minimap/{sra_id}.x.{acc}.bam",
     input:
         query = input_acc_to_genome,
         metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
@@ -226,31 +224,34 @@ rule minimap:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
+# wildcard rule for extracting FASTQ from BAM
 rule samtools_fastq:
     output:
-        mapped="outputs/minimap/{bam}.mapped.fq.gz",
+        mapped = outdir + "/minimap/{bam}.mapped.fq.gz",
     input:
-        bam="outputs/minimap/{bam}.bam",
+        bam = outdir + "/minimap/{bam}.bam",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
         samtools bam2fq {input.bam} | gzip > {output.mapped}
     """
 
+# wildcard rule for getting per-base depth information from BAM
 rule samtools_depth:
-    output:
-        depth="outputs/{dir}/depth/{bam}.txt",
     input:
-        bam="outputs/{dir}/{bam}.bam",
+        bam = outdir + "/{dir}/{bam}.bam",
+    output:
+        depth = outdir + "/{dir}/depth/{bam}.txt",
     conda: "env/minimap2.yml"
     shell: """
         samtools depth -aa {input.bam} > {output.depth}
     """
 
+# NON-WILDCARD rule for summarize depth into a CSV
 rule summarize_samtools_depth:
     output: f"{outdir}/{{dir}}/depth/{SAMPLE}.summary.csv"
     input:
-        expand("outputs/{{dir}}/depth/{s}.x.{g}.txt",
+        expand("{outdir}/{{dir}}/depth/{s}.x.{g}.txt",
                s=SAMPLE, g=genome_accs)
     run:
         import pandas as pd
@@ -280,7 +281,7 @@ rule summarize_samtools_depth:
 
         pd.DataFrame(runs).T.to_csv(output[0])
 
-
+# wildcard rule for computing sourmash signature from abundtrim reads
 rule sourmash_reads:
     input:
         metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
@@ -292,7 +293,7 @@ rule sourmash_reads:
            --name {wildcards.sra_id} --track-abundance
     """
 
-
+# wildcard rule for running sourmash gather on abundtrim read signature
 rule sourmash_gather_reads:
     input:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
@@ -305,15 +306,19 @@ rule sourmash_gather_reads:
         sourmash gather {input.sig} {input.db} -o {output.csv} > {output.out}
     """
 
+# NON-WILDCARD rule for configuring ipython kernel for papermill
 rule set_kernel:
     output:
         f"{outdir}/.kernel.set"
     conda: 'env/papermill.yml'
     shell: """
-        python -m ipykernel install --user --name charcoal
+        python -m ipykernel install --user --name genome_grist
+        python -m pip install matplotlib numpy pandas
         touch {output}
     """
 
+
+# NON-WILDCARD rule for papermill -> reporting notebook
 rule make_notebook:
     input:
         nb='genome_grist/notebooks/report-sample.ipynb',
@@ -324,12 +329,13 @@ rule make_notebook:
         cwd = outdir + '/reports/'
     conda: 'env/papermill.yml'
     shell: """
-        papermill {input.nb} - -k charcoal \
+        papermill {input.nb} - -k genome_grist \
               -p sample_id {SAMPLE:q} -p render '' \
               --cwd {params.cwd} \
               > {output.nb}
     """
 
+# NON-WILDCARD rule for notebook to html
 rule make_html:
     input:
         source_nb='genome_grist/notebooks/report-sample.ipynb',
@@ -338,11 +344,14 @@ rule make_html:
         outdir + f'/reports/report-{SAMPLE}.html'
     conda: 'env/papermill.yml'
     shell: """
-        python -m nbconvert {input.notebook} --to html --stdout --no-input --ExecutePreprocessor.kernel_name=charcoal > {output}
+        python -m nbconvert {input.notebook} --to html --stdout --no-input \
+             --ExecutePreprocessor.kernel_name=genome_grist > {output}
     """
      
 
+# NON-WILDCARD rule for mapped reads to leftover reads
 # @CTB update subtract-gather to take sample ID as param
+# @CTB update for intersected/overlapping reads too
 rule extract_leftover_reads:
     input:
         csv = GATHER_CSV,
@@ -356,10 +365,10 @@ rule extract_leftover_reads:
         python -m genome_grist.subtract_gather {input.csv}
     """
 
-
+# NON-WILDCARD rule for mapping leftover reads to genomes -> BAM
 rule map_leftover_reads:
     output:
-        bam="outputs/leftover/{sra_id}.x.{acc}.bam",
+        bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
     input:
         query = input_acc_to_genome,
         reads = outdir + "/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
@@ -370,17 +379,7 @@ rule map_leftover_reads:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
-rule sourmash_gather_reads_podar:
-    input:
-        sig = outdir + "/sigs/SRR606249.abundtrim.sig",
-        db = 'test.sbt.zip'
-    output:
-        csv = outdir + "/big/SRR606249.x.podar.gather.csv"
-    conda: "env/sourmash.yml"
-    shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv}
-    """
-
+# wildcard rule for running sourmash gather x genbank
 rule sourmash_gather_reads_genbank:
     input:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
