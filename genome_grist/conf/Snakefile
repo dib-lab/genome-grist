@@ -13,10 +13,10 @@ import glob, os, csv
 # all depend on having the GATHER_CSV present.
 SAMPLE=config['sample']
 print(f'sample: {SAMPLE}')
-ABUNDTRIM_MEMORY=10e9
 
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
+ABUNDTRIM_MEMORY=10e9
 
 sourmash_db = config.get('db', 'all-gather-genomes.sbt.zip')   # CTB add to conf
 
@@ -35,21 +35,6 @@ else:
     print(f'{GATHER_CSV} does not exist.')
 
 
-# load in all the genomes; this could be changed to a more targeted approach!
-acc_to_genome = {}
-genomes_pattern = f'{outdir}/genomes/*.fna.gz'
-for filename in glob.glob(genomes_pattern):   # CTB add to conf
-    basename = os.path.basename(filename)
-    acc = basename.split('_')[:2]
-    acc = '_'.join(acc)
-    acc_to_genome[acc] = filename
-if not acc_to_genome:
-    print(f"couldn't load any genomes?! - check {genomes_pattern}")
-
-# @CTB investigate
-if 'GCA_002160645.1' in genome_accs:
-    genome_accs.remove('GCA_002160645.1')
-
 def input_acc_to_genome(w):
     "dynamically look up accession in genomes output dir => ref genome path"
     genomes_pattern = f'{outdir}/genomes/{w.acc}*.fna.gz'
@@ -66,7 +51,6 @@ wildcard_constraints:
 rule all:
     input:
         GATHER_CSV
-
 
 rule download_reads:
     input:
