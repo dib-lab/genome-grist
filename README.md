@@ -3,6 +3,10 @@
 <a href="https://pypi.org/project/genome-grist/"><img alt="PyPI" src="https://badge.fury.io/py/genome-grist.svg"></a>
 <a href="https://github.com/dib-lab/pybbhash/blob/latest/LICENSE.txt"><img alt="License: 3-Clause BSD" src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg"></a>
 
+## In brief
+
+`genome-grist` is a toolkit to do the following:
+
 1. download a metagenome
 2. process it into trimmed reads, and make a [sourmash signature](https://sourmash.readthedocs.io/)
 3. search the sourmash signature with 'gather' against sourmash databases, e.g. all of genbank
@@ -22,12 +26,58 @@ https://en.wikipedia.org/wiki/Grist_(computing)
 THIS:
 https://en.wikipedia.org/wiki/Grist
 
-## Leftover text
+## Installation
 
-[podar ref genomes](https://osf.io/vbhy5/download)
+The command:
+```
+python -m pip install genome-grist
+```
+will install the latest version. Plase use python3.7 or later. We suggest
+using an isolated conda environment.
 
-[Snakefile based on @luizirber code](https://github.com/luizirber/phd/blob/ed2d89769bd6908a5f28a7b8415d2bcdc509e2bb/experiments/wort/sra_search/Snakefile)
+## Quick start:
 
-[Genome URL generation code](https://github.com/dib-lab/sourmash_databases/pull/11/files#diff-3b4f98e8183094e86c5e5492ec95fb7cb078de369b41be91d061940474ce80e5R118-R139)
+Run the following three commands.
 
-[download SRA code](https://github.com/luizirber/phd/blob/ed2d89769bd6908a5f28a7b8415d2bcdc509e2bb/experiments/wort/sra_search/Snakefile)
+First, download SRA sample HSMA33MX, trim reads, and build a sourmash
+signature:
+```
+genome-grist process HSMA33MX smash_reads
+```
+
+Next, run sourmash signature against genbank:
+```
+genome-grist process HSMA33MX smash_reads
+```
+(NOTE, this depends on the latest genbank genomes and won't work for most
+people just yet; for now, use cached results from the repo:
+```
+cp tests/test-data/HSMA33MX.x.genbank.gather.csv outputs/genbank/
+touch outputs/genbank/HSMA33MX.x.genbank.gather.out
+```
+)
+
+Finally, download the reference genomes, map reads and produce a summary
+report:
+```
+genome-grist process HSMA33MX summarize
+```
+
+## Full set of top-level `process` targets
+
+- download_reads
+- trim_reads
+- smash_reads
+- gather_genbank
+- download_matching_genomes
+- map_reads
+- summarize
+
+## Support
+
+genome-grist is alpha-level software. Please be patient and kind :).
+
+Please ask questions and add comments
+[by filing github issues](https://github.com/dib-lab/genome-grist/issues).
+
+CTB Nov 7, 2020
