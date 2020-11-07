@@ -5,3 +5,6 @@ channels:
 dependencies:
  - sourmash>=3.5,<4
  - screed
+ - pip
+ - pip:
+   - http://github.com/dib-lab/genome-grist/archive/latest.zip
