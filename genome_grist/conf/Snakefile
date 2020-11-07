@@ -35,13 +35,6 @@ else:
     print(f'{GATHER_CSV} does not exist.')
 
 
-def input_acc_to_genome(w):
-    "dynamically look up accession in genomes output dir => ref genome path"
-    genomes_pattern = f'{outdir}/genomes/{w.acc}*.fna.gz'
-    lof = glob.glob(genomes_pattern)
-    assert len(lof) == 1
-    return lof[0]
-
 ###
 
 wildcard_constraints:
@@ -302,7 +295,7 @@ rule extract_leftover_reads:
 rule map_leftover_reads:
     input:
         all_csv = f"{outdir}/minimap/depth/{{sra_id}}.summary.csv",
-        query = input_acc_to_genome,
+        query = f"{outdir}/genomes/{{acc}}.fna.gz",
         reads = outdir + "/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
     output:
         bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
