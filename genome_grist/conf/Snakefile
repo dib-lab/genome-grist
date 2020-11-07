@@ -80,6 +80,10 @@ rule smash_reads:
     input:
         url_file = f"{outdir}/sigs/{SAMPLE}.abundtrim.sig"
 
+rule gather_genbank:
+    input:
+        url_file = f"{outdir}/big/{SAMPLE}.x.genbank.gather.csv"
+
 rule map_reads:
     input:
         f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
@@ -379,72 +383,12 @@ rule sourmash_gather_reads_podar:
 
 rule sourmash_gather_reads_genbank:
     input:
-        sig = outdir + "/sigs/SRR606249.abundtrim.sig",
+        sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
         db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
     output:
-        csv = outdir + "/big/SRR606249.x.genbank.gather.csv",
-        matches = outdir + "/big/SRR606249.x.genbank.gather.sig",
+        csv = outdir + "/big/{sra_id}.x.genbank.gather.csv",
+        matches = outdir + "/big/{sra_id}.x.genbank.gather.sig",
     conda: "env/sourmash.yml"
     shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
-    """
-
-rule sourmash_gather_reads_ter1:
-    input:
-        sig = "/home/tereiter/github/2020-ibd/outputs/sigs/p8808mo11.sig",
-        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
-    output:
-        csv = outdir + "/big/p8808mo11.x.genbank.gather.csv",
-        matches = outdir + "/big/p8808mo11.x.genbank.gather.sig"
-    conda: "env/sourmash.yml"
-    shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
-    """
-
-rule sourmash_gather_reads_ter2:
-    input:
-        sig = "/home/tereiter/github/2020-ibd/outputs/sigs/p8808mo9.sig",
-        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
-    output:
-        csv = outdir + "/big/p8808mo9.x.genbank.gather.csv",
-        matches = outdir + "/big/p8808mo9.x.genbank.gather.sig"
-    conda: "env/sourmash.yml"
-    shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
-    """
-
-rule sourmash_gather_reads_twofoo_head:
-    input:
-        sig = outdir + "/sigs/twofoo-head.abundtrim.sig",
-        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
-    output:
-        csv = outdir + "/genbank/twofoo-head.x.genbank.gather.csv",
-        matches = outdir + "/genbank/twofoo-head.x.genbank.gather.sig",
-    conda: "env/sourmash.yml"
-    shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
-    """
-
-rule sourmash_gather_reads_hu:
-    input:
-        sig = "outputs/sigs/SRR1976948.abundtrim.sig",
-        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
-    output:
-        csv = "outputs/genbank/SRR1976948.x.genbank.gather.csv",
-        matches = "outputs/genbank/SRR1976948.x.genbank.gather.sig",
-    conda: "env/sourmash.yml"
-    shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
-    """
-
-rule sourmash_gather_reads_hu_remaining:
-    input:
-        sig = "outputs/sigs/SRR1976948.abundtrim.remaining.sig",
-        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
-    output:
-        csv = "outputs/genbank/SRR1976948-remaining.x.genbank.gather.csv",
-        matches = "outputs/genbank/SRR1976948-remaining.x.genbank.gather.sig",
-    conda: "env/sourmash.yml"
-    shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv} --save-matches {output.matches}
+        sourmash gather {input.sig} /home/ctbrown/genome-grist/all-gather-genomes.sbt.zip {input.db} -o {output.csv} --save-matches {output.matches}
     """
