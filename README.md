@@ -23,7 +23,14 @@ The command:
 python -m pip install genome-grist
 ```
 will install the latest version. Plase use python3.7 or later. We suggest
-using an isolated conda environment.
+using an isolated conda environment; the following commands should work for
+conda:
+
+```
+conda create -n grist python=3.7 pip
+conda activate grist
+python -m pip install genome-grist
+```
 
 ## Quick start:
 
@@ -37,7 +44,7 @@ genome-grist process HSMA33MX smash_reads
 
 Next, run sourmash signature against genbank:
 ```
-genome-grist process HSMA33MX smash_reads
+genome-grist process HSMA33MX gather_genbank
 ```
 (NOTE, this depends on the latest genbank genomes and won't work for most
 people just yet; for now, use cached results from the repo:
@@ -52,6 +59,8 @@ report:
 ```
 genome-grist process HSMA33MX summarize -j 8
 ```
+
+(You can run all of the above with `make test` in the repo.)
 
 ## Full set of top-level `process` targets
 
