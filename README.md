@@ -16,16 +16,6 @@
 7. run mapping on “leftover” reads to genomes
 9. summarize all mapping results
 
-## Why the name `grist`?
-
-In the sourmash family of names (sourmash, wort, distillerycats, etc.)
-
-NOT:
-https://en.wikipedia.org/wiki/Grist_(computing)
-
-THIS:
-https://en.wikipedia.org/wiki/Grist
-
 ## Installation
 
 The command:
@@ -79,5 +69,16 @@ genome-grist is alpha-level software. Please be patient and kind :).
 
 Please ask questions and add comments
 [by filing github issues](https://github.com/dib-lab/genome-grist/issues).
+
+## Why the name `grist`?
+
+'grist' is in the sourmash family of names (sourmash, wort,
+distillerycats, etc.) See
+[Grist](https://en.wikipedia.org/wiki/Grist).
+
+(It is not the
+[computing grist](https://en.wikipedia.org/wiki/Grist_(computing))!)
+
+THIS:
 
 CTB Nov 7, 2020
