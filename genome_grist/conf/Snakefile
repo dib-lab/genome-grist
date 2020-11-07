@@ -96,52 +96,6 @@ rule summarize:
     input:
         outdir + f'/reports/report-{SAMPLE}.html'
 
-rule download_matching_genomes:
-    input:
-        csv = GATHER_CSV,
-        url_file = f"{outdir}/genbank/{SAMPLE}.genomes.urls.txt"
-    output:
-        genomes_dir = directory(outdir + "/genomes/")
-    conda: 'env/wget.yml'
-    shell: """
-        wget -i {input.url_file} -nc -P {output.genomes_dir} --limit-rate=400k
-    """
-
-rule extract_genome_accs_from_gather:
-    input:
-        csv = GATHER_CSV,
-    output:
-        acc_file = f"{outdir}/genbank/{SAMPLE}.genomes.accs.txt"
-    run:
-        with open(output.acc_file, 'wt') as fp:
-           print("\n".join(genome_accs), file=fp)
-
-rule get_matching_genome_info:
-    input:
-        csv = GATHER_CSV,
-        acc_file = f"{outdir}/genbank/{SAMPLE}.genomes.accs.txt"
-    output:
-        info_file = f"{outdir}/genbank/{SAMPLE}.genomes.info.csv"
-    shell: """
-        python -m genome_grist.genbank_genomes {input.acc_file} \
-          -o {output.info_file}
-    """
-
-
-rule get_matching_genome_urls:
-    input:
-        csv = GATHER_CSV,
-        info_file = f"{outdir}/genbank/{SAMPLE}.genomes.info.csv"
-    output:
-        url_file = f"{outdir}/genbank/{SAMPLE}.genomes.urls.txt"
-    run:
-        from genome_grist.genbank_genomes import url_for_accession
-        with open(input.info_file, 'rt') as rfp:
-            with open(output.url_file, 'wt') as ofp:
-                r = csv.DictReader(rfp)
-                for row in r:
-                    print(row["genome_url"], file=ofp)
-
 # print out the configuration
 rule showconf:
     run:
@@ -162,8 +116,8 @@ rule zip:
 # wildcard rule for downloading SRA IDs.
 rule wc_download_sra:
     output:
-        r1 = outdir + "/raw/{sra_id}_1.fastq.gz",
-        r2 = outdir + '/raw/{sra_id}_2.fastq.gz',
+        r1 = protected(outdir + "/raw/{sra_id}_1.fastq.gz"),
+        r2 = protected(outdir + "/raw/{sra_id}_2.fastq.gz"),
     conda: "env/sra.yml"
     shell: '''
         fastq-dump --skip-technical  \
@@ -185,10 +139,10 @@ rule adapter_trim:
         r2 = outdir + "/raw/{sample}_2.fastq.gz",
         adapters = "inputs/adapters.fa"
     output:
-        r1 = outdir + '/trim/{sample}_R1.trim.fq.gz',
-        r2 = outdir + '/trim/{sample}_R2.trim.fq.gz',
-        o1 = outdir + '/trim/{sample}_o1.trim.fq.gz',
-        o2 = outdir + '/trim/{sample}_o2.trim.fq.gz'
+        r1 = protected(outdir + '/trim/{sample}_R1.trim.fq.gz'),
+        r2 = protected(outdir + '/trim/{sample}_R2.trim.fq.gz'),
+        o1 = protected(outdir + '/trim/{sample}_o1.trim.fq.gz'),
+        o2 = protected(outdir + '/trim/{sample}_o2.trim.fq.gz'),
     conda: 'env/trim.yml'
     shell: """
         trimmomatic PE {input.r1} {input.r2} \
@@ -203,7 +157,7 @@ rule kmer_trim_reads:
         outdir + "/trim/{sample}_R1.trim.fq.gz", 
         outdir + "/trim/{sample}_R2.trim.fq.gz"
     output:
-        outdir + "/abundtrim/{sample}.abundtrim.fq.gz"
+        protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
     conda: 'env/trim.yml'
     shell: """
         interleave-reads.py {input} | 
@@ -385,9 +339,64 @@ rule sourmash_gather_reads_genbank:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
         db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
     output:
-        csv = outdir + "/big/{sra_id}.x.genbank.gather.csv",
-        matches = outdir + "/big/{sra_id}.x.genbank.gather.sig",
+        csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
+        matches = outdir + "/genbank/{sra_id}.x.genbank.gather.sig",
     conda: "env/sourmash.yml"
     shell: """
         sourmash gather {input.sig} /home/ctbrown/genome-grist/all-gather-genomes.sbt.zip {input.db} -o {output.csv} --save-matches {output.matches}
     """
+
+# wildcard rule for extracting accessions from gather output
+rule extract_genome_accs_from_gather:
+    input:
+        csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
+    output:
+        acc_file = outdir + "/genbank/{sra_id}.genomes.accs.txt"
+    run:
+        n = 0
+        with open(output.acc_file, 'wt') as outfp:
+            with open(input.csv, 'rt') as infp:
+                r = csv.DictReader(infp)
+                for n, row in enumerate(r):
+                    acc = row['name'].split(' ')[0]
+                    print(acc, file=outfp)
+        print(f'found {n} accessions in {input.csv}')
+              
+
+# wildcard rule for getting genome info (URL, name) from genbank
+rule get_matching_genome_info:
+    input:
+        acc_file = outdir + "/genbank/{sra_id}.genomes.accs.txt"
+    output:
+        info_file = outdir + "/genbank/{sra_id}.genomes.info.csv"
+    shell: """
+        python -m genome_grist.genbank_genomes {input.acc_file} \
+          -o {output.info_file}
+    """
+
+
+# wildcard rule for extracting download URLs from genome info file
+rule get_matching_genome_urls:
+    input:
+        info_file = outdir + "/genbank/{sra_id}.genomes.info.csv"
+    output:
+        url_file = outdir + "/genbank/{sra_id}.genomes.urls.txt"
+    run:
+        from genome_grist.genbank_genomes import url_for_accession
+        with open(input.info_file, 'rt') as rfp:
+            with open(output.url_file, 'wt') as ofp:
+                r = csv.DictReader(rfp)
+                for row in r:
+                    print(row["genome_url"], file=ofp)
+
+# NON-WILDCARD rule for downloading actual genomes
+rule download_matching_genomes:
+    input:
+        url_file = outdir + "/genbank/{SAMPLE}.genomes.urls.txt"
+    output:
+        genomes_dir = directory(outdir + "/genomes/")
+    conda: 'env/wget.yml'
+    shell: """
+        wget -i {input.url_file} -nc -P {output.genomes_dir} --limit-rate=400k
+    """
+
