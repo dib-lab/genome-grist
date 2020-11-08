@@ -5,7 +5,12 @@
 
 ## In brief
 
-`genome-grist` is a toolkit to do the following:
+The key point of genome-grist is this: we can take advantage of
+[sourmash gather](https://sourmash.readthedocs.io/en/latest/classifying-signatures.html)
+to find the smallest set of genomes to which to map metagenome reads.
+genome-grist automates all the stuff AROUND doing that!
+
+So, `genome-grist` is a toolkit to do the following:
 
 1. download a metagenome
 2. process it into trimmed reads, and make a [sourmash signature](https://sourmash.readthedocs.io/)
