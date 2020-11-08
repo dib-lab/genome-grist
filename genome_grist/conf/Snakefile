@@ -326,14 +326,16 @@ rule extract_genome_accs_from_gather:
     output:
         acc_file = outdir + "/genbank/{sra_id}.genomes.accs.txt"
     run:
-        n = 0
+        n = None
         with open(output.acc_file, 'wt') as outfp:
             with open(input.csv, 'rt') as infp:
                 r = csv.DictReader(infp)
                 for n, row in enumerate(r):
                     acc = row['name'].split(' ')[0]
                     print(acc, file=outfp)
-        print(f'found {n} accessions in {input.csv}')
+
+        if n is not None:
+            print(f'found {n+1} accessions in {input.csv}')
               
 
 # wildcard rule for getting genome info (URL, name) from genbank

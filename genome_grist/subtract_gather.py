@@ -54,7 +54,7 @@ def main():
         sys.exit(-1)
 
     ignore_reads = set()
-    for (acc, filename, overlapping, leftover) in pairs:
+    for n, (acc, filename, overlapping, leftover) in enumerate(pairs):
         overlap_fp = gzip.open(overlapping, 'wt')
         leftover_fp = gzip.open(leftover, 'wt')
 
@@ -74,6 +74,7 @@ def main():
 
         print(f'wrote {n_wrote} leftover records for {sample_id}.x.{acc};')
         print(f'{len(ignore_reads)} total reads to ignore moving forward.')
+        print(f'file {n+1} of {len(pairs)} total')
 
     # <-- here is where we can go through the input reads and output unmapped.
     # (OR, save 'ignore_reads' and let another script handle it.)
