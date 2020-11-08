@@ -70,6 +70,16 @@ You can see some example reports for this and other data sets online:
 * [Illumina metagenome from Shakya et al., 2014](https://ctb.github.io/2020-grist-examples/reports/report-SRR606249.html)) [(ref)](https://pubmed.ncbi.nlm.nih.gov/23387867/)
 * [sample 1 from Hu et al., 2016 (oil well metagenome)](https://ctb.github.io/2020-grist-examples/reports/report-SRR1976948.html) [(ref)](https://mbio.asm.org/content/7/1/e01669-15)
 
+## Compute requirements
+
+You'll need enough disk space to store about 5 copies of your raw
+metagenome.
+
+The peak memory requirement is in the k-mer trimming and sourmash
+gather steps.  You'll probably want between 30 and 60 GB of RAM for
+those, although for smaller or less diverse metagenomes, you will use
+a lot less.
+
 ## Full set of top-level `process` targets
 
 - download_reads
@@ -98,4 +108,4 @@ distillerycats, etc.) See
 
 ---
 
-CTB Nov 7, 2020
+CTB Nov 8, 2020
