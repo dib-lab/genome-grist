@@ -62,6 +62,14 @@ genome-grist process HSMA33MX summarize -j 8
 
 (You can run all of the above with `make test` in the repo.)
 
+The summary report will be in `outputs/reports/report-HSMA33MX.html`.
+
+You can see some example reports for this and other data sets online:
+
+* [HSMA33MX report](https://ctb.github.io/2020-grist-examples/reports/report-HSMA33MX.html)
+* [Illumina metagenome from Shakya et al., 2014](https://ctb.github.io/2020-grist-examples/reports/report-SRR606249.html)) [(ref)](https://pubmed.ncbi.nlm.nih.gov/23387867/)
+* [sample 1 from Hu et al., 2016 (oil well metagenome)](https://ctb.github.io/2020-grist-examples/reports/report-SRR1976948.html) [(ref)](https://mbio.asm.org/content/7/1/e01669-15)
+
 ## Full set of top-level `process` targets
 
 - download_reads
