@@ -317,7 +317,7 @@ rule sourmash_gather_reads:
     conda: "env/sourmash.yml"
     shell: """
         sourmash gather {input.sig} {input.db} -o {output.csv} \
-          --save-amtches {output.matches} > {output.out}
+          --save-matches {output.matches} > {output.out}
     """
 
 # wildcard rule for extracting accessions from gather output
