@@ -16,7 +16,7 @@ print(f'sample: {SAMPLE}')
 
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
-ABUNDTRIM_MEMORY=10e9
+ABUNDTRIM_MEMORY=40e9
 
 sourmash_db = config.get('db', 'all-gather-genomes.sbt.zip')   # CTB add to conf
 
