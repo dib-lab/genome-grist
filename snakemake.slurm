@@ -3,7 +3,7 @@
 #SBATCH -J gather-paper            # name for job
 #SBATCH -N 1                   # one "node", or computer
 #SBATCH -n 1                   # one task for this node
-#SBATCH -c 4                  # cores per task
+#SBATCH -c 16                  # cores per task
 #SBATCH -t 2-0                 # ask for 2 days
 #SBATCH --mem=80000             # memory (30,000 mb = 30gb)
 #SBATCH --mail-type=ALL
@@ -25,11 +25,7 @@ set -x
 cd ~/genome-grist
 
 # run the snakemake!
-#python -m genome_grist run conf.yml -j 32 --use-conda -n
-#genome-grist run conf-HSMA33MX.yml -j 32
-#genome-grist run conf-SRR606249.yml outputs/leftover/depth/SRR606249.summary.csv
-genome-grist run conf.yml map_reads --config sample=p8808mo10
-genome-grist run conf.yml summarize --config sample=p8808mo10
+genome-grist process SRR4027592 gather_genbank summarize -j 16
 
 # print out various information about the job
 env | grep SLURM            # Print out values of the current jobs SLURM environment variables
