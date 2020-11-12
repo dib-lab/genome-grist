@@ -18,9 +18,8 @@ outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
 ABUNDTRIM_MEMORY=40e9
 
-sourmash_db = config.get('db', 'all-gather-genomes.sbt.zip')   # CTB add to conf
-
-GATHER_CSV=f'{outdir}/genbank/{SAMPLE}.x.genbank.gather.csv'
+GENBANK_DB = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+GATHER_CSV = f'{outdir}/genbank/{SAMPLE}.x.genbank.gather.csv'
 
 genome_accs = []
 if os.path.exists(GATHER_CSV):
@@ -227,19 +226,6 @@ rule sourmash_reads_genbank:
            --name {wildcards.sra_id} --track-abundance
     """
 
-# wildcard rule for running sourmash gather on abundtrim read signature
-rule sourmash_gather_reads:
-    input:
-        sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
-        db = sourmash_db,
-    output:
-        csv = outdir + "/{sra_id}.gather.csv",
-        out = outdir + "/{sra_id}.gather.out",
-    conda: "env/sourmash.yml"
-    shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv} > {output.out}
-    """
-
 # NON-WILDCARD rule for configuring ipython kernel for papermill
 rule set_kernel:
     output:
@@ -307,16 +293,31 @@ rule map_leftover_reads:
     """
 
 # wildcard rule for running sourmash gather x genbank
-rule sourmash_gather_reads_genbank:
+rule prefetch_sourmash_gather_reads_genbank:
     input:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
-        db = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+        db = GENBANK_DB,
     output:
-        csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
-        matches = outdir + "/genbank/{sra_id}.x.genbank.gather.sig",
+        matches = outdir + "/genbank/{sra_id}.x.genbank.prefetch.sig",
     conda: "env/sourmash.yml"
     shell: """
-        sourmash gather {input.sig} /home/ctbrown/genome-grist/all-gather-genomes.sbt.zip {input.db} -o {output.csv} --save-matches {output.matches}
+        python -m genome_grist.prefetch_gather --query {input.sig} \
+          --db {input.db} --save-matches {output.matches}
+    """
+
+# wildcard rule for running sourmash gather on abundtrim read signature
+rule sourmash_gather_reads:
+    input:
+        sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
+        db = outdir + "/genbank/{sra_id}.x.genbank.prefetch.sig",
+    output:
+        csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
+        matches = outdir + "/genbank/{sra_id}.x.genbank.matches.sig",
+        out = outdir + "/genbank/{sra_id}.x.genbank.gather.out",
+    conda: "env/sourmash.yml"
+    shell: """
+        sourmash gather {input.sig} {input.db} -o {output.csv} \
+          --save-amtches {output.matches} > {output.out}
     """
 
 # wildcard rule for extracting accessions from gather output
