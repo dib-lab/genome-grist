@@ -180,6 +180,23 @@ rule samtools_depth:
         samtools depth -aa {input.bam} > {output.depth}
     """
 
+# wildcard rule for calculating SNPs/etc.
+rule mpileup:
+    input:
+        query = outdir + "/genomes/{acc}.fna.gz",
+        bam = outdir + "/minimap/{sra_id}.x.{acc}.bam",
+    output:
+        bcf = outdir + "/minimap/{sra_id}.x.{acc}.bcf",
+        vcf = outdir + "/minimap/{sra_id}.x.{acc}.vcf",
+    conda: "env/bcftools.yml"
+    shell: """
+        genomefile=$(mktemp grist.genome.XXXXXXX)
+        gunzip -c {input.query} > $genomefile
+        bcftools mpileup -Ou -f $genomefile {input.bam} | bcftools call -mv -Ob -o {output.bcf}
+        rm $genomefile
+        bcftools view {output.bcf} > {output.vcf}
+    """
+
 # SEMI-WILDCARD rule for summarize depth into a CSV
 rule summarize_samtools_depth:
     output: f"{outdir}/{{dir}}/depth/{SAMPLE}.summary.csv"
@@ -371,3 +388,26 @@ rule download_matching_genomes_one_by_one:
                         content = response.read()
                         outfp.write(content)
                         print(f"...wrote {len(content)} bytes to {output.genome}")
+
+
+# create a spacegraphcats config file
+rule create_sgc_conf:
+    input:
+        csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
+    output:
+        conf = "outputs/sgc/{sra_id}.conf"
+    run:
+        queries = []
+        for acc in genome_accs:
+            queries.append(outdir + f"/genomes/{acc}.fna.gz")
+        query_list = "\n- ".join(queries)
+        with open(output.conf, 'wt') as fp:
+           print(f"""\
+catlas_base: {wildcards.sra_id}
+input_sequences:
+- outputs/abundtrim/{wildcards.sra_id}.abundtrim.fq.gz
+ksize: 31
+radius: 1
+search:
+- {query_list}
+""", file=fp)
