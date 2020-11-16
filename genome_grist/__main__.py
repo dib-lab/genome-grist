@@ -129,9 +129,9 @@ def run(configfile, snakemake_args, no_use_conda, verbose, outdir):
 def process(sample, snakemake_args, no_use_conda, verbose, outdir):
     "execute genome-grist workflow (using snakemake underneath)"
     snakemake_args = list(snakemake_args)
-    snakemake_args += ['--config', f'sample={sample}']
+    snakemake_args += ["--config", f"sample={sample}"]
     run_snakemake(
-        'conf.yml',
+        "conf.yml",
         snakefile_name="Snakefile",
         no_use_conda=no_use_conda,
         verbose=verbose,
