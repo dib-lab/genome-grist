@@ -142,7 +142,8 @@ rule kmer_trim_reads:
     conda: 'env/trim.yml'
     shell: """
         interleave-reads.py {input} | 
-            trim-low-abund.py -C 3 -Z 18 -M {ABUNDTRIM_MEMORY} -V - -o {output}
+            trim-low-abund.py -C 3 -Z 18 -M {ABUNDTRIM_MEMORY} -V - \
+               -o {output} --gzip
     """
 
 # wildcard rule for mapping abundtrim reads and producing a bam
