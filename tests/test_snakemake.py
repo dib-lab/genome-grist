@@ -28,24 +28,21 @@ def teardown_module(m):
 
 
 @pytest.mark.dependency()
-def test_something():
+def test_smash_sig():
     global _tempdir
 
-    os.mkdir(os.path.join(_tempdir, 'abundtrim'))
-    os.mkdir(os.path.join(_tempdir, 'big'))
-    
     abundtrim_dir = os.path.join(_tempdir, 'abundtrim')
-    shutil.copy(utils.relative_file('tests/test-data/twofoo-head.abundtrim.fq.gz'),
-                abundtrim_dir)
+    os.mkdir(abundtrim_dir)
 
-    shutil.copy(utils.relative_file('tests/test-data/twofoo-head.x.genbank.gather.csv'),
-                os.path.join(_tempdir, 'big/twofoo-head.x.genbank.gather.csv'))
+    src = utils.relative_file('tests/test-data/HSMA33MX-subset.abundtrim.fq.gz')
+    shutil.copy(src, abundtrim_dir)
 
-    conf = utils.relative_file("conf-twofoo-head.yml")
-    target = "download_matching_genomes"
+    config_params = ["sample=HSMA33MX-subset"]
+    extra_args = ["smash_reads"]
     status = run_snakemake(
-        conf, verbose=True, outdir=_tempdir, extra_args=[target],
-        no_use_conda=True,
-    )
+        'conf.yml', verbose=True, outdir=_tempdir, extra_args=extra_args,
+        config_params=config_params
+     )
     assert status == 0
-    #assert os.path.exists(os.path.join(_tempdir, target))
+
+    assert os.path.exists(f"{_tempdir}/sigs/HSMA33MX-subset.abundtrim.sig")
