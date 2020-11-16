@@ -275,8 +275,11 @@ rule extract_leftover_reads:
         expand(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.leftover.fq.gz",
                acc=genome_accs),
     conda: "env/sourmash.yml"
+    params:
+        outdir = outdir,
     shell: """
-        python -m genome_grist.subtract_gather {input.csv}
+        python -m genome_grist.subtract_gather {input.csv} \
+            --outdir={params.outdir:q}
     """
 
 # rule for mapping leftover reads to genomes -> BAM
