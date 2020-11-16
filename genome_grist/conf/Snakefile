@@ -18,7 +18,7 @@ outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
 print('outdir:', outdir)
 
-ABUNDTRIM_MEMORY=40e9
+ABUNDTRIM_MEMORY=10e9
 
 GENBANK_DB = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
 GATHER_CSV = f'{outdir}/genbank/{SAMPLE}.x.genbank.gather.csv'
