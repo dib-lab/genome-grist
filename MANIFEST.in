@@ -1,0 +1,2 @@
+include LICENSE.txt README.md setup.cfg
+recursive-include spacegraphcats *

@@ -1,0 +1,10 @@
+
+
+overlap     p_query p_match avg_abund
+---------   ------- ------- ---------
+450.0 kbp     48.2%    8.7%       1.6    GCA_001881345.1 Escherichia coli stra...
+357.0 kbp     40.2%    9.6%       1.7    GCA_009494275.1 Prevotella copri stra...
+
+found 2 matches total;
+the recovered matches hit 88.4% of the query
+

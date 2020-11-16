@@ -18,9 +18,12 @@ def main():
     import argparse
     p = argparse.ArgumentParser()
     p.add_argument('gather_csv')
+    p.add_argument('--outdir', default='outputs')
     args = p.parse_args()
 
     sample_id = os.path.basename(args.gather_csv).split('.')[0]
+
+    outdir = args.outdir.rstrip('/')
 
     print(f'reading gather results from {args.gather_csv}')
     rows = []
@@ -39,9 +42,9 @@ def main():
         acc = acc.split('_')[:2]
         acc = '_'.join(acc)
 
-        filename = f'outputs/minimap/{sample_id}.x.{acc}.mapped.fq.gz'
-        overlapping = f'outputs/minimap/{sample_id}.x.{acc}.overlap.fq.gz'
-        leftover = f'outputs/minimap/{sample_id}.x.{acc}.leftover.fq.gz'
+        filename = f'{outdir}/minimap/{sample_id}.x.{acc}.mapped.fq.gz'
+        overlapping = f'{outdir}/minimap/{sample_id}.x.{acc}.overlap.fq.gz'
+        leftover = f'{outdir}/minimap/{sample_id}.x.{acc}.leftover.fq.gz'
 
         if not os.path.exists(filename):
             print(f'ERROR: input filename {filename} does not exist. Will exit.')
