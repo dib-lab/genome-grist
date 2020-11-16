@@ -40,7 +40,9 @@ jobs:
       - name: Install grist
         run: pip install -e .
 
-      - run: pytest tests --cov=.
+      - run: pytest tests
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
+#      - run: pytest tests --cov=.
+
+#      - name: Upload coverage to Codecov
+#        uses: codecov/codecov-action@v1
