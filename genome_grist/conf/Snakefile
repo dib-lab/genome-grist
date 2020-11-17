@@ -71,6 +71,11 @@ rule map_reads:
         f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
         f"{outdir}/leftover/depth/{SAMPLE}.summary.csv"
 
+rule build_consensus:
+    input:
+        expand(outdir + "/minimap/{s}.x.{g}.consensus.fa.gz",
+               s=SAMPLE, g=genome_accs)
+
 rule summarize:
     input:
         outdir + f'/reports/report-{SAMPLE}.html'
@@ -187,14 +192,31 @@ rule mpileup:
         bam = outdir + "/minimap/{sra_id}.x.{acc}.bam",
     output:
         bcf = outdir + "/minimap/{sra_id}.x.{acc}.bcf",
-        vcf = outdir + "/minimap/{sra_id}.x.{acc}.vcf",
+        vcf = outdir + "/minimap/{sra_id}.x.{acc}.vcf.gz",
+        vcfi = outdir + "/minimap/{sra_id}.x.{acc}.vcf.gz.csi",
     conda: "env/bcftools.yml"
     shell: """
-        genomefile=$(mktemp grist.genome.XXXXXXX)
+        genomefile=$(mktemp -t grist.genome.XXXXXXX)
         gunzip -c {input.query} > $genomefile
         bcftools mpileup -Ou -f $genomefile {input.bam} | bcftools call -mv -Ob -o {output.bcf}
         rm $genomefile
-        bcftools view {output.bcf} > {output.vcf}
+        bcftools view {output.bcf} | bgzip > {output.vcf}
+        bcftools index {output.vcf}
+    """
+
+# wildcard rule for building new consensus
+rule new_consensus:
+    input:
+        vcf = outdir + "/minimap/{sra_id}.x.{acc}.vcf.gz",
+        query = outdir + "/genomes/{acc}.fna.gz",
+    output:
+        consensus = outdir + "/minimap/{sra_id}.x.{acc}.consensus.fa.gz",
+    conda: "env/bcftools.yml"
+    shell: """
+        genomefile=$(mktemp -t grist.genome.XXXXXXX)
+        gunzip -c {input.query} > $genomefile
+        bcftools consensus -f $genomefile {input.vcf} | gzip > {output.consensus}
+        rm $genomefile
     """
 
 # SEMI-WILDCARD rule for summarize depth into a CSV
