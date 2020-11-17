@@ -1,11 +1,14 @@
-# genome-grist - map Illumina metagenomes to GenBank genomes
+# genome-grist - reference-based exploration of Illumina metagenomes
 
 <a href="https://pypi.org/project/genome-grist/"><img alt="PyPI" src="https://badge.fury.io/py/genome-grist.svg"></a>
 <a href="https://github.com/dib-lab/pybbhash/blob/latest/LICENSE.txt"><img alt="License: 3-Clause BSD" src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg"></a>
 
 ## In brief
 
-The key point of genome-grist is this: we can take advantage of
+genome-grist automates a number of tasks around genome-based
+metagenome interpretation.
+
+One key point of genome-grist is this: we can take advantage of
 [sourmash gather](https://sourmash.readthedocs.io/en/latest/classifying-signatures.html)
 to find the smallest set of genomes to which to map metagenome reads.
 genome-grist automates all the stuff AROUND doing that!

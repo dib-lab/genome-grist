@@ -24,6 +24,7 @@ def run_snakemake(
     verbose=False,
     snakefile_name="Snakefile",
     outdir=None,
+    config_params=[],
     extra_args=[],
 ):
     # find the Snakefile relative to package path
@@ -36,16 +37,20 @@ def run_snakemake(
     if not no_use_conda:
         cmd += ["--use-conda"]
 
-    # add --outdir
+    # add rest of snakemake arguments
+    cmd += list(extra_args)
+
+    # add config params, and --outdir
     if outdir:
-        cmd += ["--config", f"outdir={outdir}"]
+        config_params = list(config_params)
+        config_params.append(f"outdir={outdir}")
+
+    if config_params:
+        cmd += ["--config", *config_params]
 
     # snakemake sometimes seems to want a default -j; set it to 1 for now.
     # can overridden later on command line.
     cmd += ["-j", "1"]
-
-    # add rest of snakemake arguments
-    cmd += list(extra_args)
 
     # add configfile - try looking for it a few different ways.
     configfiles = []
@@ -124,9 +129,9 @@ def run(configfile, snakemake_args, no_use_conda, verbose, outdir):
 def process(sample, snakemake_args, no_use_conda, verbose, outdir):
     "execute genome-grist workflow (using snakemake underneath)"
     snakemake_args = list(snakemake_args)
-    snakemake_args += ['--config', f'sample={sample}']
+    snakemake_args += ["--config", f"sample={sample}"]
     run_snakemake(
-        'conf.yml',
+        "conf.yml",
         snakefile_name="Snakefile",
         no_use_conda=no_use_conda,
         verbose=verbose,

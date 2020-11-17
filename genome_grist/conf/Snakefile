@@ -16,7 +16,9 @@ print(f'sample: {SAMPLE}')
 
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
-ABUNDTRIM_MEMORY=40e9
+print('outdir:', outdir)
+
+ABUNDTRIM_MEMORY=10e9
 
 GENBANK_DB = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
 GATHER_CSV = f'{outdir}/genbank/{SAMPLE}.x.genbank.gather.csv'
@@ -145,7 +147,8 @@ rule kmer_trim_reads:
     conda: 'env/trim.yml'
     shell: """
         interleave-reads.py {input} | 
-            trim-low-abund.py -C 3 -Z 18 -M {ABUNDTRIM_MEMORY} -V - -o {output}
+            trim-low-abund.py -C 3 -Z 18 -M {ABUNDTRIM_MEMORY} -V - \
+               -o {output} --gzip
     """
 
 # wildcard rule for mapping abundtrim reads and producing a bam
@@ -312,8 +315,11 @@ rule extract_leftover_reads:
         expand(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.leftover.fq.gz",
                acc=genome_accs),
     conda: "env/sourmash.yml"
+    params:
+        outdir = outdir,
     shell: """
-        python -m genome_grist.subtract_gather {input.csv}
+        python -m genome_grist.subtract_gather {input.csv} \
+            --outdir={params.outdir:q}
     """
 
 # rule for mapping leftover reads to genomes -> BAM
