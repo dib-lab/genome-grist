@@ -1,3 +1,8 @@
+all: clean-test test
+
+clean-test:
+	rm -fr outputs.test.HSMA33MX/
+
 test:
 	genome-grist run tests/test-data/HSMA33MX.conf trim_reads -j 8 -p
 	# have to run this w/o conda to take advantage of latest sourmash @CTB
