@@ -14,7 +14,7 @@ from lxml import etree
 def url_for_accession(accession):
     db, acc = accession.strip().split("_")
     number, version = acc.split(".")
-    number = "/".join([number[p:p + 3] for p in range(0, len(number), 3)])
+    number = "/".join([number[p : p + 3] for p in range(0, len(number), 3)])
     url = f"ftp://ftp.ncbi.nlm.nih.gov/genomes/all/{db}/{number}"
 
     with urllib.request.urlopen(url) as response:

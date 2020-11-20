@@ -53,8 +53,10 @@ def run_snakemake(
     cmd += ["-j", "1"]
 
     # add configfile - try looking for it a few different ways.
-    configfiles = [get_package_configfile("defaults.conf"),
-                   get_package_configfile("system.conf")]
+    configfiles = [
+        get_package_configfile("defaults.conf"),
+        get_package_configfile("system.conf"),
+    ]
     if os.path.isfile(configfile):
         configfiles.append(configfile)
     elif os.path.isfile(get_package_configfile(configfile)):

@@ -22,7 +22,7 @@ ABUNDTRIM_MEMORY = config.get('metagenome_trim_memory', '1e9')
 
 sourmash_db_pattern = config.get('sourmash_database_glob_pattern', 'MUST SPECIFY IN CONFIG')
 SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
-SOURMASH_DB_KSIZE = config.get('sourmash_compute_ksizes', ['31'])
+SOURMASH_DB_KSIZE = config.get('sourmash_database_ksize', ['31'])
 
 SOURMASH_COMPUTE_KSIZES = config.get('sourmash_compute_ksizes',
                                      ['21', '31',' 51'])
@@ -311,11 +311,12 @@ rule make_notebook:
         nb = outdir + f'/reports/report-{SAMPLE}.ipynb',
         html = outdir + f'/reports/report-{SAMPLE}.html',
     params:
-        cwd = outdir + '/reports/'
+        cwd = outdir + '/reports/',
+        outdir = outdir,
     conda: 'env/papermill.yml'
     shell: """
         papermill {input.nb} - -k genome_grist \
-              -p sample_id {SAMPLE:q} -p render '' \
+              -p sample_id {SAMPLE:q} -p render '' -p outdir {outdir:q}\
               --cwd {params.cwd} \
               > {output.nb}
         python -m nbconvert {output.nb} --to html --stdout --no-input \
