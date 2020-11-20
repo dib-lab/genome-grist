@@ -18,9 +18,18 @@ outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
 print('outdir:', outdir)
 
-ABUNDTRIM_MEMORY=10e9
+ABUNDTRIM_MEMORY = config.get('metagenome_trim_memory', '1e9')
 
-GENBANK_DB = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+sourmash_db_pattern = config.get('sourmash_database_glob_pattern', 'MUST SPECIFY IN CONFIG')
+SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
+SOURMASH_DB_KSIZE = config.get('sourmash_compute_ksizes', ['31'])
+
+SOURMASH_COMPUTE_KSIZES = config.get('sourmash_compute_ksizes',
+                                     ['21', '31',' 51'])
+SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
+
+###
+
 GATHER_CSV = f'{outdir}/genbank/{SAMPLE}.x.genbank.gather.csv'
 
 genome_accs = []
@@ -85,6 +94,10 @@ rule showconf:
         print(yaml.dump(config).strip())
         print('# END')
 
+# check config files only
+rule check:
+    run:
+        pass
 
 rule zip:
     shell: """
@@ -140,9 +153,11 @@ rule kmer_trim_reads:
     output:
         protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
     conda: 'env/trim.yml'
+    params:
+        mem = ABUNDTRIM_MEMORY,
     shell: """
         interleave-reads.py {input} | 
-            trim-low-abund.py -C 3 -Z 18 -M {ABUNDTRIM_MEMORY} -V - \
+            trim-low-abund.py -C 3 -Z 18 -M {params.mem} -V - \
                -o {output} --gzip
     """
 
@@ -224,8 +239,12 @@ rule sourmash_reads_genbank:
     output:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig"
     conda: "env/sourmash.yml"
+    params:
+        ksizes = ",".join([str(i) for i in SOURMASH_COMPUTE_KSIZES]),
+        scaled = SOURMASH_COMPUTE_SCALED,
     shell: """
-        sourmash compute -k 21,31,51 --scaled=1000 {input} -o {output} \
+        sourmash compute -k {params.ksizes} --scaled={params.scaled} \
+           {input} -o {output} \
            --name {wildcards.sra_id} --track-abundance
     """
 
@@ -302,13 +321,15 @@ rule map_leftover_reads:
 rule prefetch_sourmash_gather_reads_genbank:
     input:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
-        db = GENBANK_DB,
+        db = SOURMASH_DB_LIST,
     output:
         matches = outdir + "/genbank/{sra_id}.x.genbank.prefetch.sig",
     conda: "env/sourmash.yml"
+    params:
+        ksize = SOURMASH_DB_KSIZE,
     shell: """
         python -m genome_grist.prefetch_gather --query {input.sig} \
-          --db {input.db} --save-matches {output.matches}
+          --db {input.db} --save-matches {output.matches} -k {params.ksize}
     """
 
 # wildcard rule for running sourmash gather on abundtrim read signature
