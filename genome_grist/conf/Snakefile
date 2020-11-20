@@ -272,11 +272,12 @@ rule make_notebook:
         nb = outdir + f'/reports/report-{SAMPLE}.ipynb',
         html = outdir + f'/reports/report-{SAMPLE}.html',
     params:
-        cwd = outdir + '/reports/'
+        cwd = outdir + '/reports/',
+        outdir = outdir,
     conda: 'env/papermill.yml'
     shell: """
         papermill {input.nb} - -k genome_grist \
-              -p sample_id {SAMPLE:q} -p render '' \
+              -p sample_id {SAMPLE:q} -p render '' -p outdir {outdir:q}\
               --cwd {params.cwd} \
               > {output.nb}
         python -m nbconvert {output.nb} --to html --stdout --no-input \
