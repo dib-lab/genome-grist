@@ -50,8 +50,7 @@ def main():
 
     unident_mh = copy.copy(mh)
 
-    notify(f"Loaded {len(mh.hashes)} hashes from "
-           "{len(query_sigs)} query signatures.")
+    notify(f"Loaded {len(mh.hashes)} hashes from {len(query_sigs)} query signatures.")
 
     # iterate over signatures in one at a time
     keep = []
