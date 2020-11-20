@@ -22,7 +22,7 @@ ABUNDTRIM_MEMORY = config.get('metagenome_trim_memory', '1e9')
 
 sourmash_db_pattern = config.get('sourmash_database_glob_pattern', 'MUST SPECIFY IN CONFIG')
 SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
-SOURMASH_DB_KSIZE = config.get('sourmash_compute_ksizes', ['31'])
+SOURMASH_DB_KSIZE = config.get('sourmash_database_ksize', ['31'])
 
 SOURMASH_COMPUTE_KSIZES = config.get('sourmash_compute_ksizes',
                                      ['21', '31',' 51'])
