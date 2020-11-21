@@ -4,8 +4,8 @@
 #SBATCH -N 1                   # one "node", or computer
 #SBATCH -n 1                   # one task for this node
 #SBATCH -c 16                  # cores per task
-#SBATCH -t 2-0                 # ask for 2 days
-#SBATCH --mem=80000             # memory (30,000 mb = 30gb)
+#SBATCH -t 5-0                 # ask for 2 days
+#SBATCH --mem=150000             # memory (30,000 mb = 30gb)
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=titus@idyll.org
 
@@ -25,7 +25,8 @@ set -x
 cd ~/genome-grist
 
 # run the snakemake!
-genome-grist process SRR4027592 gather_genbank summarize -j 16
+genome-grist process SRR2657229 gather_genbank --unlock
+genome-grist process SRR2657229 gather_genbank
 
 # print out various information about the job
 env | grep SLURM            # Print out values of the current jobs SLURM environment variables
