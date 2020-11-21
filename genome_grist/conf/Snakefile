@@ -58,7 +58,8 @@ rule all:
 rule download_reads:
     input:
         f"{outdir}/raw/{SAMPLE}_1.fastq.gz",
-        f"{outdir}/raw/{SAMPLE}_2.fastq.gz"
+        f"{outdir}/raw/{SAMPLE}_2.fastq.gz",
+        f"{outdir}/raw/{SAMPLE}.raw.sig",
 
 rule trim_reads:
     input:
@@ -158,6 +159,23 @@ rule wc_download_sra:
                perl -ne 's/\.([12]) /\/$1 /; print $_' | \
                split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2}
         '''
+
+# wildcard rule for computing sourmash signature from raw reads
+rule sourmash_reads_raw:
+    input:
+        r1 = outdir + "/raw/{sra_id}_1.fastq.gz",
+        r2 = outdir + "/raw/{sra_id}_2.fastq.gz",
+    output:
+        sig = outdir + "/raw/{sra_id}.raw.sig"
+    conda: "env/sourmash.yml"
+    params:
+        ksizes = ",".join([str(i) for i in SOURMASH_COMPUTE_KSIZES]),
+        scaled = SOURMASH_COMPUTE_SCALED,
+    shell: """
+        sourmash compute -k {params.ksizes} --scaled={params.scaled} \
+           {input.r1} {input.r2} -o {output} \
+           --name 'rawreads:{wildcards.sra_id}' --track-abundance
+    """
 
 # wildcard rule for adapter trimming
 rule adapter_trim:
@@ -319,7 +337,7 @@ rule summarize_samtools_depth:
         pd.DataFrame(runs).T.to_csv(output[0])
 
 # wildcard rule for computing sourmash signature from abundtrim reads
-rule sourmash_reads_genbank:
+rule sourmash_reads_abundtrim:
     input:
         metagenome = ancient(outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz"),
     output:
@@ -337,12 +355,11 @@ rule sourmash_reads_genbank:
 # NON-WILDCARD rule for configuring ipython kernel for papermill
 rule set_kernel:
     output:
-        f"{outdir}/.kernel.set"
+        touch(f"{outdir}/.kernel.set")
     conda: 'env/papermill.yml'
     shell: """
         python -m ipykernel install --user --name genome_grist
         python -m pip install matplotlib numpy pandas
-        touch {output}
     """
 
 
