@@ -355,12 +355,11 @@ rule sourmash_reads_abundtrim:
 # NON-WILDCARD rule for configuring ipython kernel for papermill
 rule set_kernel:
     output:
-        f"{outdir}/.kernel.set"
+        touch(f"{outdir}/.kernel.set")
     conda: 'env/papermill.yml'
     shell: """
         python -m ipykernel install --user --name genome_grist
         python -m pip install matplotlib numpy pandas
-        touch {output}
     """
 
 
