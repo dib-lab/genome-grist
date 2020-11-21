@@ -168,11 +168,11 @@ rule kmer_trim_reads:
 
 # wildcard rule for mapping abundtrim reads and producing a bam
 rule minimap:
+    input:
+        query = ancient(outdir + "/genomes/{acc}.fna.gz"),
+        metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
     output:
         bam = outdir + "/minimap/{sra_id}.x.{acc}.bam",
-    input:
-        query = outdir + "/genomes/{acc}.fna.gz",
-        metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -217,7 +217,7 @@ rule covered_regions:
 # wildcard rule for calculating SNPs/etc.
 rule mpileup:
     input:
-        query = outdir + "/genomes/{acc}.fna.gz",
+        query = ancient(outdir + "/genomes/{acc}.fna.gz"),
         bam = outdir + "/{dir}/{sra_id}.x.{acc}.bam",
     output:
         bcf = outdir + "/{dir}/{sra_id}.x.{acc}.bcf",
@@ -237,7 +237,7 @@ rule mpileup:
 rule new_consensus:
     input:
         vcf = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz",
-        query = outdir + "/genomes/{acc}.fna.gz",
+        query = ancient(outdir + "/genomes/{acc}.fna.gz"),
         regions = outdir + "/{dir}/depth/{sra_id}.x.{acc}.regions.bed",
     output:
         mask = outdir + "/{dir}/{sra_id}.x.{acc}.mask.bed",
@@ -364,7 +364,7 @@ rule extract_leftover_reads:
 rule map_leftover_reads:
     input:
         all_csv = f"{outdir}/minimap/depth/{{sra_id}}.summary.csv",
-        query = f"{outdir}/genomes/{{acc}}.fna.gz",
+        query = ancient(f"{outdir}/genomes/{{acc}}.fna.gz"),
         reads = outdir + "/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
     output:
         bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
