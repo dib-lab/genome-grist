@@ -6,6 +6,8 @@
 # - download_matching_genomes
 # - map_reads
 # - summarize
+# - build_consensus
+# - make_sgc_conf
 
 import glob, os, csv
 
@@ -91,6 +93,10 @@ rule summarize:
     input:
         outdir + f'/reports/report-{SAMPLE}.html'
 
+rule make_sgc_conf:
+    input:
+        outdir + f"/sgc/{SAMPLE}.conf"
+
 # print out the configuration
 rule showconf:
     run:
@@ -134,8 +140,8 @@ rule wc_download_sra:
 # wildcard rule for adapter trimming
 rule adapter_trim:
     input:
-        r1 = outdir + "/raw/{sample}_1.fastq.gz",
-        r2 = outdir + "/raw/{sample}_2.fastq.gz",
+        r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
+        r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
         adapters = "inputs/adapters.fa"
     output:
         r1 = protected(outdir + '/trim/{sample}_R1.trim.fq.gz'),
@@ -153,15 +159,15 @@ rule adapter_trim:
 # wildcard rule for k-mer abundance trimming
 rule kmer_trim_reads:
     input: 
-        outdir + "/trim/{sample}_R1.trim.fq.gz", 
-        outdir + "/trim/{sample}_R2.trim.fq.gz"
+        r1 = ancient(outdir + "/trim/{sample}_R1.trim.fq.gz"), 
+        r2 = ancient(outdir + "/trim/{sample}_R2.trim.fq.gz"),
     output:
         protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
     conda: 'env/trim.yml'
     params:
         mem = ABUNDTRIM_MEMORY,
     shell: """
-        interleave-reads.py {input} | 
+        interleave-reads.py {input.r1} {input.r2} | 
             trim-low-abund.py -C 3 -Z 18 -M {params.mem} -V - \
                -o {output} --gzip
     """
@@ -182,10 +188,10 @@ rule minimap:
 
 # wildcard rule for extracting FASTQ from BAM
 rule samtools_fastq:
-    output:
-        mapped = outdir + "/minimap/{bam}.mapped.fq.gz",
     input:
         bam = outdir + "/minimap/{bam}.bam",
+    output:
+        mapped = outdir + "/minimap/{bam}.mapped.fq.gz",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -258,10 +264,10 @@ rule new_consensus:
 
 # SEMI-WILDCARD rule for summarize depth into a CSV
 rule summarize_samtools_depth:
-    output: f"{outdir}/{{dir}}/depth/{SAMPLE}.summary.csv"
     input:
         expand(outdir + "/{{dir}}/depth/{s}.x.{g}.txt",
                s=SAMPLE, g=genome_accs)
+    output: f"{outdir}/{{dir}}/depth/{SAMPLE}.summary.csv"
     run:
         import pandas as pd
 
@@ -293,7 +299,7 @@ rule summarize_samtools_depth:
 # wildcard rule for computing sourmash signature from abundtrim reads
 rule sourmash_reads_genbank:
     input:
-        metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
+        metagenome = ancient(outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz"),
     output:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig"
     conda: "env/sourmash.yml"
@@ -460,11 +466,11 @@ rule download_matching_genomes_one_by_one:
 
 
 # create a spacegraphcats config file
-rule create_sgc_conf:
+rule create_sgc_conf_generic:
     input:
         csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
     output:
-        conf = "outputs/sgc/{sra_id}.conf"
+        conf = outdir + "/sgc/{sra_id}.conf"
     run:
         queries = []
         for acc in genome_accs:
@@ -474,7 +480,7 @@ rule create_sgc_conf:
            print(f"""\
 catlas_base: {wildcards.sra_id}
 input_sequences:
-- outputs/abundtrim/{wildcards.sra_id}.abundtrim.fq.gz
+- {outdir}/abundtrim/{wildcards.sra_id}.abundtrim.fq.gz
 ksize: 31
 radius: 1
 search:
