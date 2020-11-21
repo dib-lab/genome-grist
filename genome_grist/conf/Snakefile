@@ -437,7 +437,7 @@ rule sourmash_gather_reads:
 # wildcard rule for extracting accessions from gather output
 rule extract_genome_accs_from_gather:
     input:
-        csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
+        csv = ancient(outdir + "/genbank/{sra_id}.x.genbank.gather.csv"),
     output:
         acc_file = outdir + "/genbank/{sra_id}.genomes.accs.txt"
     run:
@@ -467,7 +467,7 @@ rule get_matching_genome_info:
 # NON-WILDCARD/gather-dependent rule for downloading actual genomes
 rule download_matching_genomes_one_by_one:
     input:
-        info_file = outdir + f"/genbank/{SAMPLE}.genomes.info.csv"
+        info_file = ancient(outdir + f"/genbank/{SAMPLE}.genomes.info.csv")
     output:
         genome = outdir + "/genomes/{acc}.fna.gz"
     run:

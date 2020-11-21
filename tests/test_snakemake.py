@@ -80,7 +80,9 @@ def test_map_reads():
     os.mkdir(genomes_dir)
 
     for src, dest in cplist:
-        shutil.copyfile(os.path.join(test_data, src), os.path.join(genomes_dir, dest))
+        frompath = os.path.join(test_data, src)
+        topath = os.path.join(genomes_dir, dest)
+        shutil.copyfile(frompath, topath)
 
     config_params = ["sample=HSMA33MX-subset"]
     extra_args = ["map_reads", "-j", "4"]
