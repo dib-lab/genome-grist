@@ -6,6 +6,8 @@
 # - download_matching_genomes
 # - map_reads
 # - summarize
+# - build_consensus
+# - make_sgc_conf
 
 import glob, os, csv
 
@@ -16,9 +18,18 @@ print(f'sample: {SAMPLE}')
 
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
-ABUNDTRIM_MEMORY=40e9
+print('outdir:', outdir)
 
-GENBANK_DB = glob.glob('/home/irber/sourmash_databases/outputs/sbt/genbank-*x1e5*k31*')
+ABUNDTRIM_MEMORY = config.get('metagenome_trim_memory', '1e9')
+
+sourmash_db_pattern = config.get('sourmash_database_glob_pattern', 'MUST SPECIFY IN CONFIG')
+SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
+SOURMASH_DB_KSIZE = config.get('sourmash_database_ksize', ['31'])
+
+SOURMASH_COMPUTE_KSIZES = config.get('sourmash_compute_ksizes',
+                                     ['21', '31',' 51'])
+SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
+
 GATHER_CSV = f'{outdir}/genbank/{SAMPLE}.x.genbank.gather.csv'
 
 genome_accs = []
@@ -47,7 +58,8 @@ rule all:
 rule download_reads:
     input:
         f"{outdir}/raw/{SAMPLE}_1.fastq.gz",
-        f"{outdir}/raw/{SAMPLE}_2.fastq.gz"
+        f"{outdir}/raw/{SAMPLE}_2.fastq.gz",
+        f"{outdir}/raw/{SAMPLE}.raw.sig",
 
 rule trim_reads:
     input:
@@ -61,19 +73,52 @@ rule gather_genbank:
     input:
         url_file = GATHER_CSV
 
-rule download_matching_genomes:
-    input:
-        genome = expand(outdir + "/genomes/{acc}.fna.gz",
-                        acc=genome_accs)
+if genome_accs:
+    rule download_matching_genomes:
+        input:
+            genome = expand(outdir + "/genomes/{acc}.fna.gz",
+                            acc=genome_accs)
 
-rule map_reads:
-    input:
-        f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
-        f"{outdir}/leftover/depth/{SAMPLE}.summary.csv"
+    rule map_reads:
+        input:
+            f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
+            f"{outdir}/leftover/depth/{SAMPLE}.summary.csv"
 
-rule summarize:
-    input:
-        outdir + f'/reports/report-{SAMPLE}.html'
+    rule build_consensus:
+        input:
+            expand(outdir + "/minimap/{s}.x.{g}.consensus.fa.gz",
+                   s=SAMPLE, g=genome_accs),
+            expand(outdir + "/leftover/{s}.x.{g}.consensus.fa.gz",
+                   s=SAMPLE, g=genome_accs)
+
+    rule summarize:
+        input:
+            outdir + f'/reports/report-{SAMPLE}.html'
+
+    rule make_sgc_conf:
+        input:
+            outdir + f"/sgc/{SAMPLE}.conf"
+else:
+    def complain():
+        print("**")
+        print(f"** ERROR: {GATHER_CSV} does not exist - ")
+        print("** please run 'gather_genbank' first, to create it!")
+        print("**")
+
+    rule download_matching_genomes:
+        run: complain()
+
+    rule map_reads:
+        run: complain()
+
+    rule build_consensus:
+        run: complain()
+
+    rule summarize:
+        run: complain()
+
+    rule make_sgc_conf:
+        run: complain()
 
 # print out the configuration
 rule showconf:
@@ -83,6 +128,10 @@ rule showconf:
         print(yaml.dump(config).strip())
         print('# END')
 
+# check config files only
+rule check:
+    run:
+        pass
 
 rule zip:
     shell: """
@@ -111,11 +160,28 @@ rule wc_download_sra:
                split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2}
         '''
 
+# wildcard rule for computing sourmash signature from raw reads
+rule sourmash_reads_raw:
+    input:
+        r1 = outdir + "/raw/{sra_id}_1.fastq.gz",
+        r2 = outdir + "/raw/{sra_id}_2.fastq.gz",
+    output:
+        sig = outdir + "/raw/{sra_id}.raw.sig"
+    conda: "env/sourmash.yml"
+    params:
+        ksizes = ",".join([str(i) for i in SOURMASH_COMPUTE_KSIZES]),
+        scaled = SOURMASH_COMPUTE_SCALED,
+    shell: """
+        sourmash compute -k {params.ksizes} --scaled={params.scaled} \
+           {input.r1} {input.r2} -o {output} \
+           --name 'rawreads:{wildcards.sra_id}' --track-abundance
+    """
+
 # wildcard rule for adapter trimming
 rule adapter_trim:
     input:
-        r1 = outdir + "/raw/{sample}_1.fastq.gz",
-        r2 = outdir + "/raw/{sample}_2.fastq.gz",
+        r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
+        r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
         adapters = "inputs/adapters.fa"
     output:
         r1 = protected(outdir + '/trim/{sample}_R1.trim.fq.gz'),
@@ -133,23 +199,26 @@ rule adapter_trim:
 # wildcard rule for k-mer abundance trimming
 rule kmer_trim_reads:
     input: 
-        outdir + "/trim/{sample}_R1.trim.fq.gz", 
-        outdir + "/trim/{sample}_R2.trim.fq.gz"
+        r1 = ancient(outdir + "/trim/{sample}_R1.trim.fq.gz"), 
+        r2 = ancient(outdir + "/trim/{sample}_R2.trim.fq.gz"),
     output:
         protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
     conda: 'env/trim.yml'
+    params:
+        mem = ABUNDTRIM_MEMORY,
     shell: """
-        interleave-reads.py {input} | 
-            trim-low-abund.py -C 3 -Z 18 -M {ABUNDTRIM_MEMORY} -V - -o {output}
+        interleave-reads.py {input.r1} {input.r2} | 
+            trim-low-abund.py -C 3 -Z 18 -M {params.mem} -V - \
+               -o {output} --gzip
     """
 
 # wildcard rule for mapping abundtrim reads and producing a bam
 rule minimap:
+    input:
+        query = ancient(outdir + "/genomes/{acc}.fna.gz"),
+        metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
     output:
         bam = outdir + "/minimap/{sra_id}.x.{acc}.bam",
-    input:
-        query = outdir + "/genomes/{acc}.fna.gz",
-        metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -159,10 +228,10 @@ rule minimap:
 
 # wildcard rule for extracting FASTQ from BAM
 rule samtools_fastq:
-    output:
-        mapped = outdir + "/minimap/{bam}.mapped.fq.gz",
     input:
         bam = outdir + "/minimap/{bam}.bam",
+    output:
+        mapped = outdir + "/minimap/{bam}.mapped.fq.gz",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -180,12 +249,65 @@ rule samtools_depth:
         samtools depth -aa {input.bam} > {output.depth}
     """
 
+# wild card rule for getting _covered_ regions from BAM
+rule covered_regions:
+    input:
+        bam = outdir + "/{dir}/{bam}.bam",
+    output:
+        regions = outdir + "/{dir}/depth/{bam}.regions.bed",
+    conda: "env/covtobed.yml"
+    shell: """
+        covtobed {input.bam} -l 100 -m 1 | \
+            bedtools merge -d 5 -c 4 -o mean > {output.regions}
+    """
+
+# wildcard rule for calculating SNPs/etc.
+rule mpileup:
+    input:
+        query = ancient(outdir + "/genomes/{acc}.fna.gz"),
+        bam = outdir + "/{dir}/{sra_id}.x.{acc}.bam",
+    output:
+        bcf = outdir + "/{dir}/{sra_id}.x.{acc}.bcf",
+        vcf = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz",
+        vcfi = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz.csi",
+    conda: "env/bcftools.yml"
+    shell: """
+        genomefile=$(mktemp -t grist.genome.XXXXXXX)
+        gunzip -c {input.query} > $genomefile
+        bcftools mpileup -Ou -f $genomefile {input.bam} | bcftools call -mv -Ob -o {output.bcf}
+        rm $genomefile
+        bcftools view {output.bcf} | bgzip > {output.vcf}
+        bcftools index {output.vcf}
+    """
+
+# wildcard rule for building new consensus
+rule new_consensus:
+    input:
+        vcf = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz",
+        query = ancient(outdir + "/genomes/{acc}.fna.gz"),
+        regions = outdir + "/{dir}/depth/{sra_id}.x.{acc}.regions.bed",
+    output:
+        mask = outdir + "/{dir}/{sra_id}.x.{acc}.mask.bed",
+        genomefile = outdir + "/{dir}/{sra_id}.x.{acc}.fna.gz.sizes",
+        consensus = outdir + "/{dir}/{sra_id}.x.{acc}.consensus.fa.gz",
+    conda: "env/bcftools.yml"
+    shell: """
+        genomefile=$(mktemp -t grist.genome.XXXXXXX)
+        gunzip -c {input.query} > $genomefile
+        samtools faidx $genomefile
+        cut -f1,2 ${{genomefile}}.fai > {output.genomefile}
+        bedtools complement -i {input.regions} -g {output.genomefile} > {output.mask}
+        bcftools consensus -f $genomefile {input.vcf} -m {output.mask} | \
+            gzip > {output.consensus}
+        rm $genomefile
+    """
+
 # SEMI-WILDCARD rule for summarize depth into a CSV
 rule summarize_samtools_depth:
-    output: f"{outdir}/{{dir}}/depth/{SAMPLE}.summary.csv"
     input:
         expand(outdir + "/{{dir}}/depth/{s}.x.{g}.txt",
                s=SAMPLE, g=genome_accs)
+    output: f"{outdir}/{{dir}}/depth/{SAMPLE}.summary.csv"
     run:
         import pandas as pd
 
@@ -215,26 +337,29 @@ rule summarize_samtools_depth:
         pd.DataFrame(runs).T.to_csv(output[0])
 
 # wildcard rule for computing sourmash signature from abundtrim reads
-rule sourmash_reads_genbank:
+rule sourmash_reads_abundtrim:
     input:
-        metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
+        metagenome = ancient(outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz"),
     output:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig"
     conda: "env/sourmash.yml"
+    params:
+        ksizes = ",".join([str(i) for i in SOURMASH_COMPUTE_KSIZES]),
+        scaled = SOURMASH_COMPUTE_SCALED,
     shell: """
-        sourmash compute -k 21,31,51 --scaled=1000 {input} -o {output} \
+        sourmash compute -k {params.ksizes} --scaled={params.scaled} \
+           {input} -o {output} \
            --name {wildcards.sra_id} --track-abundance
     """
 
 # NON-WILDCARD rule for configuring ipython kernel for papermill
 rule set_kernel:
     output:
-        f"{outdir}/.kernel.set"
+        touch(f"{outdir}/.kernel.set")
     conda: 'env/papermill.yml'
     shell: """
         python -m ipykernel install --user --name genome_grist
         python -m pip install matplotlib numpy pandas
-        touch {output}
     """
 
 
@@ -250,11 +375,12 @@ rule make_notebook:
         nb = outdir + f'/reports/report-{SAMPLE}.ipynb',
         html = outdir + f'/reports/report-{SAMPLE}.html',
     params:
-        cwd = outdir + '/reports/'
+        cwd = outdir + '/reports/',
+        outdir = outdir,
     conda: 'env/papermill.yml'
     shell: """
         papermill {input.nb} - -k genome_grist \
-              -p sample_id {SAMPLE:q} -p render '' \
+              -p sample_id {SAMPLE:q} -p render '' -p outdir {outdir:q}\
               --cwd {params.cwd} \
               > {output.nb}
         python -m nbconvert {output.nb} --to html --stdout --no-input \
@@ -273,15 +399,18 @@ rule extract_leftover_reads:
         expand(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.leftover.fq.gz",
                acc=genome_accs),
     conda: "env/sourmash.yml"
+    params:
+        outdir = outdir,
     shell: """
-        python -m genome_grist.subtract_gather {input.csv}
+        python -m genome_grist.subtract_gather {input.csv} \
+            --outdir={params.outdir:q}
     """
 
 # rule for mapping leftover reads to genomes -> BAM
 rule map_leftover_reads:
     input:
         all_csv = f"{outdir}/minimap/depth/{{sra_id}}.summary.csv",
-        query = f"{outdir}/genomes/{{acc}}.fna.gz",
+        query = ancient(f"{outdir}/genomes/{{acc}}.fna.gz"),
         reads = outdir + "/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
     output:
         bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
@@ -296,13 +425,15 @@ rule map_leftover_reads:
 rule prefetch_sourmash_gather_reads_genbank:
     input:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
-        db = GENBANK_DB,
+        db = SOURMASH_DB_LIST,
     output:
         matches = outdir + "/genbank/{sra_id}.x.genbank.prefetch.sig",
     conda: "env/sourmash.yml"
+    params:
+        ksize = SOURMASH_DB_KSIZE,
     shell: """
         python -m genome_grist.prefetch_gather --query {input.sig} \
-          --db {input.db} --save-matches {output.matches}
+          --db {input.db} --save-matches {output.matches} -k {params.ksize}
     """
 
 # wildcard rule for running sourmash gather on abundtrim read signature
@@ -323,7 +454,7 @@ rule sourmash_gather_reads:
 # wildcard rule for extracting accessions from gather output
 rule extract_genome_accs_from_gather:
     input:
-        csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
+        csv = ancient(outdir + "/genbank/{sra_id}.x.genbank.gather.csv"),
     output:
         acc_file = outdir + "/genbank/{sra_id}.genomes.accs.txt"
     run:
@@ -353,7 +484,7 @@ rule get_matching_genome_info:
 # NON-WILDCARD/gather-dependent rule for downloading actual genomes
 rule download_matching_genomes_one_by_one:
     input:
-        info_file = outdir + f"/genbank/{SAMPLE}.genomes.info.csv"
+        info_file = ancient(outdir + f"/genbank/{SAMPLE}.genomes.info.csv")
     output:
         genome = outdir + "/genomes/{acc}.fna.gz"
     run:
@@ -371,3 +502,26 @@ rule download_matching_genomes_one_by_one:
                         content = response.read()
                         outfp.write(content)
                         print(f"...wrote {len(content)} bytes to {output.genome}")
+
+
+# create a spacegraphcats config file
+rule create_sgc_conf_generic:
+    input:
+        csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
+    output:
+        conf = outdir + "/sgc/{sra_id}.conf"
+    run:
+        queries = []
+        for acc in genome_accs:
+            queries.append(outdir + f"/genomes/{acc}.fna.gz")
+        query_list = "\n- ".join(queries)
+        with open(output.conf, 'wt') as fp:
+           print(f"""\
+catlas_base: {wildcards.sra_id}
+input_sequences:
+- {outdir}/abundtrim/{wildcards.sra_id}.abundtrim.fq.gz
+ksize: 31
+radius: 1
+search:
+- {query_list}
+""", file=fp)
