@@ -83,6 +83,8 @@ rule map_reads:
 rule build_consensus:
     input:
         expand(outdir + "/minimap/{s}.x.{g}.consensus.fa.gz",
+               s=SAMPLE, g=genome_accs),
+        expand(outdir + "/leftover/{s}.x.{g}.consensus.fa.gz",
                s=SAMPLE, g=genome_accs)
 
 rule summarize:
@@ -201,15 +203,26 @@ rule samtools_depth:
         samtools depth -aa {input.bam} > {output.depth}
     """
 
+# wild card rule for getting _covered_ regions from BAM
+rule covered_regions:
+    input:
+        bam = outdir + "/{dir}/{bam}.bam",
+    output:
+        regions = outdir + "/{dir}/depth/{bam}.regions.bed",
+    shell: """
+        covtobed {input.bam} -l 100 -m 1 | \
+            bedtools merge -d 5 -c 4 -o mean > {output.regions}
+    """
+
 # wildcard rule for calculating SNPs/etc.
 rule mpileup:
     input:
         query = outdir + "/genomes/{acc}.fna.gz",
-        bam = outdir + "/minimap/{sra_id}.x.{acc}.bam",
+        bam = outdir + "/{dir}/{sra_id}.x.{acc}.bam",
     output:
-        bcf = outdir + "/minimap/{sra_id}.x.{acc}.bcf",
-        vcf = outdir + "/minimap/{sra_id}.x.{acc}.vcf.gz",
-        vcfi = outdir + "/minimap/{sra_id}.x.{acc}.vcf.gz.csi",
+        bcf = outdir + "/{dir}/{sra_id}.x.{acc}.bcf",
+        vcf = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz",
+        vcfi = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz.csi",
     conda: "env/bcftools.yml"
     shell: """
         genomefile=$(mktemp -t grist.genome.XXXXXXX)
@@ -223,15 +236,22 @@ rule mpileup:
 # wildcard rule for building new consensus
 rule new_consensus:
     input:
-        vcf = outdir + "/minimap/{sra_id}.x.{acc}.vcf.gz",
+        vcf = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz",
         query = outdir + "/genomes/{acc}.fna.gz",
+        regions = outdir + "/{dir}/depth/{sra_id}.x.{acc}.regions.bed",
     output:
-        consensus = outdir + "/minimap/{sra_id}.x.{acc}.consensus.fa.gz",
+        mask = outdir + "/{dir}/{sra_id}.x.{acc}.mask.bed",
+        genomefile = outdir + "/{dir}/{sra_id}.x.{acc}.fna.gz.sizes",
+        consensus = outdir + "/{dir}/{sra_id}.x.{acc}.consensus.fa.gz",
     conda: "env/bcftools.yml"
     shell: """
         genomefile=$(mktemp -t grist.genome.XXXXXXX)
         gunzip -c {input.query} > $genomefile
-        bcftools consensus -f $genomefile {input.vcf} | gzip > {output.consensus}
+        samtools faidx $genomefile
+        cut -f1,2 ${{genomefile}}.fai > {output.genomefile}
+        bedtools complement -i {input.regions} -g {output.genomefile} > {output.mask}
+        bcftools consensus -f $genomefile {input.vcf} -m {output.mask} | \
+            gzip > {output.consensus}
         rm $genomefile
     """
 
