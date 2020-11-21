@@ -209,6 +209,7 @@ rule covered_regions:
         bam = outdir + "/{dir}/{bam}.bam",
     output:
         regions = outdir + "/{dir}/depth/{bam}.regions.bed",
+    conda: "env/covtobed.yml"
     shell: """
         covtobed {input.bam} -l 100 -m 1 | \
             bedtools merge -d 5 -c 4 -o mean > {output.regions}
