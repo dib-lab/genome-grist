@@ -24,7 +24,7 @@ def main():
     p.add_argument("--output-unassigned")
     p.add_argument("--threshold-bp", type=float, default=1e5)
     p.add_argument("-k", "--ksize", type=int, default=31)
-    p.add_argument("--moltype", default="dna")
+    p.add_argument("--moltype", default="DNA")
     args = p.parse_args()
 
     # flatten --db and --query lists
@@ -41,18 +41,21 @@ def main():
                                                      select_moltype=moltype)
         query_sigs.extend(sigs)
 
+    if not len(query_sigs):
+        notify("ERROR: no query signatures loaded!?")
+        sys.exit(-1)
+
     mh = query_sigs[0].minhash
     for query_sig in query_sigs[1:]:
         mh += query_sig.minhash
 
     if not mh.scaled:
-        notify(f"ERROR: must use scaled signatures.")
+        notify("ERROR: must use scaled signatures.")
         sys.exit(-1)
 
     unident_mh = copy.copy(mh)
 
-    notify(f"Loaded {len(mh.hashes)} hashes from "
-           f"{len(query_sigs)} query signatures.")
+    notify(f"Loaded {len(mh.hashes)} hashes from {len(query_sigs)} query signatures.")
 
     # iterate over signatures in one at a time
     keep = []
