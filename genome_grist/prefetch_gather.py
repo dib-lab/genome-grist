@@ -61,6 +61,7 @@ def main():
     keep = []
     n = 0
     for db in args.db:
+        print('\nloading signatures from db:', db)
         for sig in sourmash_args.load_file_as_signatures(db, ksize=ksize,
                                                       select_moltype=moltype):
             n += 1
