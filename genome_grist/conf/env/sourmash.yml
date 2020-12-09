@@ -4,7 +4,7 @@ channels:
  - defaults
 dependencies:
  - screed
- - pip
+ - pip=20.3.1
  - pip:
    - git+https://github.com/dib-lab/genome-grist.git#egg=genome-grist
    - sourmash==4.0.0a3
