@@ -403,7 +403,7 @@ rule map_leftover_reads:
     input:
         all_csv = f"{outdir}/minimap/depth/{{sra_id}}.summary.csv",
         query = ancient(f"{outdir}/genomes/{{acc}}.fna.gz"),
-        leftover_reads_flag = touch(f"{outdir}/.leftover-reads.{SAMPLE}"),
+        leftover_reads_flag = f"{outdir}/.leftover-reads.{SAMPLE}",
         reads = outdir + "/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
     output:
         bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
