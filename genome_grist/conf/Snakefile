@@ -11,8 +11,6 @@
 
 import glob, os, csv
 
-genome_accs = []
-
 # we have "semi-wildcard" rules that depend on gather output only - they
 # all depend on having the GATHER_CSV present.
 SAMPLE=config['sample']
@@ -70,7 +68,6 @@ class Checkpoint_GatherResults:
 
     def get_genome_accs(self):
         assert os.path.exists(GATHER_CSV)
-        print(f'gather output {GATHER_CSV} exists!')
 
         genome_accs = []
         with open(GATHER_CSV, 'rt') as fp:
@@ -85,19 +82,14 @@ class Checkpoint_GatherResults:
     def __call__(self, w):
         global checkpoints
 
-        print('XXX', repr(w))
-
         # wait for the results of 'gather_genbank'; this will trigger
         # exception until that rule has been run.
         checkpoints.gather_genbank.get()
-
-        print('XYZ')
 
         # parse hitlist_genomes,
         genome_accs = self.get_genome_accs()
 
         p = expand(self.pattern, acc=genome_accs, **w)
-        print(p)
         return p
 
 rule download_matching_genomes:
@@ -395,11 +387,10 @@ rule make_notebook:
 rule extract_leftover_reads:
     input:
         csv = GATHER_CSV,
-        reads = expand(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz",
-                       acc=genome_accs),
+        mapped = Checkpoint_GatherResults(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz"),
     output:
         expand(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.leftover.fq.gz",
-               acc=genome_accs),
+               acc=Checkpoint_GatherResults("").get_genome_accs)
     conda: "env/sourmash.yml"
     params:
         outdir = outdir,
@@ -510,13 +501,11 @@ rule download_matching_genomes_one_by_one:
 rule create_sgc_conf_generic:
     input:
         csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
+        queries = Checkpoint_GatherResults(outdir + "/genomes/{acc}.fna.gz"),
     output:
         conf = outdir + "/sgc/{sra_id}.conf"
     run:
-        queries = []
-        for acc in genome_accs:
-            queries.append(outdir + f"/genomes/{acc}.fna.gz")
-        query_list = "\n- ".join(queries)
+        query_list = "\n- ".join(input.queries)
         with open(output.conf, 'wt') as fp:
            print(f"""\
 catlas_base: {wildcards.sra_id}
