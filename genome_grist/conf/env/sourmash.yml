@@ -3,7 +3,6 @@ channels:
  - bioconda
  - defaults
 dependencies:
- - sourmash>=3.5,<4
  - screed
  - pip
  - pip:
