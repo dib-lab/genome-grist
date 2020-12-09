@@ -404,13 +404,13 @@ rule map_leftover_reads:
         all_csv = f"{outdir}/minimap/depth/{{sra_id}}.summary.csv",
         query = ancient(f"{outdir}/genomes/{{acc}}.fna.gz"),
         leftover_reads_flag = f"{outdir}/.leftover-reads.{SAMPLE}",
-        reads = outdir + "/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
     output:
         bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
-        minimap2 -ax sr -t {threads} {input.query} {input.reads} | \
+        minimap2 -ax sr -t {threads} {input.query} \
+     {outdir}/minimap/{wildcards.sra_id}.x.{wildcards.acc}.leftover.fq.gz | \
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
