@@ -60,7 +60,7 @@ checkpoint gather_genbank:
     input:
         url_file = GATHER_CSV
     output:
-        touch("foo")                      # @CTB
+        touch(f"{outdir}/.gather.{SAMPLE}")   # checkpoints need an output ;)
 
 class Checkpoint_GatherResults:
     def __init__(self, pattern):
@@ -389,8 +389,7 @@ rule extract_leftover_reads:
         csv = GATHER_CSV,
         mapped = Checkpoint_GatherResults(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.mapped.fq.gz"),
     output:
-        expand(f"{outdir}/minimap/{SAMPLE}.x.{{acc}}.leftover.fq.gz",
-               acc=Checkpoint_GatherResults("").get_genome_accs)
+        touch(f"{outdir}/.leftover-reads.{SAMPLE}")
     conda: "env/sourmash.yml"
     params:
         outdir = outdir,
@@ -404,6 +403,7 @@ rule map_leftover_reads:
     input:
         all_csv = f"{outdir}/minimap/depth/{{sra_id}}.summary.csv",
         query = ancient(f"{outdir}/genomes/{{acc}}.fna.gz"),
+        leftover_reads_flag = touch(f"{outdir}/.leftover-reads.{SAMPLE}"),
         reads = outdir + "/minimap/{sra_id}.x.{acc}.leftover.fq.gz",
     output:
         bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
