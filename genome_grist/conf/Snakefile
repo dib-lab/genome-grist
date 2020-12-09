@@ -11,6 +11,8 @@
 
 import glob, os, csv
 
+genome_accs = []
+
 # we have "semi-wildcard" rules that depend on gather output only - they
 # all depend on having the GATHER_CSV present.
 SAMPLE=config['sample']
@@ -31,19 +33,6 @@ SOURMASH_COMPUTE_KSIZES = config.get('sourmash_compute_ksizes',
 SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
 
 GATHER_CSV = f'{outdir}/genbank/{SAMPLE}.x.genbank.gather.csv'
-
-genome_accs = []
-if os.path.exists(GATHER_CSV):
-    print(f'gather output {GATHER_CSV} exists!')
-    with open(GATHER_CSV, 'rt') as fp:
-       r = csv.DictReader(fp)
-       for row in r:
-           acc = row['name'].split(' ')[0]
-           genome_accs.append(acc)
-    print(f'loaded {len(genome_accs)} accessions from gather results.')
-else:
-    print(f'{GATHER_CSV} does not exist.')
-
 
 ###
 
@@ -69,56 +58,69 @@ rule smash_reads:
     input:
         url_file = f"{outdir}/sigs/{SAMPLE}.abundtrim.sig"
 
-rule gather_genbank:
+checkpoint gather_genbank:
     input:
         url_file = GATHER_CSV
+    output:
+        touch("foo")                      # @CTB
 
-if genome_accs:
-    rule download_matching_genomes:
-        input:
-            genome = expand(outdir + "/genomes/{acc}.fna.gz",
-                            acc=genome_accs)
+class Checkpoint_GatherResults:
+    def __init__(self, pattern):
+        self.pattern = pattern
 
-    rule map_reads:
-        input:
-            f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
-            f"{outdir}/leftover/depth/{SAMPLE}.summary.csv"
+    def get_genome_accs(self):
+        assert os.path.exists(GATHER_CSV)
+        print(f'gather output {GATHER_CSV} exists!')
 
-    rule build_consensus:
-        input:
-            expand(outdir + "/minimap/{s}.x.{g}.consensus.fa.gz",
-                   s=SAMPLE, g=genome_accs),
-            expand(outdir + "/leftover/{s}.x.{g}.consensus.fa.gz",
-                   s=SAMPLE, g=genome_accs)
+        genome_accs = []
+        with open(GATHER_CSV, 'rt') as fp:
+           r = csv.DictReader(fp)
+           for row in r:
+               acc = row['name'].split(' ')[0]
+               genome_accs.append(acc)
+        print(f'loaded {len(genome_accs)} accessions from gather results.')
 
-    rule summarize:
-        input:
-            outdir + f'/reports/report-{SAMPLE}.html'
+        return genome_accs
 
-    rule make_sgc_conf:
-        input:
-            outdir + f"/sgc/{SAMPLE}.conf"
-else:
-    def complain():
-        print("**")
-        print(f"** ERROR: {GATHER_CSV} does not exist - ")
-        print("** please run 'gather_genbank' first, to create it!")
-        print("**")
+    def __call__(self, w):
+        global checkpoints
 
-    rule download_matching_genomes:
-        run: complain()
+        print('XXX', repr(w))
 
-    rule map_reads:
-        run: complain()
+        # wait for the results of 'gather_genbank'; this will trigger
+        # exception until that rule has been run.
+        checkpoints.gather_genbank.get()
 
-    rule build_consensus:
-        run: complain()
+        print('XYZ')
 
-    rule summarize:
-        run: complain()
+        # parse hitlist_genomes,
+        genome_accs = self.get_genome_accs()
 
-    rule make_sgc_conf:
-        run: complain()
+        p = expand(self.pattern, acc=genome_accs, **w)
+        print(p)
+        return p
+
+rule download_matching_genomes:
+    input:
+        genome = Checkpoint_GatherResults(outdir + "/genomes/{acc}.fna.gz"),
+
+rule map_reads:
+    input:
+        f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
+        f"{outdir}/leftover/depth/{SAMPLE}.summary.csv"
+
+rule build_consensus:
+    input:
+        Checkpoint_GatherResults(outdir + f"/minimap/{SAMPLE}.x.{{acc}}.consensus.fa.gz"),
+        Checkpoint_GatherResults(outdir + f"/leftover/{SAMPLE}.x.{{acc}}.consensus.fa.gz"),
+
+rule summarize:
+    input:
+        outdir + f'/reports/report-{SAMPLE}.html'
+
+rule make_sgc_conf:
+    input:
+        outdir + f"/sgc/{SAMPLE}.conf"
 
 # print out the configuration
 rule showconf:
@@ -305,9 +307,9 @@ rule new_consensus:
 # SEMI-WILDCARD rule for summarize depth into a CSV
 rule summarize_samtools_depth:
     input:
-        expand(outdir + "/{{dir}}/depth/{s}.x.{g}.txt",
-               s=SAMPLE, g=genome_accs)
-    output: f"{outdir}/{{dir}}/depth/{SAMPLE}.summary.csv"
+        Checkpoint_GatherResults(outdir + f"/{{dir}}/depth/{SAMPLE}.x.{{acc}}.txt")
+    output:
+        f"{outdir}/{{dir}}/depth/{SAMPLE}.summary.csv"
     run:
         import pandas as pd
 
