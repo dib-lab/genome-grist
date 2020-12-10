@@ -474,6 +474,42 @@ rule get_matching_genome_info:
           -o {output.info_file}
     """
 
+# download genbank genome details; make an info.csv file for entry.
+# @CTB
+rule make_genbank_info_csv_2:
+    output:
+        csvfile = 'genbank_genomes/{acc}.info.csv'
+    conda: 'env/genbank.yml'
+    shell: """
+        python -m genome_grist.genbank_genomes {wildcards.acc} \
+            --output {output.csvfile}
+    """
+
+# download actual genomes!
+# @CTB
+rule download_matching_genomes_one_by_one_2:
+     input:
+         csvfile = ancient('genbank_genomes/{acc}.info.csv')
+     output:
+         genome = "genbank_genomes/{acc}_genomic.fna.gz"
+     run:
+         with open(input.csvfile, 'rt') as infp:
+             r = csv.DictReader(infp)
+             rows = list(r)
+             assert len(rows) == 1
+             row = rows[0]
+             acc = row['acc']
+             assert wildcards.acc.startswith(acc)
+             url = row['genome_url']
+             name = row['ncbi_tax_name']
+
+             print(f"downloading genome for acc {acc}/{name} from NCBI...")
+             with open(output.genome, 'wb') as outfp:
+                 with urllib.request.urlopen(url) as response:
+                     content = response.read()
+                     outfp.write(content)
+                     print(f"...wrote {len(content)} bytes to {output.genome}")
+
 # NON-WILDCARD/gather-dependent rule for downloading actual genomes
 rule download_matching_genomes_one_by_one:
     input:

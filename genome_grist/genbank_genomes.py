@@ -13,7 +13,10 @@ from lxml import etree
 
 def url_for_accession(accession):
     db, acc = accession.strip().split("_")
-    number, version = acc.split(".")
+    if '.' in acc:
+        number, version = acc.split(".")
+    else:
+        number, version = acc, '1'
     number = "/".join([number[p : p + 3] for p in range(0, len(number), 3)])
     url = f"ftp://ftp.ncbi.nlm.nih.gov/genomes/all/{db}/{number}"
 
@@ -26,7 +29,7 @@ def url_for_accession(accession):
     for line in all_names.splitlines():
         name = line.split()[-1]
         db_, acc_, *_ = name.split("_")
-        if db_ == db and acc == acc_:
+        if db_ == db and acc_.startswith(acc):
             full_name = name
             break
 
@@ -78,7 +81,7 @@ def get_tax_name_for_taxid(taxid):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("accession_file")
+    p.add_argument("accession")
     p.add_argument("-o", "--output")
     args = p.parse_args()
 
@@ -90,22 +93,21 @@ def main():
         w = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
     w.writeheader()
 
-    for n, acc in enumerate(open(args.accession_file, "rt")):
-        acc = acc.strip()
+    acc = args.accession
 
-        genome_url, assembly_report_url = url_for_accession(acc)
-        taxid = get_taxid_from_assembly_report(assembly_report_url)
-        tax_name = get_tax_name_for_taxid(taxid)
+    genome_url, assembly_report_url = url_for_accession(acc)
+    taxid = get_taxid_from_assembly_report(assembly_report_url)
+    tax_name = get_tax_name_for_taxid(taxid)
 
-        d = dict(
-            acc=acc,
-            genome_url=genome_url,
-            assembly_report_url=assembly_report_url,
-            ncbi_tax_name=tax_name,
-        )
+    d = dict(
+        acc=acc,
+        genome_url=genome_url,
+        assembly_report_url=assembly_report_url,
+        ncbi_tax_name=tax_name,
+    )
 
-        w.writerow(d)
-        print(f"retrieved for {acc} - {tax_name}", file=sys.stderr)
+    w.writerow(d)
+    print(f"retrieved for {acc} - {tax_name}", file=sys.stderr)
 
     return 0
 
