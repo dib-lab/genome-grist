@@ -3,8 +3,9 @@ channels:
  - bioconda
  - defaults
 dependencies:
- - sourmash>=3.5,<4
+ - python=3.7
  - screed
  - pip
  - pip:
    - git+https://github.com/dib-lab/genome-grist.git#egg=genome-grist
+   - sourmash==4.0.0a3
