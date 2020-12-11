@@ -94,7 +94,7 @@ class Checkpoint_GatherResults:
 
 rule download_matching_genomes:
     input:
-        genome = Checkpoint_GatherResults(outdir + "/genomes/{acc}.fna.gz"),
+        genome = Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz"),
 
 rule map_reads:
     input:
@@ -131,7 +131,7 @@ rule zip:
     shell: """
         zip -r transfer.zip {outdir}/leftover/depth/*.summary.csv \
                 {outdir}/minimap/depth/*.summary.csv \
-                {outdir}/*.gather.csv {outdir}/genbank/*.csv
+                {outdir}/*.gather.csv
     """
 
 
@@ -209,7 +209,7 @@ rule kmer_trim_reads:
 # wildcard rule for mapping abundtrim reads and producing a bam
 rule minimap:
     input:
-        query = ancient(outdir + "/genomes/{acc}.fna.gz"),
+        query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
         metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
     output:
         bam = outdir + "/minimap/{sra_id}.x.{acc}.bam",
@@ -258,7 +258,7 @@ rule covered_regions:
 # wildcard rule for calculating SNPs/etc.
 rule mpileup:
     input:
-        query = ancient(outdir + "/genomes/{acc}.fna.gz"),
+        query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
         bam = outdir + "/{dir}/{sra_id}.x.{acc}.bam",
     output:
         bcf = outdir + "/{dir}/{sra_id}.x.{acc}.bcf",
@@ -278,7 +278,7 @@ rule mpileup:
 rule new_consensus:
     input:
         vcf = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz",
-        query = ancient(outdir + "/genomes/{acc}.fna.gz"),
+        query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
         regions = outdir + "/{dir}/depth/{sra_id}.x.{acc}.regions.bed",
     output:
         mask = outdir + "/{dir}/{sra_id}.x.{acc}.mask.bed",
@@ -402,7 +402,7 @@ rule extract_leftover_reads:
 rule map_leftover_reads:
     input:
         all_csv = f"{outdir}/minimap/depth/{{sra_id}}.summary.csv",
-        query = ancient(f"{outdir}/genomes/{{acc}}.fna.gz"),
+        query = ancient(f"genbank_genomes/{{acc}}_genomic.fna.gz"),
         leftover_reads_flag = f"{outdir}/.leftover-reads.{SAMPLE}",
     output:
         bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
@@ -444,36 +444,6 @@ rule sourmash_gather_reads:
           --save-matches {output.matches} > {output.out}
     """
 
-# wildcard rule for extracting accessions from gather output
-rule extract_genome_accs_from_gather:
-    input:
-        csv = ancient(outdir + "/genbank/{sra_id}.x.genbank.gather.csv"),
-    output:
-        acc_file = outdir + "/genbank/{sra_id}.genomes.accs.txt"
-    run:
-        n = None
-        with open(output.acc_file, 'wt') as outfp:
-            with open(input.csv, 'rt') as infp:
-                r = csv.DictReader(infp)
-                for n, row in enumerate(r):
-                    acc = row['name'].split(' ')[0]
-                    print(acc, file=outfp)
-
-        if n is not None:
-            print(f'found {n+1} accessions in {input.csv}')
-              
-
-# wildcard rule for getting genome info (URL, name) from genbank
-rule get_matching_genome_info:
-    input:
-        acc_file = outdir + "/genbank/{sra_id}.genomes.accs.txt"
-    output:
-        info_file = outdir + "/genbank/{sra_id}.genomes.info.csv"
-    shell: """
-        python -m genome_grist.genbank_genomes {input.acc_file} \
-          -o {output.info_file}
-    """
-
 # download genbank genome details; make an info.csv file for entry.
 # @CTB
 rule make_genbank_info_csv_2:
@@ -510,34 +480,11 @@ rule download_matching_genomes_one_by_one_2:
                      outfp.write(content)
                      print(f"...wrote {len(content)} bytes to {output.genome}")
 
-# NON-WILDCARD/gather-dependent rule for downloading actual genomes
-rule download_matching_genomes_one_by_one:
-    input:
-        info_file = ancient(outdir + f"/genbank/{SAMPLE}.genomes.info.csv")
-    output:
-        genome = outdir + "/genomes/{acc}.fna.gz"
-    run:
-        with open(input.info_file, 'rt') as infp:
-            r = csv.DictReader(infp)
-            for row in r:
-                acc = row['acc']
-                if acc != wildcards.acc: continue
-                url = row['genome_url']
-                name = row['ncbi_tax_name']
-
-                print(f"downloading genome for acc {acc}/{name} from NCBI...")
-                with open(output.genome, 'wb') as outfp:
-                    with urllib.request.urlopen(url) as response:
-                        content = response.read()
-                        outfp.write(content)
-                        print(f"...wrote {len(content)} bytes to {output.genome}")
-
-
 # create a spacegraphcats config file
 rule create_sgc_conf_generic:
     input:
         csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
-        queries = Checkpoint_GatherResults(outdir + "/genomes/{acc}.fna.gz"),
+        queries = Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz"),
     output:
         conf = outdir + "/sgc/{sra_id}.conf"
     run:
