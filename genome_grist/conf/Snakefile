@@ -11,8 +11,6 @@
 
 import glob, os, csv
 
-# we have "semi-wildcard" rules that depend on gather output only - they
-# all depend on having the GATHER_CSV present.
 SAMPLE=config['sample']
 print(f'sample: {SAMPLE}')
 
@@ -135,7 +133,7 @@ rule zip:
     """
 
 
-# wildcard rule for downloading SRA IDs.
+# download SRA IDs.
 rule wc_download_sra:
     output:
         r1 = protected(outdir + "/raw/{sra_id}_1.fastq.gz"),
@@ -154,7 +152,7 @@ rule wc_download_sra:
                split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2}
         '''
 
-# wildcard rule for computing sourmash signature from raw reads
+# compute sourmash signature from raw reads
 rule sourmash_reads_raw:
     input:
         r1 = outdir + "/raw/{sra_id}_1.fastq.gz",
@@ -171,7 +169,7 @@ rule sourmash_reads_raw:
            --name 'rawreads:{wildcards.sra_id}' --track-abundance
     """
 
-# wildcard rule for adapter trimming
+# adapter trimming
 rule adapter_trim:
     input:
         r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
@@ -190,7 +188,7 @@ rule adapter_trim:
              LEADING:2 TRAILING:2 SLIDINGWINDOW:4:2
     """
 
-# wildcard rule for k-mer abundance trimming
+# k-mer abundance trimming
 rule kmer_trim_reads:
     input: 
         r1 = ancient(outdir + "/trim/{sample}_R1.trim.fq.gz"), 
@@ -206,7 +204,7 @@ rule kmer_trim_reads:
                -o {output} --gzip
     """
 
-# wildcard rule for mapping abundtrim reads and producing a bam
+# map abundtrim reads and producing a bam
 rule minimap:
     input:
         query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
@@ -220,7 +218,7 @@ rule minimap:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
-# wildcard rule for extracting FASTQ from BAM
+# extract FASTQ from BAM
 rule samtools_fastq:
     input:
         bam = outdir + "/minimap/{bam}.bam",
@@ -232,7 +230,7 @@ rule samtools_fastq:
         samtools bam2fq {input.bam} | gzip > {output.mapped}
     """
 
-# wildcard rule for getting per-base depth information from BAM
+# get per-base depth information from BAM
 rule samtools_depth:
     input:
         bam = outdir + "/{dir}/{bam}.bam",
@@ -255,7 +253,7 @@ rule covered_regions:
             bedtools merge -d 5 -c 4 -o mean > {output.regions}
     """
 
-# wildcard rule for calculating SNPs/etc.
+# calculating SNPs/etc.
 rule mpileup:
     input:
         query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
@@ -274,7 +272,7 @@ rule mpileup:
         bcftools index {output.vcf}
     """
 
-# wildcard rule for building new consensus
+# build new consensus
 rule new_consensus:
     input:
         vcf = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz",
@@ -296,7 +294,7 @@ rule new_consensus:
         rm $genomefile
     """
 
-# SEMI-WILDCARD rule for summarize depth into a CSV
+# summarize depth into a CSV
 rule summarize_samtools_depth:
     input:
         Checkpoint_GatherResults(outdir + f"/{{dir}}/depth/{SAMPLE}.x.{{acc}}.txt")
@@ -330,7 +328,7 @@ rule summarize_samtools_depth:
 
         pd.DataFrame(runs).T.to_csv(output[0])
 
-# wildcard rule for computing sourmash signature from abundtrim reads
+# compute sourmash signature from abundtrim reads
 rule sourmash_reads_abundtrim:
     input:
         metagenome = ancient(outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz"),
@@ -346,7 +344,7 @@ rule sourmash_reads_abundtrim:
            --name {wildcards.sra_id} --track-abundance
     """
 
-# NON-WILDCARD rule for configuring ipython kernel for papermill
+# configure ipython kernel for papermill
 rule set_kernel:
     output:
         touch(f"{outdir}/.kernel.set")
@@ -357,13 +355,14 @@ rule set_kernel:
     """
 
 
-# NON-WILDCARD rule for papermill -> reporting notebook + html
+# papermill -> reporting notebook + html
 rule make_notebook:
     input:
         nb = 'genome_grist/notebooks/report-sample.ipynb',
         all_csv = f"{outdir}/minimap/depth/{SAMPLE}.summary.csv",
         depth_csv = f"{outdir}/leftover/depth/{SAMPLE}.summary.csv",
         gather_csv = GATHER_CSV,
+        genomes_info_csv = f"{outdir}/genbank/{SAMPLE}.genomes.info.csv",
         kernel_set = rules.set_kernel.output,
     output:
         nb = outdir + f'/reports/report-{SAMPLE}.ipynb',
@@ -381,7 +380,7 @@ rule make_notebook:
              --ExecutePreprocessor.kernel_name=genome_grist > {output.html}
     """
 
-# NON-WILDCARD rule for mapped reads to leftover reads
+# convert mapped reads to leftover reads
 # @CTB update subtract-gather to take sample ID as param
 # @CTB update for intersected/overlapping reads too
 rule extract_leftover_reads:
@@ -414,7 +413,7 @@ rule map_leftover_reads:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
-# wildcard rule for running sourmash gather x genbank
+# run sourmash gather x genbank
 rule prefetch_sourmash_gather_reads_genbank:
     input:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
@@ -429,7 +428,7 @@ rule prefetch_sourmash_gather_reads_genbank:
           --db {input.db} --save-matches {output.matches} -k {params.ksize}
     """
 
-# wildcard rule for running sourmash gather on abundtrim read signature
+# run sourmash gather on abundtrim read signature
 rule sourmash_gather_reads:
     input:
         sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
@@ -445,8 +444,7 @@ rule sourmash_gather_reads:
     """
 
 # download genbank genome details; make an info.csv file for entry.
-# @CTB
-rule make_genbank_info_csv_2:
+rule make_genbank_info_csv:
     output:
         csvfile = 'genbank_genomes/{acc}.info.csv'
     conda: 'env/genbank.yml'
@@ -455,9 +453,18 @@ rule make_genbank_info_csv_2:
             --output {output.csvfile}
     """
 
+# combined info.csv
+rule make_combined_info_csv:
+    input:
+        Checkpoint_GatherResults('genbank_genomes/{acc}.info.csv')
+    output:
+        genomes_info_csv = f"{outdir}/genbank/{SAMPLE}.genomes.info.csv",
+    shell: """
+        python -m genome_grist.combine_csvs {input} > {output}
+    """
+
 # download actual genomes!
-# @CTB
-rule download_matching_genomes_one_by_one_2:
+rule download_matching_genomes_one_by_one:
      input:
          csvfile = ancient('genbank_genomes/{acc}.info.csv')
      output:
