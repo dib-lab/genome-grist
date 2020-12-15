@@ -101,8 +101,8 @@ rule download_matching_genomes:
 
 rule map_reads:
     input:
-        f"{outdir}/minimap/depth/{{SAMPLE}}.summary.csv",
-        f"{outdir}/leftover/depth/{{SAMPLE}}.summary.csv"
+        expand(f"{outdir}/minimap/depth/{{SAMPLE}}.summary.csv", SAMPLE=SAMPLES),
+        expand(f"{outdir}/leftover/depth/{{SAMPLE}}.summary.csv", SAMPLE=SAMPLES)
 
 rule build_consensus:
     input:
