@@ -28,8 +28,6 @@ SOURMASH_COMPUTE_KSIZES = config.get('sourmash_compute_ksizes',
                                      ['21', '31',' 51'])
 SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
 
-#GATHER_CSV = f'{outdir}/genbank/{{SAMPLE}}.x.genbank.gather.csv'
-
 ###
 
 wildcard_constraints:
@@ -78,7 +76,7 @@ class Checkpoint_GatherResults:
            for row in r:
                acc = row['name'].split(' ')[0]
                genome_accs.append(acc)
-        print(f'loaded {len(genome_accs)} accessions from gather results in {gather_csv}.')
+        print(f'loaded {len(genome_accs)} accessions from {gather_csv}.')
 
         return genome_accs
 
