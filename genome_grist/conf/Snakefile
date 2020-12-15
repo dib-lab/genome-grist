@@ -32,7 +32,6 @@ SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
 
 wildcard_constraints:
     size="\d+",
-    sra_id='[a-zA-Z0-9._-]+',                  # should be everything but /
     sample='[a-zA-Z0-9._-]+'                   # should be everything but /
 
 rule all:
@@ -140,8 +139,8 @@ rule zip:
 # download SRA IDs.
 rule wc_download_sra:
     output:
-        r1 = protected(outdir + "/raw/{sra_id}_1.fastq.gz"),
-        r2 = protected(outdir + "/raw/{sra_id}_2.fastq.gz"),
+        r1 = protected(outdir + "/raw/{sample}_1.fastq.gz"),
+        r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
     conda: "env/sra.yml"
     shell: '''
         fastq-dump --skip-technical  \
@@ -151,7 +150,7 @@ rule wc_download_sra:
                --split-spot \
                --clip \
                -Z \
-               {wildcards.sra_id} | \
+               {wildcards.sample} | \
                perl -ne 's/\.([12]) /\/$1 /; print $_' | \
                split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2}
         '''
@@ -159,10 +158,10 @@ rule wc_download_sra:
 # compute sourmash signature from raw reads
 rule sourmash_reads_raw:
     input:
-        r1 = outdir + "/raw/{sra_id}_1.fastq.gz",
-        r2 = outdir + "/raw/{sra_id}_2.fastq.gz",
+        r1 = outdir + "/raw/{sample}_1.fastq.gz",
+        r2 = outdir + "/raw/{sample}_2.fastq.gz",
     output:
-        sig = outdir + "/raw/{sra_id}.raw.sig"
+        sig = outdir + "/raw/{sample}.raw.sig"
     conda: "env/sourmash.yml"
     params:
         ksizes = ",".join([str(i) for i in SOURMASH_COMPUTE_KSIZES]),
@@ -170,7 +169,7 @@ rule sourmash_reads_raw:
     shell: """
         sourmash compute -k {params.ksizes} --scaled={params.scaled} \
            {input.r1} {input.r2} -o {output} \
-           --name 'rawreads:{wildcards.sra_id}' --track-abundance
+           --name 'rawreads:{wildcards.sample}' --track-abundance
     """
 
 # adapter trimming
@@ -212,9 +211,9 @@ rule kmer_trim_reads:
 rule minimap:
     input:
         query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
-        metagenome = outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz",
+        metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
     output:
-        bam = outdir + "/minimap/{sra_id}.x.{acc}.bam",
+        bam = outdir + "/minimap/{sample}.x.{acc}.bam",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -261,11 +260,11 @@ rule covered_regions:
 rule mpileup:
     input:
         query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
-        bam = outdir + "/{dir}/{sra_id}.x.{acc}.bam",
+        bam = outdir + "/{dir}/{sample}.x.{acc}.bam",
     output:
-        bcf = outdir + "/{dir}/{sra_id}.x.{acc}.bcf",
-        vcf = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz",
-        vcfi = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz.csi",
+        bcf = outdir + "/{dir}/{sample}.x.{acc}.bcf",
+        vcf = outdir + "/{dir}/{sample}.x.{acc}.vcf.gz",
+        vcfi = outdir + "/{dir}/{sample}.x.{acc}.vcf.gz.csi",
     conda: "env/bcftools.yml"
     shell: """
         genomefile=$(mktemp -t grist.genome.XXXXXXX)
@@ -279,13 +278,13 @@ rule mpileup:
 # build new consensus
 rule new_consensus:
     input:
-        vcf = outdir + "/{dir}/{sra_id}.x.{acc}.vcf.gz",
+        vcf = outdir + "/{dir}/{sample}.x.{acc}.vcf.gz",
         query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
-        regions = outdir + "/{dir}/depth/{sra_id}.x.{acc}.regions.bed",
+        regions = outdir + "/{dir}/depth/{sample}.x.{acc}.regions.bed",
     output:
-        mask = outdir + "/{dir}/{sra_id}.x.{acc}.mask.bed",
-        genomefile = outdir + "/{dir}/{sra_id}.x.{acc}.fna.gz.sizes",
-        consensus = outdir + "/{dir}/{sra_id}.x.{acc}.consensus.fa.gz",
+        mask = outdir + "/{dir}/{sample}.x.{acc}.mask.bed",
+        genomefile = outdir + "/{dir}/{sample}.x.{acc}.fna.gz.sizes",
+        consensus = outdir + "/{dir}/{sample}.x.{acc}.consensus.fa.gz",
     conda: "env/bcftools.yml"
     shell: """
         genomefile=$(mktemp -t grist.genome.XXXXXXX)
@@ -311,7 +310,7 @@ rule summarize_samtools_depth:
         for n, sra_stat in enumerate(input):
             print(f'reading from {sra_stat} - {n+1}/{len(input)}...')
             data = pd.read_table(sra_stat, names=["contig", "pos", "coverage"])
-            sra_id = sra_stat.split("/")[-1].split(".")[0]
+            sample = sra_stat.split("/")[-1].split(".")[0]
             genome_id = sra_stat.split("/")[-1].split(".")[2]
 
             d = {}
@@ -327,7 +326,7 @@ rule summarize_samtools_depth:
                 d['unique_mapped_coverage'] = d['coverage']
             d['covered_bp'] = (1 - d['percent missed']/100.0) * d['genome bp']
             d['genome_id'] = genome_id
-            d['sample_id'] = sra_id
+            d['sample_id'] = sample
             runs[genome_id] = d
 
         pd.DataFrame(runs).T.to_csv(output[0])
@@ -335,9 +334,9 @@ rule summarize_samtools_depth:
 # compute sourmash signature from abundtrim reads
 rule sourmash_reads_abundtrim:
     input:
-        metagenome = ancient(outdir + "/abundtrim/{sra_id}.abundtrim.fq.gz"),
+        metagenome = ancient(outdir + "/abundtrim/{sample}.abundtrim.fq.gz"),
     output:
-        sig = outdir + "/sigs/{sra_id}.abundtrim.sig"
+        sig = outdir + "/sigs/{sample}.abundtrim.sig"
     conda: "env/sourmash.yml"
     params:
         ksizes = ",".join([str(i) for i in SOURMASH_COMPUTE_KSIZES]),
@@ -345,7 +344,7 @@ rule sourmash_reads_abundtrim:
     shell: """
         sourmash compute -k {params.ksizes} --scaled={params.scaled} \
            {input} -o {output} \
-           --name {wildcards.sra_id} --track-abundance
+           --name {wildcards.sample} --track-abundance
     """
 
 # configure ipython kernel for papermill
@@ -404,26 +403,26 @@ rule extract_leftover_reads:
 # rule for mapping leftover reads to genomes -> BAM
 rule map_leftover_reads:
     input:
-        all_csv = f"{outdir}/minimap/depth/{{sra_id}}.summary.csv",
+        all_csv = f"{outdir}/minimap/depth/{{sample}}.summary.csv",
         query = ancient(f"genbank_genomes/{{acc}}_genomic.fna.gz"),
-        leftover_reads_flag = f"{outdir}/.leftover-reads.{{sra_id}}",
+        leftover_reads_flag = f"{outdir}/.leftover-reads.{{sample}}",
     output:
-        bam=outdir + "/leftover/{sra_id}.x.{acc}.bam",
+        bam=outdir + "/leftover/{sample}.x.{acc}.bam",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
         minimap2 -ax sr -t {threads} {input.query} \
-     {outdir}/minimap/{wildcards.sra_id}.x.{wildcards.acc}.leftover.fq.gz | \
+     {outdir}/minimap/{wildcards.sample}.x.{wildcards.acc}.leftover.fq.gz | \
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
 # run sourmash gather x genbank
 rule prefetch_sourmash_gather_reads_genbank:
     input:
-        sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
+        sig = outdir + "/sigs/{sample}.abundtrim.sig",
         db = SOURMASH_DB_LIST,
     output:
-        matches = outdir + "/genbank/{sra_id}.x.genbank.prefetch.sig",
+        matches = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
@@ -435,12 +434,12 @@ rule prefetch_sourmash_gather_reads_genbank:
 # run sourmash gather on abundtrim read signature
 rule sourmash_gather_reads:
     input:
-        sig = outdir + "/sigs/{sra_id}.abundtrim.sig",
-        db = outdir + "/genbank/{sra_id}.x.genbank.prefetch.sig",
+        sig = outdir + "/sigs/{sample}.abundtrim.sig",
+        db = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
     output:
-        csv = outdir + "/genbank/{sra_id}.x.genbank.gather.csv",
-        matches = outdir + "/genbank/{sra_id}.x.genbank.matches.sig",
-        out = outdir + "/genbank/{sra_id}.x.genbank.gather.out",
+        csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
+        matches = outdir + "/genbank/{sample}.x.genbank.matches.sig",
+        out = outdir + "/genbank/{sample}.x.genbank.gather.out",
     conda: "env/sourmash.yml"
     shell: """
         sourmash gather {input.sig} {input.db} -o {output.csv} \
