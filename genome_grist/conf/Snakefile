@@ -18,7 +18,7 @@ outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
 print('outdir:', outdir)
 
-ABUNDTRIM_MEMORY = config.get('metagenome_trim_memory', '1e9')
+ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
 sourmash_db_pattern = config.get('sourmash_database_glob_pattern', 'MUST SPECIFY IN CONFIG')
 SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
@@ -57,6 +57,11 @@ rule smash_reads:
 
 checkpoint gather_genbank:
     input:
+        expand(f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
+               sample=SAMPLES)
+
+checkpoint gather_genbank_wc:
+    input:
         gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv'
     output:
         touch(f"{outdir}/.gather.{{sample}}")   # checkpoints need an output ;)
@@ -82,9 +87,9 @@ class Checkpoint_GatherResults:
     def __call__(self, w):
         global checkpoints
 
-        # wait for the results of 'gather_genbank'; this will trigger
+        # wait for the results of 'gather_genbank_wc'; this will trigger
         # exception until that rule has been run.
-        checkpoints.gather_genbank.get(**w)
+        checkpoints.gather_genbank_wc.get(**w)
 
         # parse hitlist_genomes,
         genome_accs = self.get_genome_accs(w.sample)
@@ -142,6 +147,8 @@ rule wc_download_sra:
         r1 = protected(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
     conda: "env/sra.yml"
+    resources:
+        mem_mb=40000,
     shell: '''
         fastq-dump --skip-technical  \
                --readids \
@@ -199,6 +206,8 @@ rule kmer_trim_reads:
     output:
         protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
     conda: 'env/trim.yml'
+    resources:
+        mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
     params:
         mem = ABUNDTRIM_MEMORY,
     shell: """
@@ -423,6 +432,8 @@ rule prefetch_sourmash_gather_reads_genbank:
         db = SOURMASH_DB_LIST,
     output:
         matches = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
+    resources:
+        mem_mb=100000,
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
