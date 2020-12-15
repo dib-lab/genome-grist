@@ -33,34 +33,34 @@ SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
 wildcard_constraints:
     size="\d+",
     sra_id='[a-zA-Z0-9._-]+',                  # should be everything but /
-    SAMPLE='[a-zA-Z0-9._-]+'                   # should be everything but /
+    sample='[a-zA-Z0-9._-]+'                   # should be everything but /
 
 rule all:
     input:
-        expand(f'{outdir}/genbank/{{SAMPLE}}.x.genbank.gather.csv',
-               SAMPLE=SAMPLES)
+        expand(f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
+               sample=SAMPLES)
 
 rule download_reads:
     input:
-        expand(f"{outdir}/raw/{{SAMPLE}}_1.fastq.gz", SAMPLE=SAMPLES),
-        expand(f"{outdir}/raw/{{SAMPLE}}_2.fastq.gz", SAMPLE=SAMPLES),
-        expand(f"{outdir}/raw/{{SAMPLE}}.raw.sig", SAMPLE=SAMPLES),
+        expand(f"{outdir}/raw/{{sample}}_1.fastq.gz", sample=SAMPLES),
+        expand(f"{outdir}/raw/{{sample}}_2.fastq.gz", sample=SAMPLES),
+        expand(f"{outdir}/raw/{{sample}}.raw.sig", sample=SAMPLES),
 
 rule trim_reads:
     input:
-        url_file = expand(f"{outdir}/abundtrim/{{SAMPLE}}.abundtrim.fq.gz",
-                          SAMPLE=SAMPLES)
+        url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz",
+                          sample=SAMPLES)
 
 rule smash_reads:
     input:
-        url_file = expand(f"{outdir}/sigs/{{SAMPLE}}.abundtrim.sig",
-                          SAMPLE=SAMPLES)
+        url_file = expand(f"{outdir}/sigs/{{sample}}.abundtrim.sig",
+                          sample=SAMPLES)
 
 checkpoint gather_genbank:
     input:
-        gather_csv = f'{outdir}/genbank/{{SAMPLE}}.x.genbank.gather.csv'
+        gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv'
     output:
-        touch(f"{outdir}/.gather.{{SAMPLE}}")   # checkpoints need an output ;)
+        touch(f"{outdir}/.gather.{{sample}}")   # checkpoints need an output ;)
 
 class Checkpoint_GatherResults:
     def __init__(self, pattern):
@@ -88,7 +88,7 @@ class Checkpoint_GatherResults:
         checkpoints.gather_genbank.get(**w)
 
         # parse hitlist_genomes,
-        genome_accs = self.get_genome_accs(w.SAMPLE)
+        genome_accs = self.get_genome_accs(w.sample)
 
         p = expand(self.pattern, acc=genome_accs, **w)
         return p
@@ -99,22 +99,22 @@ rule download_matching_genomes:
 
 rule map_reads:
     input:
-        expand(f"{outdir}/minimap/depth/{{SAMPLE}}.summary.csv", SAMPLE=SAMPLES),
-        expand(f"{outdir}/leftover/depth/{{SAMPLE}}.summary.csv", SAMPLE=SAMPLES)
+        expand(f"{outdir}/minimap/depth/{{sample}}.summary.csv", sample=SAMPLES),
+        expand(f"{outdir}/leftover/depth/{{sample}}.summary.csv", sample=SAMPLES)
 
 rule build_consensus:
     input:
-        Checkpoint_GatherResults(outdir + f"/minimap/{{SAMPLE}}.x.{{acc}}.consensus.fa.gz"),
-        Checkpoint_GatherResults(outdir + f"/leftover/{{SAMPLE}}.x.{{acc}}.consensus.fa.gz"),
+        Checkpoint_GatherResults(outdir + f"/minimap/{{sample}}.x.{{acc}}.consensus.fa.gz"),
+        Checkpoint_GatherResults(outdir + f"/leftover/{{sample}}.x.{{acc}}.consensus.fa.gz"),
 
 rule summarize:
     input:
-        expand(f'{outdir}/reports/report-{{SAMPLE}}.html',
-               SAMPLE=SAMPLES)
+        expand(f'{outdir}/reports/report-{{sample}}.html',
+               sample=SAMPLES)
 
 rule make_sgc_conf:
     input:
-        expand(f"{outdir}/sgc/{{SAMPLE}}.conf", SAMPLE=SAMPLES)
+        expand(f"{outdir}/sgc/{{sample}}.conf", sample=SAMPLES)
 
 # print out the configuration
 rule showconf:
@@ -301,9 +301,9 @@ rule new_consensus:
 # summarize depth into a CSV
 rule summarize_samtools_depth:
     input:
-        Checkpoint_GatherResults(outdir + f"/{{dir}}/depth/{{SAMPLE}}.x.{{acc}}.txt")
+        Checkpoint_GatherResults(outdir + f"/{{dir}}/depth/{{sample}}.x.{{acc}}.txt")
     output:
-        f"{outdir}/{{dir}}/depth/{{SAMPLE}}.summary.csv"
+        f"{outdir}/{{dir}}/depth/{{sample}}.summary.csv"
     run:
         import pandas as pd
 
@@ -363,21 +363,21 @@ rule set_kernel:
 rule make_notebook:
     input:
         nb = 'genome_grist/notebooks/report-sample.ipynb',
-        all_csv = f"{outdir}/minimap/depth/{{SAMPLE}}.summary.csv",
-        depth_csv = f"{outdir}/leftover/depth/{{SAMPLE}}.summary.csv",
-        gather_csv = f'{outdir}/genbank/{{SAMPLE}}.x.genbank.gather.csv',
-        genomes_info_csv = f"{outdir}/genbank/{{SAMPLE}}.genomes.info.csv",
+        all_csv = f"{outdir}/minimap/depth/{{sample}}.summary.csv",
+        depth_csv = f"{outdir}/leftover/depth/{{sample}}.summary.csv",
+        gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
+        genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
         kernel_set = rules.set_kernel.output,
     output:
-        nb = outdir + f'/reports/report-{{SAMPLE}}.ipynb',
-        html = outdir + f'/reports/report-{{SAMPLE}}.html',
+        nb = outdir + f'/reports/report-{{sample}}.ipynb',
+        html = outdir + f'/reports/report-{{sample}}.html',
     params:
         cwd = outdir + '/reports/',
         outdir = outdir,
     conda: 'env/papermill.yml'
     shell: """
         papermill {input.nb} - -k genome_grist \
-              -p sample_id {wildcards.SAMPLE:q} -p render '' -p outdir {outdir:q}\
+              -p sample_id {wildcards.sample:q} -p render '' -p outdir {outdir:q}\
               --cwd {params.cwd} \
               > {output.nb}
         python -m nbconvert {output.nb} --to html --stdout --no-input \
@@ -389,10 +389,10 @@ rule make_notebook:
 # @CTB update for intersected/overlapping reads too
 rule extract_leftover_reads:
     input:
-        csv = f'{outdir}/genbank/{{SAMPLE}}.x.genbank.gather.csv',
-        mapped = Checkpoint_GatherResults(f"{outdir}/minimap/{{SAMPLE}}.x.{{acc}}.mapped.fq.gz"),
+        csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
+        mapped = Checkpoint_GatherResults(f"{outdir}/minimap/{{sample}}.x.{{acc}}.mapped.fq.gz"),
     output:
-        touch(f"{outdir}/.leftover-reads.{{SAMPLE}}")
+        touch(f"{outdir}/.leftover-reads.{{sample}}")
     conda: "env/sourmash.yml"
     params:
         outdir = outdir,
@@ -462,7 +462,7 @@ rule make_combined_info_csv:
     input:
         Checkpoint_GatherResults('genbank_genomes/{acc}.info.csv')
     output:
-        genomes_info_csv = f"{outdir}/genbank/{{SAMPLE}}.genomes.info.csv",
+        genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
     shell: """
         python -m genome_grist.combine_csvs {input} > {output}
     """
@@ -494,17 +494,17 @@ rule download_matching_genomes_one_by_one:
 # create a spacegraphcats config file
 rule create_sgc_conf_generic:
     input:
-        csv = outdir + "/genbank/{SAMPLE}.x.genbank.gather.csv",
+        csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
         queries = Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz"),
     output:
-        conf = outdir + "/sgc/{SAMPLE}.conf"
+        conf = outdir + "/sgc/{sample}.conf"
     run:
         query_list = "\n- ".join(input.queries)
         with open(output.conf, 'wt') as fp:
            print(f"""\
-catlas_base: {wildcards.SAMPLE}
+catlas_base: {wildcards.sample}
 input_sequences:
-- {outdir}/abundtrim/{wildcards.SAMPLE}.abundtrim.fq.gz
+- {outdir}/abundtrim/{wildcards.sample}.abundtrim.fq.gz
 ksize: 31
 radius: 1
 search:
