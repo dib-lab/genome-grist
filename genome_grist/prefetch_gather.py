@@ -1,4 +1,7 @@
 #! /usr/bin/env python
+"""
+Prefetch results from a large database, to then run gather on.
+"""
 import sys
 import argparse
 import copy
@@ -57,7 +60,8 @@ def main():
 
     notify(f"Loaded {len(mh.hashes)} hashes from {len(query_sigs)} query signatures.")
 
-    # iterate over signatures in one at a time
+    # iterate over signatures in db one at a time, for each db;
+    # find those with any kind of containment.
     keep = []
     n = 0
     for db in args.db:
@@ -68,7 +72,7 @@ def main():
             db_mh = sig.minhash.downsample(scaled=mh.scaled)
             common = mh.count_common(db_mh)
             if common:
-                # check scaled...
+                # check scaled here?
                 if common * mh.scaled >= args.threshold_bp:
                     keep.append(sig)
                     unident_mh.remove_many(db_mh.hashes)

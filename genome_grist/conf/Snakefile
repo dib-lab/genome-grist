@@ -431,10 +431,24 @@ rule prefetch_sourmash_gather_reads_genbank:
           --db {input.db} --save-matches {output.matches} -k {params.ksize}
     """
 
-# run sourmash gather on prefetched reads
-rule sourmash_gather_reads:
+# run sourmash search x genbank and find anything matching.
+rule split_read_signature_known_unknown:
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
+        prefetch = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
+    output:
+        known = outdir + "/genbank/{sample}.x.genbank.known.sig",
+        unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
+    conda: "env/sourmash.yml"
+    shell: """
+        python -m genome_grist.gather_split {input.sig} {input.prefetch} \
+          {output.known} {output.unknown}
+    """
+
+# run sourmash gather with known hashes on prefetched matches.
+rule sourmash_gather_reads:
+    input:
+        known = outdir + "/genbank/{sample}.x.genbank.known.sig",
         db = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
     output:
         csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
@@ -442,7 +456,7 @@ rule sourmash_gather_reads:
         out = outdir + "/genbank/{sample}.x.genbank.gather.out",
     conda: "env/sourmash.yml"
     shell: """
-        sourmash gather {input.sig} {input.db} -o {output.csv} \
+        sourmash gather {input.known} {input.db} -o {output.csv} \
           --save-matches {output.matches} > {output.out}
     """
 
