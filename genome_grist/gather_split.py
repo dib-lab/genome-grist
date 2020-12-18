@@ -55,6 +55,9 @@ def main():
             keep.append(sig)
             unknown_mh.remove_many(db_mh.hashes)
 
+        if n % 100 == 0:
+            notify(f"{n} searched, {len(keep)} matches.", end="\r")
+
     notify(f"{n} searched, {len(keep)} matches.")
 
     known_mh = copy.copy(query_mh)
