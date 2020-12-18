@@ -55,6 +55,11 @@ rule smash_reads:
         url_file = expand(f"{outdir}/sigs/{{sample}}.abundtrim.sig",
                           sample=SAMPLES)
 
+rule prefetch_genbank:
+    input:
+        expand(outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
+               sample=SAMPLES)
+
 checkpoint gather_genbank:
     input:
         gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv'
