@@ -416,7 +416,7 @@ rule map_leftover_reads:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
-# run sourmash gather x genbank
+# run sourmash search x genbank and find anything matching.
 rule prefetch_sourmash_gather_reads_genbank:
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
@@ -431,7 +431,7 @@ rule prefetch_sourmash_gather_reads_genbank:
           --db {input.db} --save-matches {output.matches} -k {params.ksize}
     """
 
-# run sourmash gather on abundtrim read signature
+# run sourmash gather on prefetched reads
 rule sourmash_gather_reads:
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
