@@ -42,7 +42,7 @@ def main():
 
     # iterate over signatures in matches one at a time, for each db;
     # find those with any kind of containment.
-    keep = []
+    m = 0
     n = 0
     print(f"\nloading signatures from '{args.matches_db}'")
     for sig in sourmash_args.load_file_as_signatures(args.matches_db,
@@ -50,15 +50,15 @@ def main():
                                                      select_moltype=moltype):
         n += 1
         db_mh = sig.minhash.downsample(scaled=query_mh.scaled)
-        common = query_mh.count_common(db_mh)
+        common = unknown_mh.count_common(db_mh)
         if common:
-            keep.append(sig)
+            m += 1
             unknown_mh.remove_many(db_mh.hashes)
 
         if n % 100 == 0:
-            notify(f"{n} searched, {len(keep)} matches.", end="\r")
+            notify(f"{n} searched, {m} matches.", end="\r")
 
-    notify(f"{n} searched, {len(keep)} matches.")
+    notify(f"{n} searched, {m} matches.")
 
     known_mh = copy.copy(query_mh)
     known_mh.remove_many(unknown_mh.hashes)
