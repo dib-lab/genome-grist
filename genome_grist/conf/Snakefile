@@ -155,16 +155,25 @@ rule wc_download_sra:
     resources:
         mem_mb=40000,
     shell: '''
+        LOC=$(mktemp -d)
+        echo tmp directory: $LOC
+        cd $LOC
         fastq-dump --skip-technical  \
                --readids \
                --read-filter pass \
                --dumpbase \
                --split-spot \
                --clip \
-               -Z \
-               {wildcards.sample} | \
-               perl -ne 's/\.([12]) /\/$1 /; print $_' | \
-               split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2}
+               --split-3 \
+               {wildcards.sample}
+
+        ls -l
+        cd -
+
+        seqtk mergepe SRR5950647_pass_[12].fastq | seqtk seq -C - | \
+            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+            split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2} 
+        # rm -fr $LOC
         '''
 
 # compute sourmash signature from raw reads

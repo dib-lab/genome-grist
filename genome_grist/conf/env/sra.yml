@@ -5,3 +5,4 @@ channels:
 dependencies:
   - sra-tools=2.10.1
   - khmer=3.0.0a
+  - seqtk=1.3
