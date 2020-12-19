@@ -60,8 +60,13 @@ def main():
 
     notify(f"{n} searched, {m} matches.")
 
-    known_mh = copy.copy(query_mh)
-    known_mh.remove_many(unknown_mh.hashes)
+    print('xxx', len(query_mh))
+    known_hashes = set(query_mh.hashes)
+    print('xyx', len(unknown_mh))
+    known_hashes -= set(unknown_mh.hashes)
+
+    known_mh = query_mh.copy_and_clear()
+    known_mh.add_many(known_hashes)
 
     p_known = len(known_mh) / len(query_mh) * 100
     print(f"{len(known_mh)} known hashes of {len(query_mh)} total ({p_known:.1f}% known, {100-p_known:.1f}% unknown).")
