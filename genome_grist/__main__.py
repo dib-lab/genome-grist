@@ -33,6 +33,10 @@ def run_snakemake(
     # basic command
     cmd = ["snakemake", "-s", snakefile]
 
+    # snakemake sometimes seems to want a default -j; set it to 1 for now.
+    # can overridden later on command line.
+    cmd += ["-j", "1"]
+
     # add --use-conda
     if not no_use_conda:
         cmd += ["--use-conda"]
@@ -47,10 +51,6 @@ def run_snakemake(
 
     if config_params:
         cmd += ["--config", *config_params]
-
-    # snakemake sometimes seems to want a default -j; set it to 1 for now.
-    # can overridden later on command line.
-    cmd += ["-j", "1"]
 
     # add configfile - try looking for it a few different ways.
     configfiles = [
