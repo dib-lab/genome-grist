@@ -170,10 +170,14 @@ rule wc_download_sra:
         ls -l
         cd -
 
-        seqtk mergepe SRR5950647_pass_[12].fastq | seqtk seq -C - | \
+        # the fastq-dump command created two (...or more) files,
+        # go forth and process the _pass_1 and _pass_2 files:
+        seqtk mergepe $LOC/*_pass_[12].fastq | seqtk seq -C - | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2} 
-        # rm -fr $LOC
+
+        # remove the temp directory & raw FASTQ files
+        rm -fr $LOC
         '''
 
 # compute sourmash signature from raw reads
