@@ -21,6 +21,7 @@ def main():
 
     p.add_argument("-k", "--ksize", type=int, default=31)
     p.add_argument("--moltype", default="DNA")
+    p.add_argument("--scaled", default=None)
     args = p.parse_args()
 
     ksize = args.ksize
@@ -35,6 +36,11 @@ def main():
     if not query_mh.scaled:
         notify("ERROR: must use scaled signatures.")
         sys.exit(-1)
+
+    if args.scaled:
+        scaled = int(args.scaled)
+        notify(f"Downsampling query from scaled={query_mh.scaled} to {scaled}")
+        query_mh = query_mh.downsample(scaled=int(scaled))
 
     unknown_mh = copy.copy(query_mh)
 
