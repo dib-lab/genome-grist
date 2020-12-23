@@ -23,10 +23,19 @@ ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 sourmash_db_pattern = config.get('sourmash_database_glob_pattern', 'MUST SPECIFY IN CONFIG')
 SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
 SOURMASH_DB_KSIZE = config.get('sourmash_database_ksize', ['31'])
-
+SOURMASH_DATABASE_THRESHOLD_BP = config.get('sourmash_database_threshold_bp',
+                                            1e5)
 SOURMASH_COMPUTE_KSIZES = config.get('sourmash_compute_ksizes',
                                      ['21', '31',' 51'])
 SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
+SOURMASH_COMPUTE_TYPE = config.get('sourmash_sigtype', 'DNA')
+assert SOURMASH_COMPUTE_TYPE in 'DNA', 'protein'
+
+# make a `sourmash sketch` -p param string.
+def make_param_str(ksizes, scaled):
+    ks = [ f'k={k}' for k in ksizes ]
+    ks = ",".join(ks)
+    return f"{ks},scaled={scaled}"
 
 ###
 
@@ -366,12 +375,13 @@ rule sourmash_reads_abundtrim:
         sig = outdir + "/sigs/{sample}.abundtrim.sig"
     conda: "env/sourmash.yml"
     params:
-        ksizes = ",".join([str(i) for i in SOURMASH_COMPUTE_KSIZES]),
-        scaled = SOURMASH_COMPUTE_SCALED,
+        param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
+                                   scaled=SOURMASH_COMPUTE_SCALED),
+        action = "translate" if SOURMASH_COMPUTE_TYPE == "protein" else "dna"
     shell: """
-        sourmash compute -k {params.ksizes} --scaled={params.scaled} \
+        sourmash sketch {params.action} -p {params.param_str} \
            {input} -o {output} \
-           --name {wildcards.sample} --track-abundance
+           --name {wildcards.sample}
     """
 
 # configure ipython kernel for papermill
@@ -455,9 +465,12 @@ rule prefetch_sourmash_gather_reads_genbank:
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
+        moltype = SOURMASH_COMPUTE_TYPE,
+        threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
         python -m genome_grist.prefetch_gather --query {input.sig} \
-          --db {input.db} --save-matches {output.matches} -k {params.ksize} --threshold-bp=0
+          --db {input.db} --save-matches {output.matches} -k {params.ksize} \
+          --threshold-bp={params.threshold_bp} --moltype {params.moltype}
     """
 
 # run sourmash search x genbank and find anything matching.
@@ -469,9 +482,13 @@ rule split_read_signature_known_unknown:
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
         unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
     conda: "env/sourmash.yml"
+    params:
+        ksize = SOURMASH_DB_KSIZE,
+        moltype = SOURMASH_COMPUTE_TYPE,
     shell: """
         python -m genome_grist.gather_split {input.sig} {input.prefetch} \
-          {output.known} {output.unknown}
+          {output.known} {output.unknown}  \
+          -k {params.ksize} --moltype {params.moltype}
     """
 
 # run sourmash gather with known hashes on prefetched matches.
@@ -484,9 +501,11 @@ rule sourmash_gather_reads:
         matches = outdir + "/genbank/{sample}.x.genbank.matches.sig",
         out = outdir + "/genbank/{sample}.x.genbank.gather.out",
     conda: "env/sourmash.yml"
+    params:
+        threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
         sourmash gather {input.known} {input.db} -o {output.csv} \
-          --threshold-bp 0 \
+          --threshold-bp {params.threshold_bp} \
           --save-matches {output.matches} > {output.out}
     """
 
