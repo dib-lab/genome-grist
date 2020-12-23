@@ -24,11 +24,12 @@ sourmash_db_pattern = config.get('sourmash_database_glob_pattern', 'MUST SPECIFY
 SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
 SOURMASH_DB_KSIZE = config.get('sourmash_database_ksize', ['31'])
 SOURMASH_DATABASE_THRESHOLD_BP = config.get('sourmash_database_threshold_bp',
-                                            50e3)
+                                            1e5)
 SOURMASH_COMPUTE_KSIZES = config.get('sourmash_compute_ksizes',
                                      ['21', '31',' 51'])
 SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
-SOURMASH_COMPUTE_TYPE = config.get('sourmash_sigtype', 'dna')
+SOURMASH_COMPUTE_TYPE = config.get('sourmash_sigtype', 'DNA')
+assert SOURMASH_COMPUTE_TYPE in 'DNA', 'protein'
 
 # make a `sourmash sketch` -p param string.
 def make_param_str(ksizes, scaled):
