@@ -82,7 +82,7 @@ def main():
 
     notify(f"{n} searched, {len(keep)} matches.")
 
-    if keep and args.save_matches:
+    if args.save_matches:
         notify('saving all matches to "{}"', args.save_matches)
         with sourmash_args.FileOutput(args.save_matches, "wt") as fp:
             sourmash.save_signatures(keep, fp)
