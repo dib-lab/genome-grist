@@ -19,9 +19,12 @@ def url_for_accession(accession):
         number, version = acc, '1'
     number = "/".join([number[p : p + 3] for p in range(0, len(number), 3)])
     url = f"ftp://ftp.ncbi.nlm.nih.gov/genomes/all/{db}/{number}"
+    print(f"opening directory: {url}", file=sys.stderr)
 
     with urllib.request.urlopen(url) as response:
         all_names = response.read()
+
+    print("done!", file=sys.stderr)
 
     all_names = all_names.decode("utf-8")
 
@@ -36,7 +39,7 @@ def url_for_accession(accession):
     if full_name is None:
         return None
     else:
-        url = "https" + url[3:]
+        url = "ftp" + url[3:]
         return (
             f"{url}/{full_name}/{full_name}_genomic.fna.gz",
             f"{url}/{full_name}/{full_name}_assembly_report.txt",
@@ -44,8 +47,10 @@ def url_for_accession(accession):
 
 
 def get_taxid_from_assembly_report(url):
+    print(f"opening assembly report: {url}", file=sys.stderr)
     with urllib.request.urlopen(url) as response:
         content = response.read()
+    print("done!", file=sys.stderr)
 
     content = content.decode("utf-8").splitlines()
     for line in content:
@@ -65,8 +70,11 @@ def get_tax_name_for_taxid(taxid):
     tax_url = (
         f"https://www.ncbi.nlm.nih.gov/taxonomy/?term={taxid}&report=taxon&format=text"
     )
+    print(f"opening tax url: {tax_url}", file=sys.stderr)
     with urllib.request.urlopen(tax_url) as response:
         content = response.read()
+
+    print("done!", file=sys.stderr)
 
     root = etree.fromstring(content)
     notags = etree.tostring(root).decode("utf-8")
