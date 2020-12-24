@@ -29,7 +29,9 @@ SOURMASH_COMPUTE_KSIZES = config.get('sourmash_compute_ksizes',
                                      ['21', '31',' 51'])
 SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
 SOURMASH_COMPUTE_TYPE = config.get('sourmash_sigtype', 'DNA')
-assert SOURMASH_COMPUTE_TYPE in 'DNA', 'protein'
+assert SOURMASH_COMPUTE_TYPE in ('DNA', 'protein')
+
+PREFETCH_MEMORY = float(config.get('prefetch_memory', '100e9'))
 
 # make a `sourmash sketch` -p param string.
 def make_param_str(ksizes, scaled):
@@ -111,9 +113,14 @@ class Checkpoint_GatherResults:
         p = expand(self.pattern, acc=genome_accs, **w)
         return p
 
+rule download_matching_genomes_info:
+    input:
+        expand(f"{outdir}/genbank/{{sample}}.genomes.info.csv",
+               sample=SAMPLES)
+
 rule download_matching_genomes:
     input:
-        genome = Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz"),
+        Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz"),
 
 rule map_reads:
     input:
@@ -355,7 +362,7 @@ rule summarize_samtools_depth:
         pd.DataFrame(runs).T.to_csv(output[0])
 
 # compute sourmash signature from abundtrim reads
-rule sourmash_reads_abundtrim:
+rule wc_sourmash_abundtrim:
     input:
         metagenome = ancient(outdir + "/abundtrim/{sample}.abundtrim.fq.gz"),
     output:
@@ -441,14 +448,14 @@ rule map_leftover_reads:
     """
 
 # run sourmash search x genbank and find anything matching.
-rule prefetch_sourmash_gather_reads_genbank:
+rule wc_prefetch_gather:
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
         db = SOURMASH_DB_LIST,
     output:
         matches = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
     resources:
-        mem_mb=100000,
+        mem_mb=int(PREFETCH_MEMORY / 1e3)
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
@@ -461,7 +468,7 @@ rule prefetch_sourmash_gather_reads_genbank:
     """
 
 # run sourmash search x genbank and find anything matching.
-rule split_read_signature_known_unknown:
+rule wc_split_query_known_unknown:
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
         prefetch = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
@@ -479,7 +486,7 @@ rule split_read_signature_known_unknown:
     """
 
 # run sourmash gather with known hashes on prefetched matches.
-rule sourmash_gather_reads:
+rule wc_sourmash_gather_reads:
     input:
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
         db = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
