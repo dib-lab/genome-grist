@@ -29,7 +29,7 @@ SOURMASH_COMPUTE_KSIZES = config.get('sourmash_compute_ksizes',
                                      ['21', '31',' 51'])
 SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
 SOURMASH_COMPUTE_TYPE = config.get('sourmash_sigtype', 'DNA')
-assert SOURMASH_COMPUTE_TYPE in 'DNA', 'protein'
+assert SOURMASH_COMPUTE_TYPE in ('DNA', 'protein')
 
 # make a `sourmash sketch` -p param string.
 def make_param_str(ksizes, scaled):
@@ -160,6 +160,7 @@ rule wc_download_sra:
     output:
         r1 = protected(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
+        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
@@ -167,6 +168,7 @@ rule wc_download_sra:
         LOC=$(mktemp -d)
         echo tmp directory: $LOC
         cd $LOC
+        echo running fastq-dump for {wildcards.sample}
         fastq-dump --skip-technical  \
                --readids \
                --read-filter pass \
@@ -176,14 +178,40 @@ rule wc_download_sra:
                --split-3 \
                {wildcards.sample}
 
-        ls -l
+        ls -lh
+
+        # figure out the accession
+        ACC=$(ls -1 *_pass_1.fastq | cut -d_ -f1)
+        echo accession is $ACC
+
+        # return to snakemake running dir
         cd -
 
-        # the fastq-dump command created two (...or more) files,
-        # go forth and process the _pass_1 and _pass_2 files:
-        seqtk mergepe $LOC/*_pass_[12].fastq | seqtk seq -C - | \
+        # define the file names output by fastq-dump
+        R1=${{LOC}}/${{ACC}}_pass_1.fastq
+        R2=${{LOC}}/${{ACC}}_pass_2.fastq
+        UNP=${{LOC}}/${{ACC}}_pass.fastq
+
+        # make unpaired file if needed
+        if [ -f $R1 -a -f $R2 -a \! -f $UNP ]; then
+            echo no unpaired; creating empty unpaired file $UNP for simplicity
+            touch $UNP
+        fi
+
+        echo processing R1...
+        seqtk seq -C $R1 | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
-            split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2} 
+            gzip -c > {output.r1}
+
+        echo processing R2...
+        seqtk seq -C $R2 | \
+            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+            gzip -c > {output.r2}
+
+        echo processing unpaired
+        seqtk seq -C $UNP | \
+            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+            gzip -c > {output.unp}
 
         # remove the temp directory & raw FASTQ files
         rm -fr $LOC
