@@ -229,6 +229,7 @@ rule sourmash_reads_raw:
     input:
         r1 = outdir + "/raw/{sample}_1.fastq.gz",
         r2 = outdir + "/raw/{sample}_2.fastq.gz",
+        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
     output:
         sig = outdir + "/raw/{sample}.raw.sig"
     conda: "env/sourmash.yml"
@@ -237,7 +238,7 @@ rule sourmash_reads_raw:
         scaled = SOURMASH_COMPUTE_SCALED,
     shell: """
         sourmash compute -k {params.ksizes} --scaled={params.scaled} \
-           {input.r1} {input.r2} -o {output} \
+           {input.r1} {input.r2} {input.unp} -o {output} \
            --name 'rawreads:{wildcards.sample}' --track-abundance
     """
 
@@ -256,6 +257,20 @@ rule adapter_trim:
     shell: """
         trimmomatic PE {input.r1} {input.r2} \
              {output.r1} {output.o1} {output.r2} {output.o2} \
+             ILLUMINACLIP:{input.adapters}:2:0:15 MINLEN:25  \
+             LEADING:2 TRAILING:2 SLIDINGWINDOW:4:2
+    """
+
+# adapter trimming for the singleton reads
+rule adapter_trim_unpaired:
+    input:
+        unp = ancient(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+        adapters = "inputs/adapters.fa"
+    output:
+        unp = protected(outdir + '/trim/{sample}_unpaired.trim.fq.gz'),
+    conda: 'env/trim.yml'
+    shell: """
+        trimmomatic SE {input.unp} {output.unp} \
              ILLUMINACLIP:{input.adapters}:2:0:15 MINLEN:25  \
              LEADING:2 TRAILING:2 SLIDINGWINDOW:4:2
     """

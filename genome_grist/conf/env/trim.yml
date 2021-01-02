@@ -5,4 +5,4 @@ channels:
 dependencies:
  - khmer=3.0.0a
  - trimmomatic=0.39
- - bwa=0.7.17
+ - seqtk=1.3
