@@ -202,7 +202,7 @@ rule wc_download_sra:
 
         # make unpaired file if needed
         if [ -f $R1 -a -f $R2 -a \! -f $UNP ]; then
-            echo no unpaired; creating empty unpaired file $UNP for simplicity
+            echo "no unpaired; creating empty unpaired file $UNP for simplicity"
             touch $UNP
         fi
 
