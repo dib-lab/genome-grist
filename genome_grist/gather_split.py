@@ -51,18 +51,22 @@ def main():
     m = 0
     n = 0
     print(f"\nloading signatures from '{args.matches_db}'")
-    for sig in sourmash_args.load_file_as_signatures(args.matches_db,
-                                                     ksize=ksize,
-                                                     select_moltype=moltype):
-        n += 1
-        db_mh = sig.minhash.downsample(scaled=query_mh.scaled)
-        common = unknown_mh.count_common(db_mh)
-        if common:
-            m += 1
-            unknown_mh.remove_many(db_mh.hashes)
 
-        if n % 100 == 0:
-            notify(f"{n} searched, {m} matches.", end="\r")
+    try:
+        for sig in sourmash_args.load_file_as_signatures(args.matches_db,
+                                                         ksize=ksize,
+                                                         select_moltype=moltype):
+            n += 1
+            db_mh = sig.minhash.downsample(scaled=query_mh.scaled)
+            common = unknown_mh.count_common(db_mh)
+            if common:
+                m += 1
+                unknown_mh.remove_many(db_mh.hashes)
+
+            if n % 100 == 0:
+                notify(f"{n} searched, {m} matches.", end="\r")
+    except OSError:
+        notify("WARNING: no matching signatures to load!")
 
     notify(f"{n} searched, {m} matches.")
 
