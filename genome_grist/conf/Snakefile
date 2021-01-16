@@ -156,9 +156,10 @@ rule check:
 
 rule zip:
     shell: """
+        rm -f transfer.zip
         zip -r transfer.zip {outdir}/leftover/depth/*.summary.csv \
                 {outdir}/minimap/depth/*.summary.csv \
-                {outdir}/*.gather.csv
+                {outdir}/genbank/*.csv {outdir}/reports
     """
 
 
@@ -167,20 +168,61 @@ rule wc_download_sra:
     output:
         r1 = protected(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
+        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
     shell: '''
+        LOC=$(mktemp -d)
+        echo tmp directory: $LOC
+        cd $LOC
+        echo running fastq-dump for {wildcards.sample}
         fastq-dump --skip-technical  \
                --readids \
                --read-filter pass \
                --dumpbase \
                --split-spot \
                --clip \
-               -Z \
-               {wildcards.sample} | \
-               perl -ne 's/\.([12]) /\/$1 /; print $_' | \
-               split-paired-reads.py --gzip -1 {output.r1} -2 {output.r2}
+               --split-3 \
+               {wildcards.sample}
+
+        ls -lh
+
+        # figure out the accession
+        ACC=$(ls -1 *_pass_1.fastq | cut -d_ -f1)
+        echo accession is $ACC
+
+        # return to snakemake running dir
+        cd -
+
+        # define the file names output by fastq-dump
+        R1=${{LOC}}/${{ACC}}_pass_1.fastq
+        R2=${{LOC}}/${{ACC}}_pass_2.fastq
+        UNP=${{LOC}}/${{ACC}}_pass.fastq
+
+        # make unpaired file if needed
+        if [ -f $R1 -a -f $R2 -a \! -f $UNP ]; then
+            echo "no unpaired; creating empty unpaired file $UNP for simplicity"
+            touch $UNP
+        fi
+
+        echo processing R1...
+        seqtk seq -C $R1 | \
+            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+            gzip -c > {output.r1}
+
+        echo processing R2...
+        seqtk seq -C $R2 | \
+            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+            gzip -c > {output.r2}
+
+        echo processing unpaired
+        seqtk seq -C $UNP | \
+            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+            gzip -c > {output.unp}
+
+        # remove the temp directory & raw FASTQ files
+        rm -fr $LOC
         '''
 
 # compute sourmash signature from raw reads
