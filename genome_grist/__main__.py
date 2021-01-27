@@ -57,24 +57,25 @@ def run_snakemake(
         get_package_configfile("defaults.conf"),
         get_package_configfile("system.conf"),
     ]
-    if os.path.isfile(configfile):
-        configfiles.append(configfile)
-    elif os.path.isfile(get_package_configfile(configfile)):
-        configfiles.append(get_package_configfile(configfile))
-    else:
-        for suffix in ".yaml", ".conf":
-            tryfile = configfile + suffix
-            if os.path.isfile(tryfile):
-                configfiles.append(tryfile)
-                break
+    if configfile:
+        if os.path.isfile(configfile):
+            configfiles.append(configfile)
+        elif os.path.isfile(get_package_configfile(configfile)):
+            configfiles.append(get_package_configfile(configfile))
+        else:
+            for suffix in ".yaml", ".conf":
+                tryfile = configfile + suffix
+                if os.path.isfile(tryfile):
+                    configfiles.append(tryfile)
+                    break
 
-            tryfile = get_package_configfile(tryfile)
-            if os.path.isfile(tryfile):
-                configfiles.append(tryfile)
-                break
+                tryfile = get_package_configfile(tryfile)
+                if os.path.isfile(tryfile):
+                    configfiles.append(tryfile)
+                    break
 
-    if len(configfiles) == 2:
-        raise ValueError(f"cannot find config file '{configfile}'")
+        if len(configfiles) == 2:
+            raise ValueError(f"cannot find config file '{configfile}'")
 
     cmd += ["--configfile"] + configfiles
 
@@ -134,7 +135,7 @@ def process(sample, snakemake_args, no_use_conda, verbose, outdir):
     snakemake_args = list(snakemake_args)
     snakemake_args += ["--config", f"sample={sample}"]
     run_snakemake(
-        "conf.yml",
+        None,
         snakefile_name="Snakefile",
         no_use_conda=no_use_conda,
         verbose=verbose,
