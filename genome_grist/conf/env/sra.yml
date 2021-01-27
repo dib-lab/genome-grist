@@ -1,8 +1,7 @@
 channels:
-  - conda-forge
-  - bioconda
-  - defaults
+ - conda-forge
+ - bioconda
+ - defaults
 dependencies:
-  - sra-tools=2.10.1
-  - khmer=3.0.0a
-  - seqtk=1.3
+ - sra-tools=2.10.1
+ - seqtk=1.3
