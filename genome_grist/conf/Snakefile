@@ -575,7 +575,6 @@ rule wc_sourmash_gather_reads:
 rule make_genbank_info_csv:
     output:
         csvfile = 'genbank_genomes/{acc}.info.csv'
-    conda: 'env/genbank.yml'
     shell: """
         python -m genome_grist.genbank_genomes {wildcards.acc} \
             --output {output.csvfile}
