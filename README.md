@@ -30,7 +30,7 @@ The command:
 ```
 python -m pip install genome-grist
 ```
-will install the latest version. Plase use python3.7 or later. We suggest
+will install the latest version. Please use python3.7 or later. We suggest
 using an isolated conda environment; the following commands should work for
 conda:
 
