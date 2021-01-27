@@ -39,6 +39,11 @@ def make_param_str(ksizes, scaled):
     ks = ",".join(ks)
     return f"{ks},scaled={scaled}"
 
+try:
+    os.mkdir('genbank_genomes/')
+except:
+    pass
+
 ###
 
 wildcard_constraints:
@@ -230,7 +235,7 @@ rule sourmash_reads_raw:
     input:
         r1 = outdir + "/raw/{sample}_1.fastq.gz",
         r2 = outdir + "/raw/{sample}_2.fastq.gz",
-        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+        unp = outdir + "/raw/{sample}_unpaired.fastq.gz",
     output:
         sig = outdir + "/raw/{sample}.raw.sig"
     conda: "env/sourmash.yml"
