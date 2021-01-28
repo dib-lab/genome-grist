@@ -41,7 +41,7 @@ Put the following in a config file named `conf-tutorial.yml`:
 sample:
 - HSMA33MX
 outdir: outputs.tutorial/
-metagenome_trim_memory: 10e9
+metagenome_trim_memory: 1e9
 sourmash_database_glob_pattern: gtdb-r95.nucleotide-k31-scaled1000.sbt.zip
 ```
 
