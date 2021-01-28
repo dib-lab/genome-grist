@@ -1,7 +1,5 @@
 # genome-grist: a quickstart tutorial.
 
-[toc]
-
 ## What is genome-grist?
 
 genome-grist is software that automates a number of tedious metagenome tasks related to reference-based analyses.
