@@ -332,7 +332,7 @@ rule estimate_distinct_kmers_wc:
 # count reads and bases
 rule count_trimmed_reads_wc:
     message: """
-        Count reads & bp in trimmed file.
+        Count reads & bp in trimmed file for {wildcards.sample}.
     """
     input:
         outdir + "/abundtrim/{sample}.abundtrim.fq.gz"
@@ -580,7 +580,7 @@ rule sourmash_prefetch_gather_wc:
 # run sourmash search x genbank and find anything matching.
 rule split_query_known_unknown_wc:
     message: """
-       Split the sourmash signature for the metagenome into "known" and "unknown" hashes
+       Split the sourmash signature for {wildcards.sample} into "known" and "unknown" hashes
     """
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
