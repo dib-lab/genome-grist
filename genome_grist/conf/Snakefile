@@ -22,6 +22,8 @@ ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
 sourmash_db_pattern = config.get('sourmash_database_glob_pattern', 'MUST SPECIFY IN CONFIG')
 SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
+if not SOURMASH_DB_LIST:
+    print(f"WARNING: no sourmash databases found!? glob pattern was '{sourmash_db_pattern}'")
 SOURMASH_DB_KSIZE = config.get('sourmash_database_ksize', ['31'])
 SOURMASH_DATABASE_THRESHOLD_BP = config.get('sourmash_database_threshold_bp',
                                             1e5)
@@ -85,6 +87,10 @@ rule search_genbank:
     input:
         expand(outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
                sample=SAMPLES)
+
+rule summarize_sample_info:
+    input:
+        expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
 
 checkpoint gather_genbank:
     input:
@@ -325,8 +331,10 @@ rule estimate_distinct_kmers_wc:
         outdir + "/abundtrim/{sample}.abundtrim.fq.gz"
     output:
         report = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.kmer-report.txt",
+    params:
+        ksize = SOURMASH_DB_KSIZE,
     shell: """
-        unique-kmers.py {input} -R {output.report}
+        unique-kmers.py {input} -k {params.ksize} -R {output.report}
     """
 
 # count reads and bases
@@ -659,6 +667,42 @@ rule download_matching_genome_wc:
                      content = response.read()
                      outfp.write(content)
                      print(f"...wrote {len(content)} bytes to {output.genome}")
+
+
+# summarize_reads_info
+rule summarize_reads_info_wc:
+    input:
+        kmers = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.kmer-report.txt",
+        reads = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.reads-report.txt",
+        sigs = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.sig.report.txt",
+    output:
+        outdir + '/{sample}.info.yaml',
+    run:
+        d = {}
+        with open(str(input.kmers), 'rt') as fp:
+            kmers = fp.readlines()[3].strip()
+            kmers = kmers.split()[-1]
+            d['kmers'] = int(kmers)
+
+        with open(str(input.reads), 'rt') as fp:
+            r = csv.DictReader(fp)
+            row = next(iter(r))
+            d['n_reads'] = int(row['n_reads'])
+            d['n_bases'] = int(row['n_bases'])
+
+        with open(str(input.sigs), 'rt') as fp:
+            r = csv.DictReader(fp)
+            row = next(iter(r))
+            d['total_hashes'] = int(row['total_hashes'])
+            d['known_hashes'] = int(row['known_hashes'])
+            d['unknown_hashes'] = int(row['unknown_hashes'])
+
+        d['sample'] = wildcards.sample
+
+        with open(str(output), 'wt') as fp:
+            import yaml
+            yaml.dump(d, fp)
+
 
 # create a spacegraphcats config file
 rule create_sgc_conf_wc:
