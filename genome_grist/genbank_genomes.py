@@ -28,13 +28,14 @@ def url_for_accession(accession):
 
     all_names = all_names.decode("utf-8")
 
-    full_name = None
+    full_name = None    
     for line in all_names.splitlines():
-        name = line.split()[-1]
-        db_, acc_, *_ = name.split("_")
-        if db_ == db and acc_.startswith(acc):
-            full_name = name
-            break
+        if line.startswith(f'<a href='):
+             name=line.split('"')[1]
+            db_, acc_, *_ = name.split("_")
+            if db_ == db and acc_.startswith(acc):
+                full_name = name
+                break
 
     if full_name is None:
         return None
