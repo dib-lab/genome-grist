@@ -66,12 +66,22 @@ rule trim_reads:
         url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz",
                           sample=SAMPLES)
 
+rule estimate_distinct_kmers:
+    input:
+        url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz.kmer-report.txt",
+                          sample=SAMPLES)
+
+rule count_trimmed_reads:
+    input:
+        url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz.reads-report.txt",
+                          sample=SAMPLES)
+
 rule smash_reads:
     input:
         url_file = expand(f"{outdir}/sigs/{{sample}}.abundtrim.sig",
                           sample=SAMPLES)
 
-rule prefetch_genbank:
+rule search_genbank:
     input:
         expand(outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
                sample=SAMPLES)
@@ -169,7 +179,7 @@ rule zip:
 
 
 # download SRA IDs.
-rule wc_download_sra:
+rule download_sra_wc:
     output:
         r1 = protected(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
@@ -231,7 +241,7 @@ rule wc_download_sra:
         '''
 
 # compute sourmash signature from raw reads
-rule sourmash_reads_raw:
+rule smash_raw_reads_wc:
     input:
         r1 = outdir + "/raw/{sample}_1.fastq.gz",
         r2 = outdir + "/raw/{sample}_2.fastq.gz",
@@ -255,7 +265,7 @@ rule download_adapters:
     """
 
 # adapter trimming
-rule adapter_trim:
+rule trim_adapters_wc:
     input:
         r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
@@ -274,7 +284,7 @@ rule adapter_trim:
     """
 
 # adapter trimming for the singleton reads
-rule adapter_trim_unpaired:
+rule trim_unpaired_adapters_wc:
     input:
         unp = ancient(outdir + "/raw/{sample}_unpaired.fastq.gz"),
         adapters = "inputs/adapters.fa"
@@ -288,7 +298,7 @@ rule adapter_trim_unpaired:
     """
 
 # k-mer abundance trimming
-rule kmer_trim_reads:
+rule kmer_trim_reads_wc:
     input: 
         r1 = ancient(outdir + "/trim/{sample}_R1.trim.fq.gz"), 
         r2 = ancient(outdir + "/trim/{sample}_R2.trim.fq.gz"),
@@ -305,8 +315,41 @@ rule kmer_trim_reads:
                -o {output} --gzip
     """
 
+# count k-mers
+rule estimate_distinct_kmers_wc:
+    message: """
+        Count distinct k-mers for {wildcards.sample} using 'unique-kmers.py' from the khmer package.
+    """
+    conda: 'env/trim.yml'
+    input:
+        outdir + "/abundtrim/{sample}.abundtrim.fq.gz"
+    output:
+        report = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.kmer-report.txt",
+    shell: """
+        unique-kmers.py {input} -R {output.report}
+    """
+
+# count reads and bases
+rule count_trimmed_reads_wc:
+    message: """
+        Count reads & bp in trimmed file.
+    """
+    input:
+        outdir + "/abundtrim/{sample}.abundtrim.fq.gz"
+    output:
+        report = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.reads-report.txt",
+    # from Matt Bashton, in https://bioinformatics.stackexchange.com/questions/935/fast-way-to-count-number-of-reads-and-number-of-bases-in-a-fastq-file
+    shell: """
+        gzip -dc {input} |
+             awk 'NR%4==2{{c++; l+=length($0)}}
+                  END{{
+                        print "n_reads,n_bases"
+                        print c","l
+                      }}' > {output.report}
+    """
+
 # map abundtrim reads and producing a bam
-rule minimap:
+rule minimap_wc:
     input:
         query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
         metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
@@ -320,19 +363,18 @@ rule minimap:
     """
 
 # extract FASTQ from BAM
-rule samtools_fastq:
+rule bam_to_fastq_wc:
     input:
         bam = outdir + "/minimap/{bam}.bam",
     output:
         mapped = outdir + "/minimap/{bam}.mapped.fq.gz",
     conda: "env/minimap2.yml"
-    threads: 4
     shell: """
         samtools bam2fq {input.bam} | gzip > {output.mapped}
     """
 
 # get per-base depth information from BAM
-rule samtools_depth:
+rule bam_to_depth_Wc:
     input:
         bam = outdir + "/{dir}/{bam}.bam",
     output:
@@ -343,7 +385,7 @@ rule samtools_depth:
     """
 
 # wild card rule for getting _covered_ regions from BAM
-rule covered_regions:
+rule bam_covered_regions_wc:
     input:
         bam = outdir + "/{dir}/{bam}.bam",
     output:
@@ -355,7 +397,7 @@ rule covered_regions:
     """
 
 # calculating SNPs/etc.
-rule mpileup:
+rule mpileup_wc:
     input:
         query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
         bam = outdir + "/{dir}/{sample}.x.{acc}.bam",
@@ -374,7 +416,7 @@ rule mpileup:
     """
 
 # build new consensus
-rule new_consensus:
+rule build_new_consensus_wc:
     input:
         vcf = outdir + "/{dir}/{sample}.x.{acc}.vcf.gz",
         query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
@@ -396,7 +438,7 @@ rule new_consensus:
     """
 
 # summarize depth into a CSV
-rule summarize_samtools_depth:
+rule summarize_samtools_depth_wc:
     input:
         Checkpoint_GatherResults(outdir + f"/{{dir}}/depth/{{sample}}.x.{{acc}}.txt")
     output:
@@ -430,7 +472,7 @@ rule summarize_samtools_depth:
         pd.DataFrame(runs).T.to_csv(output[0])
 
 # compute sourmash signature from abundtrim reads
-rule wc_sourmash_abundtrim:
+rule smash_abundtrim_wc:
     input:
         metagenome = ancient(outdir + "/abundtrim/{sample}.abundtrim.fq.gz"),
     output:
@@ -458,7 +500,7 @@ rule set_kernel:
 
 
 # papermill -> reporting notebook + html
-rule make_notebook:
+rule make_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-sample.ipynb'),
         all_csv = f"{outdir}/minimap/depth/{{sample}}.summary.csv",
@@ -483,9 +525,9 @@ rule make_notebook:
     """
 
 # convert mapped reads to leftover reads
-# @CTB update subtract-gather to take sample ID as param
+# @CTB update subtract-gather to take sample ID as param, instead of inferring it from filename
 # @CTB update for intersected/overlapping reads too
-rule extract_leftover_reads:
+rule extract_leftover_reads_wc:
     input:
         csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
         mapped = Checkpoint_GatherResults(f"{outdir}/minimap/{{sample}}.x.{{acc}}.mapped.fq.gz"),
@@ -500,7 +542,7 @@ rule extract_leftover_reads:
     """
 
 # rule for mapping leftover reads to genomes -> BAM
-rule map_leftover_reads:
+rule map_leftover_reads_wc:
     input:
         all_csv = f"{outdir}/minimap/depth/{{sample}}.summary.csv",
         query = ancient(f"genbank_genomes/{{acc}}_genomic.fna.gz"),
@@ -516,7 +558,7 @@ rule map_leftover_reads:
     """
 
 # run sourmash search x genbank and find anything matching.
-rule wc_prefetch_gather:
+rule sourmash_prefetch_gather_wc:
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
         db = SOURMASH_DB_LIST,
@@ -536,13 +578,17 @@ rule wc_prefetch_gather:
     """
 
 # run sourmash search x genbank and find anything matching.
-rule wc_split_query_known_unknown:
+rule split_query_known_unknown_wc:
+    message: """
+       Split the sourmash signature for the metagenome into "known" and "unknown" hashes
+    """
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
         prefetch = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
     output:
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
         unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
+        report = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.sig.report.txt",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
@@ -550,11 +596,11 @@ rule wc_split_query_known_unknown:
     shell: """
         python -m genome_grist.gather_split {input.sig} {input.prefetch} \
           {output.known} {output.unknown}  \
-          -k {params.ksize} --moltype {params.moltype}
+          -k {params.ksize} --moltype {params.moltype} --report {output.report}
     """
 
 # run sourmash gather with known hashes on prefetched matches.
-rule wc_sourmash_gather_reads:
+rule sourmash_gather_wc:
     input:
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
         db = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
@@ -572,7 +618,7 @@ rule wc_sourmash_gather_reads:
     """
 
 # download genbank genome details; make an info.csv file for entry.
-rule make_genbank_info_csv:
+rule make_genome_info_csv:
     output:
         csvfile = 'genbank_genomes/{acc}.info.csv'
     shell: """
@@ -591,7 +637,7 @@ rule make_combined_info_csv:
     """
 
 # download actual genomes!
-rule download_matching_genomes_one_by_one:
+rule download_matching_genome_wc:
      input:
          csvfile = ancient('genbank_genomes/{acc}.info.csv')
      output:
@@ -615,7 +661,7 @@ rule download_matching_genomes_one_by_one:
                      print(f"...wrote {len(content)} bytes to {output.genome}")
 
 # create a spacegraphcats config file
-rule create_sgc_conf_generic:
+rule create_sgc_conf_wc:
     input:
         csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
         queries = Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz"),

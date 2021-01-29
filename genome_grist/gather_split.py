@@ -6,6 +6,7 @@ signature into a collection of known and unknown hashes.
 import sys
 import argparse
 import copy
+import csv
 
 import sourmash
 from sourmash import sourmash_args
@@ -19,9 +20,10 @@ def main():
     p.add_argument('known_out')
     p.add_argument('unknown_out')
 
-    p.add_argument("-k", "--ksize", type=int, default=31)
-    p.add_argument("--moltype", default="DNA")
-    p.add_argument("--scaled", default=None)
+    p.add_argument("-k", "--ksize", type=int, default=31, help="ksize for analysis")
+    p.add_argument("--moltype", default="DNA", help="molecule type for analysis")
+    p.add_argument("--scaled", default=None, help="sourmash scaled value for analysis")
+    p.add_argument("--report", help="output signature breakdown information in CSV")
     args = p.parse_args()
 
     ksize = args.ksize
@@ -87,9 +89,23 @@ def main():
         sourmash.save_signatures([ss], fp)
 
     with sourmash_args.FileOutput(args.unknown_out, 'wt') as fp:
-        print(f"saving unknown hashes '{args.unknown_out}'")
+        print(f"saving unknown hashes to '{args.unknown_out}'")
         ss = sourmash.SourmashSignature(unknown_mh)
         sourmash.save_signatures([ss], fp)
+
+    if args.report:
+        print(f"reporting stats to '{args.report}'")
+        with open(args.report, 'wt') as fp:
+            w = csv.writer(fp)
+            w.writerow(["total_hashes", "known_hashes", "unknown_hashes",
+                        "scaled", "moltype", "ksize"])
+            w.writerow([len(query_mh),
+                        len(known_mh),
+                        len(unknown_mh),
+                        query_mh.scaled,
+                        query_mh.moltype,
+                        query_mh.ksize
+                        ])
 
     return 0
 
