@@ -31,7 +31,7 @@ def url_for_accession(accession):
     full_name = None    
     for line in all_names.splitlines():
         if line.startswith(f'<a href='):
-             name=line.split('"')[1]
+             name=line.split('"')[1][:-1]
             db_, acc_, *_ = name.split("_")
             if db_ == db and acc_.startswith(acc):
                 full_name = name
