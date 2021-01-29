@@ -1,8 +1,12 @@
 # genome-grist: a quickstart tutorial.
 
+This quickstart tutorial will take about 30 minutes to run, and
+requires 5 GB of disk space and 4 GB of RAM, as well as a fairly
+good Internet connection.
+
 ## What is genome-grist?
 
-genome-grist is software that automates a number of tedious metagenome tasks related to reference-based analyses.
+genome-grist is software that automates a number of tedious metagenome tasks related to reference-based analyses on Illumina metagenomes. Specifically, genome-grist will download public metagenomes from the SRA, preprocess them, and use `sourmash gather` to identify reference genomes for the metagenome. It will then download the reference genomes, map reads to them, and summarize the mapping.
 
 ## Installing genome-grist
 
