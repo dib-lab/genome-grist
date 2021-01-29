@@ -40,7 +40,7 @@ def url_for_accession(accession):
     if full_name is None:
         return None
     else:
-        url = "ftp" + url[3:]
+        url = "htt" + url[3:]
         return (
             f"{url}/{full_name}/{full_name}_genomic.fna.gz",
             f"{url}/{full_name}/{full_name}_assembly_report.txt",
