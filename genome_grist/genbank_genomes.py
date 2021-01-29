@@ -18,7 +18,7 @@ def url_for_accession(accession):
     else:
         number, version = acc, '1'
     number = "/".join([number[p : p + 3] for p in range(0, len(number), 3)])
-    url = f"ftp://ftp.ncbi.nlm.nih.gov/genomes/all/{db}/{number}"
+    url = f"https://ftp.ncbi.nlm.nih.gov/genomes/all/{db}/{number}"
     print(f"opening directory: {url}", file=sys.stderr)
 
     with urllib.request.urlopen(url) as response:
