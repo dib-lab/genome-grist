@@ -28,7 +28,7 @@ def url_for_accession(accession):
 
     all_names = all_names.decode("utf-8")
 
-    full_name = None    
+    full_name = None
     for line in all_names.splitlines():
         if line.startswith(f'<a href='):
             name=line.split('"')[1][:-1]
