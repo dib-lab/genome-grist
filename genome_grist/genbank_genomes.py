@@ -18,7 +18,7 @@ def url_for_accession(accession):
     else:
         number, version = acc, '1'
     number = "/".join([number[p : p + 3] for p in range(0, len(number), 3)])
-    url = f"ftp://ftp.ncbi.nlm.nih.gov/genomes/all/{db}/{number}"
+    url = f"https://ftp.ncbi.nlm.nih.gov/genomes/all/{db}/{number}"
     print(f"opening directory: {url}", file=sys.stderr)
 
     with urllib.request.urlopen(url) as response:
@@ -30,16 +30,17 @@ def url_for_accession(accession):
 
     full_name = None
     for line in all_names.splitlines():
-        name = line.split()[-1]
-        db_, acc_, *_ = name.split("_")
-        if db_ == db and acc_.startswith(acc):
-            full_name = name
-            break
+        if line.startswith(f'<a href='):
+            name=line.split('"')[1][:-1]
+            db_, acc_, *_ = name.split("_")
+            if db_ == db and acc_.startswith(acc):
+                full_name = name
+                break
 
     if full_name is None:
         return None
     else:
-        url = "ftp" + url[3:]
+        url = "htt" + url[3:]
         return (
             f"{url}/{full_name}/{full_name}_genomic.fna.gz",
             f"{url}/{full_name}/{full_name}_assembly_report.txt",
