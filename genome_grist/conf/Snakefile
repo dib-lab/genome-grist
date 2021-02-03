@@ -9,7 +9,7 @@
 # - build_consensus
 # - make_sgc_conf
 
-import glob, os, csv
+import glob, os, csv, yaml
 
 SAMPLES=config['sample']
 print(f'sample: {SAMPLES}')
@@ -165,7 +165,6 @@ rule make_sgc_conf:
 # print out the configuration
 rule showconf:
     run:
-        import yaml
         print('# full aggregated configuration:')
         print(yaml.dump(config).strip())
         print('# END')
@@ -183,6 +182,28 @@ rule zip:
                 {outdir}/genbank/*.csv {outdir}/reports
     """
 
+rule make_summary_info_csv:
+    input:
+        expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
+    output:
+        csv = outdir + '/summary_info.csv'
+    run:
+        cols = ['sample', 'n_reads', 'n_bases', 'kmers',
+                'total_hashes', 'known_hashes', 'unknown_hashes']
+
+        x = []
+        for yf in input:
+            print(f"reading from '{yf}'")
+            with open(str(yf), 'rt') as fp:
+                d = yaml.safe_load(fp)
+                x.append(d)
+
+        with(open(output.csv, 'wt')) as fp:
+            w = csv.writer(fp)
+            w.writerow(cols)
+            for row_d in x:
+                z = [ row_d[c] for c in cols ]
+                w.writerow(z)
 
 # download SRA IDs.
 rule download_sra_wc:
