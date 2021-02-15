@@ -3,6 +3,7 @@ import pytest
 import tempfile
 import shutil
 import os
+import yaml
 import sourmash
 
 from genome_grist.__main__ import run_snakemake
@@ -58,24 +59,46 @@ def test_smash_sig():
 
 
 @pytest.mark.dependency(depends=["test_smash_sig"])
+def test_summarize_sample_info():
+    global _tempdir
+
+    test_data = utils.relative_file("tests/test-data")
+    test_db = os.path.join(test_data, "HSMA33MX-subset.x.genbank.matches.sig")
+
+    config_params = ["sample=HSMA33MX-subset",
+                     f"sourmash_database_glob_pattern={test_db}"]
+    extra_args = ["summarize_sample_info"]
+    status = run_snakemake(
+        "conf.yml",
+        verbose=True,
+        outdir=_tempdir,
+        extra_args=extra_args,
+        config_params=config_params,
+    )
+    assert status == 0
+
+    info_file = f"{_tempdir}/HSMA33MX-subset.info.yaml"
+    assert os.path.exists(info_file)
+
+    with open(info_file, 'rt') as fp:
+        info = yaml.safe_load(fp)
+
+    print('XXX', info)
+    #{'kmers': 928685, 'known_hashes': 807, 'n_bases': 2276334, 'n_reads': 24663, 'sample': 'HSMA33MX-subset', 'total_hashes': 907, 'unknown_hashes': 100}
+
+    assert info['kmers'] == 928685
+    assert info['sample'] == 'HSMA33MX-subset'
+    assert info['known_hashes'] == 807
+    assert info['n_bases'] == 2276334
+    assert info['n_reads'] == 24663
+    assert info['total_hashes'] == 907
+    assert info['unknown_hashes'] == 100
+
+@pytest.mark.dependency(depends=["test_summarize_sample_info"])
 def test_map_reads():
     global _tempdir
 
     test_data = utils.relative_file("tests/test-data")
-
-    cplist = (
-        "HSMA33MX-subset.genomes.accs.txt",
-        "HSMA33MX-subset.genomes.info.csv",
-        "HSMA33MX-subset.x.genbank.gather.csv",
-        "HSMA33MX-subset.x.genbank.gather.out",
-        "HSMA33MX-subset.x.genbank.matches.sig",
-    )
-
-    genbank_dir = os.path.join(_tempdir, "genbank")
-    os.mkdir(genbank_dir)
-
-    for src in cplist:
-        shutil.copyfile(os.path.join(test_data, src), os.path.join(genbank_dir, src))
 
     cplist = (
         ("HSMA33MX-GCA_001881345.1.fna.gz", "GCA_001881345.1.fna.gz"),
