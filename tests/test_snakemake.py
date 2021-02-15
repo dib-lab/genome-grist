@@ -4,6 +4,7 @@ import tempfile
 import shutil
 import os
 import yaml
+import sourmash
 
 from genome_grist.__main__ import run_snakemake
 from . import pytest_utils as utils
@@ -49,7 +50,12 @@ def test_smash_sig():
     )
     assert status == 0
 
-    assert os.path.exists(f"{_tempdir}/sigs/HSMA33MX-subset.abundtrim.sig")
+    output_sig = f"{_tempdir}/sigs/HSMA33MX-subset.abundtrim.sig"
+    assert os.path.exists(output_sig)
+    sigs = list(sourmash.load_file_as_signatures(output_sig))
+    assert len(sigs) == 3
+    for s in sigs:
+        assert s.minhash.track_abundance
 
 
 @pytest.mark.dependency(depends=["test_smash_sig"])
