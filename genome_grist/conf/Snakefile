@@ -39,7 +39,7 @@ PREFETCH_MEMORY = float(config.get('prefetch_memory', '100e9'))
 def make_param_str(ksizes, scaled):
     ks = [ f'k={k}' for k in ksizes ]
     ks = ",".join(ks)
-    return f"{ks},scaled={scaled}"
+    return f"{ks},scaled={scaled},abund"
 
 try:
     os.mkdir('genbank_genomes/')
@@ -356,7 +356,7 @@ rule count_trimmed_reads_wc:
                       }}' > {output.report}
     """
 
-# map abundtrim reads and producing a bam
+# map abundtrim reads and produce a bam
 rule minimap_wc:
     input:
         query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
@@ -382,7 +382,7 @@ rule bam_to_fastq_wc:
     """
 
 # get per-base depth information from BAM
-rule bam_to_depth_Wc:
+rule bam_to_depth_wc:
     input:
         bam = outdir + "/{dir}/{bam}.bam",
     output:
