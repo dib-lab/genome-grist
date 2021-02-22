@@ -3,7 +3,8 @@ channels:
  - bioconda
  - defaults
 dependencies:
- - sourmash>=3.5,<4
  - minimap2=2.17
  - samtools=1.10
- - screed
+ - screed>=1.0.5,<2
+ - pip:
+   - sourmash>=4.0.0rc1,<5

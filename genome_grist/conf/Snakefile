@@ -547,7 +547,7 @@ rule extract_leftover_reads_wc:
     params:
         outdir = outdir,
     shell: """
-        python -m genome_grist.subtract_gather {input.csv} \
+        python -Werror -m genome_grist.subtract_gather {input.csv} \
             --outdir={params.outdir:q}
     """
 
@@ -583,7 +583,7 @@ rule sourmash_prefetch_gather_wc:
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
         echo "DB is {input.db}"
-        python -m genome_grist.prefetch_gather --query {input.sig} \
+        python -Werror -m genome_grist.prefetch_gather --query {input.sig} \
           --db {input.db} --save-matches {output.matches} -k {params.ksize} \
           --threshold-bp={params.threshold_bp} --moltype {params.moltype}
     """
@@ -605,7 +605,7 @@ rule split_query_known_unknown_wc:
         ksize = SOURMASH_DB_KSIZE,
         moltype = SOURMASH_COMPUTE_TYPE,
     shell: """
-        python -m genome_grist.gather_split {input.sig} {input.prefetch} \
+        python -W error -m genome_grist.gather_split {input.sig} {input.prefetch} \
           {output.known} {output.unknown}  \
           -k {params.ksize} --moltype {params.moltype} --report {output.report}
     """
@@ -633,7 +633,7 @@ rule make_genome_info_csv:
     output:
         csvfile = 'genbank_genomes/{acc}.info.csv'
     shell: """
-        python -m genome_grist.genbank_genomes {wildcards.acc} \
+        python -Werror -m genome_grist.genbank_genomes {wildcards.acc} \
             --output {output.csvfile}
     """
 
@@ -644,7 +644,7 @@ rule make_combined_info_csv:
     output:
         genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
     shell: """
-        python -m genome_grist.combine_csvs {input} > {output}
+        python -Werror -m genome_grist.combine_csvs {input} > {output}
     """
 
 # download actual genomes!
