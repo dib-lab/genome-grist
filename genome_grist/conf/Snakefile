@@ -579,13 +579,13 @@ rule sourmash_prefetch_gather_wc:
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
-        moltype = SOURMASH_COMPUTE_TYPE,
+        moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
         echo "DB is {input.db}"
-        python -Werror -m genome_grist.prefetch_gather --query {input.sig} \
-          --db {input.db} --save-matches {output.matches} -k {params.ksize} \
-          --threshold-bp={params.threshold_bp} --moltype {params.moltype}
+        sourmash prefetch {input.sig} {input.db} \
+          --save-matches {output.matches} -k {params.ksize} \
+          --threshold-bp={params.threshold_bp} {params.moltype}
     """
 
 # run sourmash search x genbank and find anything matching.
