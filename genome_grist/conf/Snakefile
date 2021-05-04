@@ -279,7 +279,7 @@ rule trim_adapters_wc:
     shell: """
         fastp --in1 {input.r1} --in2 {input.r2} \
              --detect_adapter_for_pe  --qualified_quality_phred 4 \
-             --length_required 31 --correction \
+             --length_required 25 --correction \
              --json {output.json} --html {output.html} \
              --low_complexity_filter --stdout > {output.interleaved}
     """
@@ -297,7 +297,7 @@ rule trim_unpaired_adapters_wc:
         fastp --in1 {input.unp} --out1 {output.unp} \
             --detect_adapter_for_se  --qualified_quality_phred 4 \
             --low_complexity_filter \
-            --length_required 31 --correction \
+            --length_required 25 --correction \
             --json {output.json} --html {output.html}
     """
 
