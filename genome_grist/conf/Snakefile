@@ -272,10 +272,6 @@ rule trim_adapters_wc:
         r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
     output:
-        #r1 = protected(outdir + '/trim/{sample}_R1.trim.fq.gz'),
-        #r2 = protected(outdir + '/trim/{sample}_R2.trim.fq.gz'),
-        #o1 = protected(outdir + '/trim/{sample}_o1.trim.fq.gz'),
-        #o2 = protected(outdir + '/trim/{sample}_o2.trim.fq.gz'),
         interleaved = protected(outdir + '/trim/{sample}.trim.fq.gz'),
         json=outdir + "/raw/{sample}.trim.json",
         html=outdir + "/raw/{sample}.trim.html",
@@ -287,8 +283,6 @@ rule trim_adapters_wc:
              --json {output.json} --html {output.html} \
              --low_complexity_filter --stdout > {output.interleaved}
     """
-             #--out1 {output.r1} --out2 {output.r2} \ # to write non-interleaved PE files
-             #--unpaired1 {output.o1} --unpaired2 {output.o2} \ # to write unpaired reads that pass filter
 
 # adapter trimming for the singleton reads
 rule trim_unpaired_adapters_wc:
@@ -311,8 +305,6 @@ rule trim_unpaired_adapters_wc:
 rule kmer_trim_reads_wc:
     input: 
         interleaved = ancient(outdir + '/trim/{sample}.trim.fq.gz'),
-        #r1 = ancient(outdir + "/trim/{sample}_R1.trim.fq.gz"),
-        #r2 = ancient(outdir + "/trim/{sample}_R2.trim.fq.gz"),
     output:
         protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
     conda: 'env/trim.yml'
@@ -320,7 +312,6 @@ rule kmer_trim_reads_wc:
         mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
     params:
         mem = ABUNDTRIM_MEMORY,
-        #interleave-reads.py {input.r1} {input.r2} |
     shell: """
             trim-low-abund.py -C 3 -Z 18 -M {params.mem} -V \
             {input.interleaved} -o {output} --gzip
