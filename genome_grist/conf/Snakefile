@@ -266,50 +266,53 @@ rule smash_raw_reads_wc:
            --name 'rawreads:{wildcards.sample}' --track-abundance
     """
 
-rule download_adapters:
-    output: "inputs/adapters.fa"
-    shell: """
-        curl -L https://raw.githubusercontent.com/dib-lab/genome-grist/latest/inputs/adapters.fa -o {output}
-    """
-
 # adapter trimming
 rule trim_adapters_wc:
     input:
         r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
-        adapters = "inputs/adapters.fa"
     output:
-        r1 = protected(outdir + '/trim/{sample}_R1.trim.fq.gz'),
-        r2 = protected(outdir + '/trim/{sample}_R2.trim.fq.gz'),
-        o1 = protected(outdir + '/trim/{sample}_o1.trim.fq.gz'),
-        o2 = protected(outdir + '/trim/{sample}_o2.trim.fq.gz'),
+        #r1 = protected(outdir + '/trim/{sample}_R1.trim.fq.gz'),
+        #r2 = protected(outdir + '/trim/{sample}_R2.trim.fq.gz'),
+        #o1 = protected(outdir + '/trim/{sample}_o1.trim.fq.gz'),
+        #o2 = protected(outdir + '/trim/{sample}_o2.trim.fq.gz'),
+        interleaved = protected(outdir + '/trim/{sample}.trim.fq.gz'),
+        json=outdir + "/raw/{sample}.trim.json",
+        html=outdir + "/raw/{sample}.trim.html",
     conda: 'env/trim.yml'
     shell: """
-        trimmomatic PE {input.r1} {input.r2} \
-             {output.r1} {output.o1} {output.r2} {output.o2} \
-             ILLUMINACLIP:{input.adapters}:2:0:15 MINLEN:25  \
-             LEADING:2 TRAILING:2 SLIDINGWINDOW:4:2
+        fastp --in1 {input.r1} --in2 {input.r2} \
+             --detect_adapter_for_pe  --qualified_quality_phred 4 \
+             --length_required 31 --correction \
+             --json {output.json} --html {output.html} \
+             --low_complexity_filter --stdout > {output.interleaved}
     """
+             #--out1 {output.r1} --out2 {output.r2} \ # to write non-interleaved PE files
+             #--unpaired1 {output.o1} --unpaired2 {output.o2} \ # to write unpaired reads that pass filter
 
 # adapter trimming for the singleton reads
 rule trim_unpaired_adapters_wc:
     input:
         unp = ancient(outdir + "/raw/{sample}_unpaired.fastq.gz"),
-        adapters = "inputs/adapters.fa"
     output:
         unp = protected(outdir + '/trim/{sample}_unpaired.trim.fq.gz'),
+        json = protected(outdir + '/trim/{sample}_unpaired.trim.json'),
+        html = protected(outdir + '/trim/{sample}_unpaired.trim.html'),
     conda: 'env/trim.yml'
     shell: """
-        trimmomatic SE {input.unp} {output.unp} \
-             ILLUMINACLIP:{input.adapters}:2:0:15 MINLEN:25  \
-             LEADING:2 TRAILING:2 SLIDINGWINDOW:4:2
+        fastp --in1 {input.unp} --out1 {output.unp} \
+            --detect_adapter_for_se  --qualified_quality_phred 4 \
+            --low_complexity_filter \
+            --length_required 31 --correction \
+            --json {output.json} --html {output.html}
     """
 
 # k-mer abundance trimming
 rule kmer_trim_reads_wc:
     input: 
-        r1 = ancient(outdir + "/trim/{sample}_R1.trim.fq.gz"), 
-        r2 = ancient(outdir + "/trim/{sample}_R2.trim.fq.gz"),
+        interleaved = ancient(outdir + '/trim/{sample}.trim.fq.gz'),
+        #r1 = ancient(outdir + "/trim/{sample}_R1.trim.fq.gz"),
+        #r2 = ancient(outdir + "/trim/{sample}_R2.trim.fq.gz"),
     output:
         protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
     conda: 'env/trim.yml'
@@ -317,10 +320,10 @@ rule kmer_trim_reads_wc:
         mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
     params:
         mem = ABUNDTRIM_MEMORY,
+        #interleave-reads.py {input.r1} {input.r2} |
     shell: """
-        interleave-reads.py {input.r1} {input.r2} | 
-            trim-low-abund.py -C 3 -Z 18 -M {params.mem} -V - \
-               -o {output} --gzip
+            trim-low-abund.py -C 3 -Z 18 -M {params.mem} -V \
+            {input.interleaved} -o {output} --gzip
     """
 
 # count k-mers
