@@ -276,12 +276,13 @@ rule trim_adapters_wc:
         json=outdir + "/raw/{sample}.trim.json",
         html=outdir + "/raw/{sample}.trim.html",
     conda: 'env/trim.yml'
+    threads: 16
     shell: """
         fastp --in1 {input.r1} --in2 {input.r2} \
              --detect_adapter_for_pe  --qualified_quality_phred 4 \
-             --length_required 25 --correction \
+             --length_required 25 --correction --thread {threads} \
              --json {output.json} --html {output.html} \
-             --low_complexity_filter --stdout > {output.interleaved}
+             --low_complexity_filter --stdout | gzip -9 > {output.interleaved}
     """
 
 # adapter trimming for the singleton reads
@@ -292,11 +293,12 @@ rule trim_unpaired_adapters_wc:
         unp = protected(outdir + '/trim/{sample}_unpaired.trim.fq.gz'),
         json = protected(outdir + '/trim/{sample}_unpaired.trim.json'),
         html = protected(outdir + '/trim/{sample}_unpaired.trim.html'),
+    threads: 16
     conda: 'env/trim.yml'
     shell: """
         fastp --in1 {input.unp} --out1 {output.unp} \
             --detect_adapter_for_se  --qualified_quality_phred 4 \
-            --low_complexity_filter \
+            --low_complexity_filter --thread {threads} \
             --length_required 25 --correction \
             --json {output.json} --html {output.html}
     """
