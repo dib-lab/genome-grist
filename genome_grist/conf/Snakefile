@@ -273,8 +273,8 @@ rule trim_adapters_wc:
         r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
     output:
         interleaved = protected(outdir + '/trim/{sample}.trim.fq.gz'),
-        json=outdir + "/raw/{sample}.trim.json",
-        html=outdir + "/raw/{sample}.trim.html",
+        json=outdir + "/trim/{sample}.trim.json",
+        html=outdir + "/trim/{sample}.trim.html",
     conda: 'env/trim.yml'
     threads: 16
     shell: """
