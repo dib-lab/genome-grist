@@ -8,4 +8,4 @@ dependencies:
  - pip
  - pip:
    - git+https://github.com/dib-lab/genome-grist.git#egg=genome-grist
-   - sourmash>=4.0.0rc1,<5
+   - sourmash>=4,<5

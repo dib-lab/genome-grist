@@ -192,13 +192,14 @@ rule download_sra_wc:
         r1 = protected(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
         unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+        temp_dir = temp(directory("/tmp/tmp.{sample}")),
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
     shell: '''
-        LOC=$(mktemp -d)
-        echo tmp directory: $LOC
-        cd $LOC
+        mkdir -p {output.temp_dir}
+        echo tmp directory: {output.temp_dir}
+        cd {output.temp_dir}
         echo running fastq-dump for {wildcards.sample}
         fastq-dump --skip-technical  \
                --readids \
@@ -219,9 +220,9 @@ rule download_sra_wc:
         cd -
 
         # define the file names output by fastq-dump
-        R1=${{LOC}}/${{ACC}}_pass_1.fastq
-        R2=${{LOC}}/${{ACC}}_pass_2.fastq
-        UNP=${{LOC}}/${{ACC}}_pass.fastq
+        R1={output.temp_dir}/${{ACC}}_pass_1.fastq
+        R2={output.temp_dir}/${{ACC}}_pass_2.fastq
+        UNP={output.temp_dir}/${{ACC}}_pass.fastq
 
         # make unpaired file if needed
         if [ -f $R1 -a -f $R2 -a \! -f $UNP ]; then
@@ -243,9 +244,6 @@ rule download_sra_wc:
         seqtk seq -C $UNP | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.unp}
-
-        # remove the temp directory & raw FASTQ files
-        rm -fr $LOC
         '''
 
 # compute sourmash signature from raw reads
