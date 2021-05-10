@@ -8,5 +8,6 @@ dependencies:
  - pip
  - pip:
    - git+https://github.com/dib-lab/genome-grist.git#egg=genome-grist
+   # sourmash latest commit on this branch: 92a2511b9aac
    - git+https://github.com/dib-lab/sourmash.git@add/prefetch_cli#egg=sourmash
 #   - sourmash>=4,<5
