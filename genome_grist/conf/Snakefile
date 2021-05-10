@@ -212,18 +212,16 @@ rule download_sra_wc:
         fi
         '''
 
-rule process_sra_wc:
+rule process_sra_wc_R1:
     message: '''
-    Removing whitespace from headers; gzip while moving SRA downloads to permanent output location
+    Processing R1 reads:
+      - removing whitespace from headers
+      - gzip while moving to permanent output location
     '''
     input:
         r1  = "/tmp/tmp.{sample}/{sample}_1.fastq",
-        r2  = "/tmp/tmp.{sample}/{sample}_2.fastq",
-        unp = "/tmp/tmp.{sample}/{sample}.fastq",
     output:
         r1 = protected(outdir + "/raw/{sample}_1.fastq.gz"),
-        r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
-        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
     threads: 1
     conda: "env/sra.yml"
     shell:'''
@@ -231,12 +229,40 @@ rule process_sra_wc:
         seqtk seq -C {input.r1} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.r1}
+        '''
 
+rule process_sra_wc_R2:
+    message: '''
+    Processing R2 reads:
+      - removing whitespace from headers
+      - gzip while moving to permanent output location
+    '''
+    input:
+        r2  = "/tmp/tmp.{sample}/{sample}_2.fastq",
+    output:
+        r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
+    threads: 1
+    conda: "env/sra.yml"
+    shell:'''
         echo processing R2...
         seqtk seq -C {input.r2} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.r2}
+        '''
 
+rule process_sra_wc_unp:
+    message: '''
+    Processing unpaired reads:
+      - removing whitespace from headers
+      - gzip while moving to permanent output location
+    '''
+    input:
+        unp = "/tmp/tmp.{sample}/{sample}.fastq",
+    output:
+        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+    threads: 1
+    conda: "env/sra.yml"
+    shell:'''
         echo processing unpaired...
         seqtk seq -C {input.unp} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
