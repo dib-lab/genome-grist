@@ -201,9 +201,9 @@ rule download_sra_wc:
         echo tmp directory: {output.temp_dir}
         echo running fasterq-dump for {wildcards.sample}
 
-        fasterq-dump {wildcards.sample} -O {params.temp_dir} -e {threads} -p
+        fasterq-dump {wildcards.sample} -O {output.temp_dir} -e {threads} -p
 
-        # define the file names output by fastq-dump
+        # define the file names output by fasterq-dump
         R1={output.temp_dir}/{wildcards.sample}_1.fastq
         R2={output.temp_dir}/{wildcards.sample}_2.fastq
         UNP={output.temp_dir}/{wildcards.sample}.fastq
@@ -215,7 +215,6 @@ rule download_sra_wc:
         fi
 
         echo processing R1...
-
         seqtk seq -C $R1 | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.r1}
@@ -225,7 +224,7 @@ rule download_sra_wc:
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.r2}
 
-        echo processing unpaired
+        echo processing unpaired...
         seqtk seq -C $UNP | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.unp}
