@@ -194,7 +194,7 @@ rule download_sra_wc:
         unp = temp("/tmp/tmp.{sample}/{sample}.fastq"),
     params:
         temp_dir = "/tmp/tmp.{sample}",
-    threads: 8
+    threads: 6
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
@@ -202,13 +202,20 @@ rule download_sra_wc:
         echo tmp directory: {params.temp_dir}
         echo running fasterq-dump for {wildcards.sample}
 
-        fasterq-dump {wildcards.sample} -O {params.temp_dir} -e {threads} -p
+        fasterq-dump {wildcards.sample} -O {params.temp_dir} \
+        -t {params.temp_dir} -e {threads} -p --split-files
         ls -h {params.temp_dir}
 
         # make unpaired file if needed
         if [ -f {output.r1} -a -f {output.r2} -a \! -f {output.unp} ]; then
             echo "no unpaired; creating empty unpaired file {output.unp} for simplicity"
             touch {output.unp}
+        fi
+        # make r1, r2 files if needed
+        if [ -f {output.unp} -a \! -f {output.r1} -a \! -f {output.r2} ]; then
+            echo "unpaired file found; creating empty r1 ({output.r1}) and r2 ({output.r2}) files for simplicity"
+            touch {output.r1}
+            touch {output.r2}
         fi
         '''
 
@@ -272,19 +279,19 @@ rule process_sra_wc_unp:
 # compute sourmash signature from raw reads
 rule smash_raw_reads_wc:
     input:
-        r1 = outdir + "/raw/{sample}_1.fastq.gz",
-        r2 = outdir + "/raw/{sample}_2.fastq.gz",
-        unp = outdir + "/raw/{sample}_unpaired.fastq.gz",
+        r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
+        r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
+        unp = ancient(outdir + "/raw/{sample}_unpaired.fastq.gz"),
     output:
         sig = outdir + "/raw/{sample}.raw.sig"
     conda: "env/sourmash.yml"
     params:
-        ksizes = ",".join([str(i) for i in SOURMASH_COMPUTE_KSIZES]),
-        scaled = SOURMASH_COMPUTE_SCALED,
+        param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
+                                   scaled=SOURMASH_COMPUTE_SCALED),
+        action = "translate" if SOURMASH_COMPUTE_TYPE == "protein" else "dna"
     shell: """
-        sourmash compute -k {params.ksizes} --scaled={params.scaled} \
-           {input.r1} {input.r2} {input.unp} -o {output} \
-           --name 'rawreads:{wildcards.sample}' --track-abundance
+        sourmash sketch {params.action} -p {params.param_str} \
+           {input} -o {output} --name 'rawreads:{wildcards.sample}'
     """
 
 # adapter trimming
