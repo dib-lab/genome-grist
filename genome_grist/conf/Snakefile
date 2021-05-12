@@ -189,91 +189,53 @@ rule zip:
 # download SRA IDs.
 rule download_sra_wc:
     output:
-        r1 = temp("/tmp/tmp.{sample}/{sample}_1.fastq"),
-        r2 = temp("/tmp/tmp.{sample}/{sample}_2.fastq"),
-        unp = temp("/tmp/tmp.{sample}/{sample}.fastq"),
+        r1  = protected(outdir + "/raw/{sample}_1.fastq.gz"),
+        r2  = protected(outdir + "/raw/{sample}_2.fastq.gz"),
+        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+        temp_dir = temp("/tmp/tmp.{sample}"),
     params:
-        temp_dir = "/tmp/tmp.{sample}",
+        temp_r1 = lambda w: f"/tmp/tmp.{w.sample}/{w.sample}_1.fastq",
+        temp_r2 = lambda w: f"/tmp/tmp.{w.sample}/{w.sample}_2.fastq",
+        temp_unp = lambda w: f"/tmp/tmp.{w.sample}/{w.sample}.fastq",
     threads: 6
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
     shell: '''
-        echo tmp directory: {params.temp_dir}
+        echo tmp directory: {output.temp_dir}
         echo running fasterq-dump for {wildcards.sample}
 
-        fasterq-dump {wildcards.sample} -O {params.temp_dir} \
-        -t {params.temp_dir} -e {threads} -p --split-files
-        ls -h {params.temp_dir}
+        fasterq-dump {wildcards.sample} -O {output.temp_dir} \
+        -t {output.temp_dir} -e {threads} -p --split-files
+        ls -h {output.temp_dir}
 
         # make unpaired file if needed
-        if [ -f {output.r1} -a -f {output.r2} -a \! -f {output.unp} ]; then
+        if [ -f {params.temp_r1} -a -f {params.temp_r2} -a \! -f {params.temp_unp} ]; then
             echo "no unpaired; creating empty unpaired file {output.unp} for simplicity"
-            touch {output.unp}
+            touch {params.temp_unp}
         fi
         # make r1, r2 files if needed
-        if [ -f {output.unp} -a \! -f {output.r1} -a \! -f {output.r2} ]; then
-            echo "unpaired file found; creating empty r1 ({output.r1}) and r2 ({output.r2}) files for simplicity"
-            touch {output.r1}
-            touch {output.r2}
+        if [ -f {params.temp_unp} -a \! -f {params.temp_r1} -a \! -f {params.temp_r2} ]; then
+            echo "unpaired file found; creating empty r1 ({params.temp_r1}) and r2 ({params.temp_r2}) files for simplicity"
+            touch {params.temp_r1}
+            touch {params.temp_r2}
         fi
-        '''
 
-rule process_sra_wc_R1:
-    message: '''
-    Processing R1 reads:
-      - removing whitespace from headers
-      - gzip while moving to permanent output location
-    '''
-    input:
-        r1  = "/tmp/tmp.{sample}/{sample}_1.fastq",
-    output:
-        r1 = protected(outdir + "/raw/{sample}_1.fastq.gz"),
-    threads: 1
-    conda: "env/sra.yml"
-    shell:'''
+        # now process the files and move to a permanent location
         echo processing R1...
-        seqtk seq -C {input.r1} | \
+        seqtk seq -C {params.temp_r1} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
-            gzip -c > {output.r1}
-        '''
+            gzip -c > {output.r1} &
 
-rule process_sra_wc_R2:
-    message: '''
-    Processing R2 reads:
-      - removing whitespace from headers
-      - gzip while moving to permanent output location
-    '''
-    input:
-        r2  = "/tmp/tmp.{sample}/{sample}_2.fastq",
-    output:
-        r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
-    threads: 1
-    conda: "env/sra.yml"
-    shell:'''
         echo processing R2...
-        seqtk seq -C {input.r2} | \
+        seqtk seq -C {params.temp_r2} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
-            gzip -c > {output.r2}
-        '''
+            gzip -c > {output.r2} &
 
-rule process_sra_wc_unp:
-    message: '''
-    Processing unpaired reads:
-      - removing whitespace from headers
-      - gzip while moving to permanent output location
-    '''
-    input:
-        unp = "/tmp/tmp.{sample}/{sample}.fastq",
-    output:
-        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
-    threads: 1
-    conda: "env/sra.yml"
-    shell:'''
         echo processing unpaired...
-        seqtk seq -C {input.unp} | \
+        seqtk seq -C {params.temp_unp} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
-            gzip -c > {output.unp}
+            gzip -c > {output.unp} &
         '''
 
 # compute sourmash signature from raw reads
