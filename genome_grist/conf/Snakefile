@@ -192,7 +192,7 @@ rule download_sra_wc:
         r1 = protected(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
         unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
-        temp_dir = temp(directory("/tmp/tmp.{sample}")),
+        temp_dir = temp(directory("/scratch/tmp.{sample}")),
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
