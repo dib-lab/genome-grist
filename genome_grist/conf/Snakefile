@@ -192,7 +192,7 @@ rule download_sra_wc:
         r1  = protected(outdir + "/raw/{sample}_1.fastq.gz"),
         r2  = protected(outdir + "/raw/{sample}_2.fastq.gz"),
         unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
-        temp_dir = temp("/tmp/tmp.{sample}"),
+        temp_dir = temp(directory("/tmp/tmp.{sample}")),
     params:
         temp_r1 = lambda w: f"/tmp/tmp.{w.sample}/{w.sample}_1.fastq",
         temp_r2 = lambda w: f"/tmp/tmp.{w.sample}/{w.sample}_2.fastq",
@@ -236,6 +236,8 @@ rule download_sra_wc:
         seqtk seq -C {params.temp_unp} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.unp} &
+        wait
+        echo finished downloading raw reads
         '''
 
 # compute sourmash signature from raw reads
