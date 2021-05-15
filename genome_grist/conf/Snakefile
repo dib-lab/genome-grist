@@ -20,7 +20,7 @@ outdir = outdir.rstrip('/')
 print('outdir:', outdir)
 
 base_tempdir = None
-try_temp_locations = config.get('tempdir', ['/scratch', '/tmp'])
+try_temp_locations = config.get('tempdir', [])
 for temp_loc in try_temp_locations:
     try:
         base_tempdir = tempfile.mkdtemp(dir=temp_loc)
