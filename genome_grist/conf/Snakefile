@@ -64,10 +64,10 @@ except:
 ###
 
 onsuccess:
-    shutil.rmtree(base_tempdir)
+    shutil.rmtree(base_tempdir, ignore_errors=True)
 
 onerror:
-    shutil.rmtree(base_tempdir)
+    shutil.rmtree(base_tempdir, ignore_errors=True)
 
 wildcard_constraints:
     size="\d+",
