@@ -9,4 +9,4 @@ dependencies:
  - samtools=1.10
  - screed>=1.0.5,<2
  - pip:
-   - sourmash>=4,<5
+   - sourmash>=4.1,<5
