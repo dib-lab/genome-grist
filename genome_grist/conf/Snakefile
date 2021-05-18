@@ -229,12 +229,13 @@ rule download_sra_wc:
         ls -h {output.temp_dir}
 
         # make unpaired file if needed
-        if [ -f {params.temp_r1} -a -f {params.temp_r2} -a \! -f {params.temp_unp} ]; then
+        if [ -f {params.temp_r1} -a -f {params.temp_r2} -a \! -f {params.temp_unp} ];
+          then
             echo "no unpaired; creating empty unpaired file {output.unp} for simplicity"
             touch {params.temp_unp}
-        fi
-        # make r1, r2 files if needed
-        if [ -f {params.temp_unp} -a \! -f {params.temp_r1} -a \! -f {params.temp_r2} ]; then
+          # make r1, r2 files if needed
+        elif [ -f {params.temp_unp} -a \! -f {params.temp_r1} -a \! -f {params.temp_r2} ];
+          then
             echo "unpaired file found; creating empty r1 ({params.temp_r1}) and r2 ({params.temp_r2}) files for simplicity"
             touch {params.temp_r1}
             touch {params.temp_r2}
