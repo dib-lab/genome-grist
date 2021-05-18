@@ -213,9 +213,9 @@ rule download_sra_wc:
         unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
         temp_dir = temp(directory(f"{base_tempdir}/{{sample}}.d")),
     params:
-        temp_r1 = lambda w: f"{base_tempdir}/{{sample}}.d/{{w.sample}}_1.fastq",
-        temp_r2 = lambda w: f"{base_tempdir}/{{sample}}.d/{{w.sample}}_2.fastq",
-        temp_unp = lambda w: f"{base_tempdir}/{{sample}}.d/{{w.sample}}.fastq",
+        temp_r1 = lambda w: f"{base_tempdir}/{w.sample}.d/{w.sample}_1.fastq",
+        temp_r2 = lambda w: f"{base_tempdir}/{w.sample}.d/{w.sample}_2.fastq",
+        temp_unp = lambda w: f"{base_tempdir}/{w.sample}.d/{w.sample}.fastq",
     threads: 6
     conda: "env/sra.yml"
     resources:
