@@ -208,79 +208,74 @@ rule zip:
 # download SRA IDs.
 rule download_sra_wc:
     output:
-        r1 = protected(outdir + "/raw/{sample}_1.fastq.gz"),
-        r2 = protected(outdir + "/raw/{sample}_2.fastq.gz"),
+        r1  = protected(outdir + "/raw/{sample}_1.fastq.gz"),
+        r2  = protected(outdir + "/raw/{sample}_2.fastq.gz"),
         unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+        # temporary output
         temp_dir = temp(directory(f"{base_tempdir}/{{sample}}.d")),
+        temp_r1 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_1.fastq",
+        temp_r2 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_2.fastq",
+        temp_unp = f"{base_tempdir}/{{sample}}.d/{{sample}}.fastq",
+    threads: 6
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
     shell: '''
-        mkdir -p {output.temp_dir}
         echo tmp directory: {output.temp_dir}
-        cd {output.temp_dir}
-        echo running fastq-dump for {wildcards.sample}
-        fastq-dump --skip-technical  \
-               --readids \
-               --read-filter pass \
-               --dumpbase \
-               --split-spot \
-               --clip \
-               --split-3 \
-               {wildcards.sample}
+        echo running fasterq-dump for {wildcards.sample}
 
-        ls -lh
-
-        # figure out the accession
-        ACC=$(ls -1 *_pass_1.fastq | cut -d_ -f1)
-        echo accession is $ACC
-
-        # return to snakemake running dir
-        cd -
-
-        # define the file names output by fastq-dump
-        R1={output.temp_dir}/${{ACC}}_pass_1.fastq
-        R2={output.temp_dir}/${{ACC}}_pass_2.fastq
-        UNP={output.temp_dir}/${{ACC}}_pass.fastq
+        fasterq-dump {wildcards.sample} -O {output.temp_dir} \
+        -t {output.temp_dir} -e {threads} -p --split-files
+        ls -h {output.temp_dir}
 
         # make unpaired file if needed
-        if [ -f $R1 -a -f $R2 -a \! -f $UNP ]; then
-            echo "no unpaired; creating empty unpaired file $UNP for simplicity"
-            touch $UNP
+        if [ -f {output.temp_r1} -a -f {output.temp_r2} -a \! -f {output.temp_unp} ];
+          then
+            echo "no unpaired; creating empty unpaired file {output.unp} for simplicity"
+            touch {output.temp_unp}
+          # make r1, r2 files if needed
+        elif [ -f {output.temp_unp} -a \! -f {output.temp_r1} -a \! -f {output.temp_r2} ];
+          then
+            echo "unpaired file found; creating empty r1 ({output.temp_r1}) and r2 ({output.temp_r2}) files for simplicity"
+            touch {output.temp_r1}
+            touch {output.temp_r2}
         fi
 
+        # now process the files and move to a permanent location
         echo processing R1...
-        seqtk seq -C $R1 | \
+        seqtk seq -C {output.temp_r1} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
-            gzip -c > {output.r1}
+            gzip -c > {output.r1} &
 
         echo processing R2...
-        seqtk seq -C $R2 | \
+        seqtk seq -C {output.temp_r2} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
-            gzip -c > {output.r2}
+            gzip -c > {output.r2} &
 
-        echo processing unpaired
-        seqtk seq -C $UNP | \
+        echo processing unpaired...
+        seqtk seq -C {output.temp_unp} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
-            gzip -c > {output.unp}
+            gzip -c > {output.unp} &
+        wait
+        echo finished downloading raw reads
         '''
 
 # compute sourmash signature from raw reads
 rule smash_raw_reads_wc:
     input:
-        r1 = outdir + "/raw/{sample}_1.fastq.gz",
-        r2 = outdir + "/raw/{sample}_2.fastq.gz",
-        unp = outdir + "/raw/{sample}_unpaired.fastq.gz",
+        r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
+        r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
+        unp = ancient(outdir + "/raw/{sample}_unpaired.fastq.gz"),
     output:
         sig = outdir + "/raw/{sample}.raw.sig"
     conda: "env/sourmash.yml"
     params:
-        ksizes = ",".join([str(i) for i in SOURMASH_COMPUTE_KSIZES]),
-        scaled = SOURMASH_COMPUTE_SCALED,
+        param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
+                                   scaled=SOURMASH_COMPUTE_SCALED),
+        action = "translate" if SOURMASH_COMPUTE_TYPE == "protein" else "dna"
     shell: """
-        sourmash compute -k {params.ksizes} --scaled={params.scaled} \
-           {input.r1} {input.r2} {input.unp} -o {output} \
-           --name 'rawreads:{wildcards.sample}' --track-abundance
+        sourmash sketch {params.action} -p {params.param_str} \
+           {input} -o {output} --name 'rawreads:{wildcards.sample}'
     """
 
 # adapter trimming
