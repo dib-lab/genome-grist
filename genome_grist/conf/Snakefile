@@ -211,11 +211,11 @@ rule download_sra_wc:
         r1  = protected(outdir + "/raw/{sample}_1.fastq.gz"),
         r2  = protected(outdir + "/raw/{sample}_2.fastq.gz"),
         unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+        # temporary output
         temp_dir = temp(directory(f"{base_tempdir}/{{sample}}.d")),
-    params:
-        temp_r1 = lambda w: f"{base_tempdir}/{w.sample}.d/{w.sample}_1.fastq",
-        temp_r2 = lambda w: f"{base_tempdir}/{w.sample}.d/{w.sample}_2.fastq",
-        temp_unp = lambda w: f"{base_tempdir}/{w.sample}.d/{w.sample}.fastq",
+        temp_r1 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_1.fastq",
+        temp_r2 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_2.fastq",
+        temp_unp = f"{base_tempdir}/{{sample}}.d/{{sample}}.fastq",
     threads: 6
     conda: "env/sra.yml"
     resources:
@@ -229,31 +229,31 @@ rule download_sra_wc:
         ls -h {output.temp_dir}
 
         # make unpaired file if needed
-        if [ -f {params.temp_r1} -a -f {params.temp_r2} -a \! -f {params.temp_unp} ];
+        if [ -f {output.temp_r1} -a -f {output.temp_r2} -a \! -f {output.temp_unp} ];
           then
             echo "no unpaired; creating empty unpaired file {output.unp} for simplicity"
-            touch {params.temp_unp}
+            touch {output.temp_unp}
           # make r1, r2 files if needed
-        elif [ -f {params.temp_unp} -a \! -f {params.temp_r1} -a \! -f {params.temp_r2} ];
+        elif [ -f {output.temp_unp} -a \! -f {output.temp_r1} -a \! -f {output.temp_r2} ];
           then
-            echo "unpaired file found; creating empty r1 ({params.temp_r1}) and r2 ({params.temp_r2}) files for simplicity"
-            touch {params.temp_r1}
-            touch {params.temp_r2}
+            echo "unpaired file found; creating empty r1 ({output.temp_r1}) and r2 ({output.temp_r2}) files for simplicity"
+            touch {output.temp_r1}
+            touch {output.temp_r2}
         fi
 
         # now process the files and move to a permanent location
         echo processing R1...
-        seqtk seq -C {params.temp_r1} | \
+        seqtk seq -C {output.temp_r1} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.r1} &
 
         echo processing R2...
-        seqtk seq -C {params.temp_r2} | \
+        seqtk seq -C {output.temp_r2} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.r2} &
 
         echo processing unpaired...
-        seqtk seq -C {params.temp_unp} | \
+        seqtk seq -C {output.temp_unp} | \
             perl -ne 's/\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.unp} &
         wait
