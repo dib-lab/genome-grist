@@ -288,7 +288,11 @@ rule trim_adapters_wc:
         json=outdir + "/trim/{sample}.trim.json",
         html=outdir + "/trim/{sample}.trim.html",
     conda: 'env/trim.yml'
-    threads: 16
+    threads: 4
+    resources:
+        mem_mb=5000,
+        runtime_min=600,
+    shadow: "shallow"
     shell: """
         fastp --in1 {input.r1} --in2 {input.r2} \
              --detect_adapter_for_pe  --qualified_quality_phred 4 \
@@ -305,7 +309,11 @@ rule trim_unpaired_adapters_wc:
         unp = protected(outdir + '/trim/{sample}_unpaired.trim.fq.gz'),
         json = protected(outdir + '/trim/{sample}_unpaired.trim.json'),
         html = protected(outdir + '/trim/{sample}_unpaired.trim.html'),
-    threads: 16
+    threads: 4
+    resources:
+        mem_mb=5000,
+        runtime_min=600,
+    shadow: "shallow"
     conda: 'env/trim.yml'
     shell: """
         fastp --in1 {input.unp} --out1 {output.unp} \
