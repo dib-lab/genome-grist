@@ -106,7 +106,7 @@ rule smash_reads:
 
 rule search_genbank:
     input:
-        expand(outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
+        expand(outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
                sample=SAMPLES)
 
 rule summarize_sample_info:
@@ -589,7 +589,7 @@ rule sourmash_prefetch_gather_wc:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
         db = SOURMASH_DB_LIST,
     output:
-        matches = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
+        matches = outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
     resources:
         mem_mb=int(PREFETCH_MEMORY / 1e3)
     conda: "env/sourmash.yml"
@@ -611,11 +611,11 @@ rule split_query_known_unknown_wc:
     """
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
-        prefetch = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
+        prefetch = outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
     output:
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
         unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
-        report = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.sig.report.txt",
+        report = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.zip.report.txt",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
@@ -630,7 +630,7 @@ rule split_query_known_unknown_wc:
 rule sourmash_gather_wc:
     input:
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
-        db = outdir + "/genbank/{sample}.x.genbank.prefetch.sig",
+        db = outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
     output:
         csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
         matches = outdir + "/genbank/{sample}.x.genbank.matches.sig",
@@ -693,7 +693,7 @@ rule summarize_reads_info_wc:
     input:
         kmers = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.kmer-report.txt",
         reads = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.reads-report.txt",
-        sigs = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.sig.report.txt",
+        sigs = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.zip.report.txt",
     output:
         outdir + '/{sample}.info.yaml',
     run:
