@@ -6,4 +6,4 @@ channels:
 dependencies:
  - mamba
  - screed>=1.0.5,<2
- - sourmash>=4.1,<5
+ - sourmash>=4.1.1,<5

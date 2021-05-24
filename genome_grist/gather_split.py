@@ -44,7 +44,7 @@ def main():
         notify(f"Downsampling query from scaled={query_mh.scaled} to {scaled}")
         query_mh = query_mh.downsample(scaled=int(scaled))
 
-    unknown_mh = copy.copy(query_mh)
+    unknown_mh = query_mh.to_mutable()
 
     notify(f"Loaded {len(query_mh.hashes)} hashes from '{args.query_file}'")
 
