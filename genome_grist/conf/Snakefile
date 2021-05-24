@@ -590,6 +590,7 @@ rule sourmash_prefetch_gather_wc:
         db = SOURMASH_DB_LIST,
     output:
         matches = outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
+        csv = outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
     resources:
         mem_mb=int(PREFETCH_MEMORY / 1e3)
     conda: "env/sourmash.yml"
@@ -601,7 +602,8 @@ rule sourmash_prefetch_gather_wc:
         echo "DB is {input.db}"
         sourmash prefetch {input.sig} {input.db} \
           --save-matches {output.matches} -k {params.ksize} \
-          --threshold-bp={params.threshold_bp} {params.moltype}
+          --threshold-bp={params.threshold_bp} {params.moltype} \
+          -o {output.csv}
     """
 
 # run sourmash search x genbank and find anything matching.
