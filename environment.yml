@@ -5,5 +5,7 @@ channels:
  - defaults
 dependencies:
  - mamba
- - screed>=1.0.5,<2
- - sourmash>=4.1.1,<5
+ - snakemake-minimal=6.4.1
+ - click>=7,<8
+ - lxml==4.6.1
+ - pandas>1,<2

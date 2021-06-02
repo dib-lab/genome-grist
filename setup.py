@@ -40,8 +40,8 @@ setup(
         "pytest-runner",
     ],
     use_scm_version={"write_to": "genome_grist/version.py"},
-    install_requires=["snakemake>=5.10", "click>=7", "lxml==4.6.1", "pandas"],
-    tests_require=["pytest>=5.1.2", "pytest-dependency"],
+    install_requires=["snakemake==6.4.1", "click>=7,<8", "lxml==4.6.1",
+                      "pandas>1,<2"],
     long_description=long_description,
     long_description_content_type="text/markdown",
 )
