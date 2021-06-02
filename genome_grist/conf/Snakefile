@@ -75,7 +75,7 @@ wildcard_constraints:
 
 rule all:
     input:
-        expand(f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
+        expand(f'{outdir}/reports/report-{{sample}}.html',
                sample=SAMPLES)
 
 rule download_reads:

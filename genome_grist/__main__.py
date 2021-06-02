@@ -5,6 +5,7 @@ import subprocess
 
 import click
 
+from genome_grist.version import version
 
 def get_snakefile_path(name):
     thisdir = os.path.dirname(__file__)
@@ -109,9 +110,37 @@ def cli():
 @click.option("--no-use-conda", is_flag=True, default=False)
 @click.option("--verbose", is_flag=True)
 @click.option("--outdir", nargs=1)
+@click.option("-h", "--help", nargs=0)
 @click.argument("snakemake_args", nargs=-1)
-def run(configfile, snakemake_args, no_use_conda, verbose, outdir):
+def run(configfile, snakemake_args, no_use_conda, verbose, outdir, help):
     "execute genome-grist workflow (using snakemake underneath)"
+    if help or not snakemake_args:
+        print(f"""
+This is genome-grist v{version}.
+
+Usage:
+
+   genome-grist run <conf file> <target> [ <target 2>... ] [ <snakemake args> ]
+
+Possible targets:
+
+ * download_reads - download SRA metagenomes specified in conf file
+ * trim_reads - do basic read trimming/adapter removal
+ * smash_reads - create sourmash signatures from reads
+ * summarize_sample_info - ???
+ * gather_genbank - run 'sourmash gather' on metagenome against Genbank
+ * download_matching_genomes - download all matching Genbank genomes.
+ * map_reads - map all metagenome reads to Genbank genomes.
+ * summarize - produce summary reports on k-mer and read mapping
+ * build_consensus - XXX
+ * make_sgc_conf - make a spacegraphcats config file
+
+Please see https://github.com/dib-lab/genome-grist for quickstart docs.
+
+Please ask questions at https://github.com/dib-lab/genome-grist/issues!
+""")
+        sys.exit(0)
+
     run_snakemake(
         configfile,
         snakefile_name="Snakefile",
