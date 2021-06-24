@@ -106,7 +106,7 @@ rule smash_reads:
 
 rule search_genbank:
     input:
-        expand(outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
+        expand(outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
                sample=SAMPLES)
 
 rule summarize_sample_info:
@@ -585,12 +585,16 @@ rule map_leftover_reads_wc:
 
 # run sourmash search x genbank and find anything matching.
 rule sourmash_prefetch_gather_wc:
+    message: """
+       Find all potentially relevant database matches for {wildcards.sample}
+    """
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
         db = SOURMASH_DB_LIST,
     output:
-        matches = outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
         csv = outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
+        known = outdir + "/genbank/{sample}.x.genbank.known.sig",
+        unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
     resources:
         mem_mb=int(PREFETCH_MEMORY / 1e3)
     conda: "env/sourmash.yml"
@@ -600,39 +604,43 @@ rule sourmash_prefetch_gather_wc:
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
         echo "DB is {input.db}"
-        sourmash prefetch {input.sig} {input.db} \
-          --save-matches {output.matches} -k {params.ksize} \
+        sourmash prefetch {input.sig} {input.db} -k {params.ksize} \
           --threshold-bp={params.threshold_bp} {params.moltype} \
+          --save-matching-hashes={output.known} \
+          --save-unmatched-hashes={output.unknown} \
           -o {output.csv}
     """
 
 # run sourmash search x genbank and find anything matching.
-rule split_query_known_unknown_wc:
+rule report_query_known_unknown_wc:
     message: """
-       Split the sourmash signature for {wildcards.sample} into "known" and "unknown" hashes
+       Report on "known" and "unknown" hashes for {wildcards.sample}
     """
     input:
-        sig = outdir + "/sigs/{sample}.abundtrim.sig",
-        prefetch = outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
-    output:
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
         unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
+    output:
         report = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.zip.report.txt",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
         moltype = SOURMASH_COMPUTE_TYPE,
-    shell: """
-        python -W error -m genome_grist.gather_split {input.sig} {input.prefetch} \
-          {output.known} {output.unknown}  \
-          -k {params.ksize} --moltype {params.moltype} --report {output.report}
-    """
+    shell: "touch {output.report}"
+#    shell: """
+#        python -W error -m genome_grist.gather_split {input.sig} {input.prefetch} \
+#          {output.known} {output.unknown}  \
+#          -k {params.ksize} --moltype {params.moltype} --report {output.report}
+#    """
 
 # run sourmash gather with known hashes on prefetched matches.
 rule sourmash_gather_wc:
+    message: """
+       Run gather for {wildcards.sample}
+    """
     input:
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
-        db = outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
+        picklist = outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
+        db = SOURMASH_DB_LIST,
     output:
         csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
         matches = outdir + "/genbank/{sample}.x.genbank.matches.sig",
@@ -643,6 +651,7 @@ rule sourmash_gather_wc:
     shell: """
         sourmash gather {input.known} {input.db} -o {output.csv} \
           --threshold-bp {params.threshold_bp} \
+          --picklist {input.picklist}:match_md5:md5short \
           --save-matches {output.matches} > {output.out}
     """
 
