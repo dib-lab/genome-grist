@@ -1,3 +1,3 @@
-# I'm folder1
+# Run on local samples
 
 source: `{{ page.path }}`

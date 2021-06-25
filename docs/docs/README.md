@@ -2,6 +2,6 @@
 sort: 1
 ---
 
-# Docs folder
+# Getting started
 
 {% include list.liquid all=true %}

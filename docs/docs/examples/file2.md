@@ -1,3 +1,3 @@
-# I'm folder1
+# Run on SRA samples
 
 source: `{{ page.path }}`

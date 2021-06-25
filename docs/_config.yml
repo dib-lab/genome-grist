@@ -1,6 +1,6 @@
-title: Your awesome title
+title: genome-grist
 lang: en
-description: Write an awesome description for your new site here
+description: Map Illumina metagenomes to GenBank genomes
 
 remote_theme: rundocs/jekyll-rtd-theme
 
