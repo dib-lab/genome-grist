@@ -63,7 +63,7 @@ def test_summarize_sample_info():
     global _tempdir
 
     test_data = utils.relative_file("tests/test-data")
-    test_db = os.path.join(test_data, "HSMA33MX-subset.x.genbank.matches.sig")
+    test_db = os.path.join(test_data, "SRR5950647.x.gtdb-rs202.matches.zip")
 
     config_params = ["sample=HSMA33MX-subset",
                      f"sourmash_database_glob_pattern={test_db}"]
@@ -88,32 +88,35 @@ def test_summarize_sample_info():
 
     assert info['kmers'] == 928685
     assert info['sample'] == 'HSMA33MX-subset'
-    assert info['known_hashes'] == 807
+    assert info['known_hashes'] == 653
     assert info['n_bases'] == 2276334
     assert info['n_reads'] == 24663
     assert info['total_hashes'] == 907
-    assert info['unknown_hashes'] == 100
+    assert info['unknown_hashes'] == 254
 
 @pytest.mark.dependency(depends=["test_summarize_sample_info"])
 def test_map_reads():
     global _tempdir
 
     test_data = utils.relative_file("tests/test-data")
+    test_db = os.path.join(test_data, "SRR5950647.x.gtdb-rs202.matches.zip")
+
+    genomes_dir = os.path.join(_tempdir, "genomes")
+    os.mkdir(genomes_dir)
 
     cplist = (
         ("HSMA33MX-GCA_001881345.1.fna.gz", "GCA_001881345.1.fna.gz"),
         ("HSMA33MX-GCA_009494275.1.fna.gz", "GCA_009494275.1.fna.gz"),
     )
 
-    genomes_dir = os.path.join(_tempdir, "genomes")
-    os.mkdir(genomes_dir)
-
     for src, dest in cplist:
         frompath = os.path.join(test_data, src)
         topath = os.path.join(genomes_dir, dest)
         shutil.copyfile(frompath, topath)
 
-    config_params = ["sample=HSMA33MX-subset"]
+    config_params = ["sample=HSMA33MX-subset",
+                     f"sourmash_database_glob_pattern={test_db}"]
+
     extra_args = ["map_reads", "-j", "4"]
     status = run_snakemake(
         "conf.yml",
