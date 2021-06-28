@@ -617,6 +617,7 @@ rule report_query_known_unknown_wc:
        Report on "known" and "unknown" hashes for {wildcards.sample}
     """
     input:
+        query = outdir + "/sigs/{sample}.abundtrim.sig",
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
         unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
     output:
@@ -625,12 +626,11 @@ rule report_query_known_unknown_wc:
     params:
         ksize = SOURMASH_DB_KSIZE,
         moltype = SOURMASH_COMPUTE_TYPE,
-    shell: "touch {output.report}" # @CTB fixme
-#    shell: """
-#        python -W error -m genome_grist.gather_split {input.sig} {input.prefetch} \
-#          {output.known} {output.unknown}  \
-#          -k {params.ksize} --moltype {params.moltype} --report {output.report}
-#    """
+    shell: """
+         python -W error -m genome_grist.summarize_gather_hashes \
+          {input.query} {input.known} {input.unknown}  \
+          -k {params.ksize} --moltype {params.moltype} --report {output.report}
+    """
 
 # run sourmash gather with known hashes on prefetched matches.
 rule sourmash_gather_wc:
