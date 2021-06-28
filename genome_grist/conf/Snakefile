@@ -621,7 +621,7 @@ rule report_query_known_unknown_wc:
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
         unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
     output:
-        report = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.zip.report.txt",
+        report = outdir + "/genbank/{sample}.x.genbank.prefetch.report.txt",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
@@ -704,7 +704,7 @@ rule summarize_reads_info_wc:
     input:
         kmers = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.kmer-report.txt",
         reads = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.reads-report.txt",
-        sigs = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.zip.report.txt",
+        gather_report = outdir + "/genbank/{sample}.x.genbank.prefetch.report.txt",
     output:
         outdir + '/{sample}.info.yaml',
     run:
@@ -720,7 +720,7 @@ rule summarize_reads_info_wc:
             d['n_reads'] = int(row['n_reads'])
             d['n_bases'] = int(row['n_bases'])
 
-        with open(str(input.sigs), 'rt') as fp:
+        with open(str(input.gather_report), 'rt') as fp:
             r = csv.DictReader(fp)
             row = next(iter(r))
             d['total_hashes'] = int(row['total_hashes'])
