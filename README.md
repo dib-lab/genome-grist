@@ -106,6 +106,7 @@ The default target is `summarize`, for now.
 - `summarize_sample_info` - summarize read number and distinct k-mers
 - `gather_genbank` - run a `gather` against the database
 - `summarize_gather` - summarize the `gather` output
+- `summarize_tax` - summarize the `gather` output's taxonomy
 - `download_matching_genomes` - download all matching GenBank genomes
 - `map_reads` - map the metagenome reads to the matching GenBank genomes
 - `summarize` - build a combined summary report of mapping and `gather`
