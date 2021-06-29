@@ -96,6 +96,22 @@ For example,
 
 Please see [the genome-grist Snakefile](https://github.com/dib-lab/genome-grist/blob/latest/genome_grist/conf/Snakefile) for all the gory details.
 
+## Additional targets
+
+The default target is `summarize`, for now.
+
+- `download_reads` - download the metagenome(s)
+- `trim_reads` - trim the raw reads
+- `smash_reads` - build sourmash signatures for the raw reads
+- `summarize_sample_info` - summarize read number and distinct k-mers
+- `gather_genbank` - run a `gather` against the database
+- `summarize_gather` - summarize the `gather` output
+- `download_matching_genomes` - download all matching GenBank genomes
+- `map_reads` - map the metagenome reads to the matching GenBank genomes
+- `summarize` - build a combined summary report of mapping and `gather`
+- `build_consensus` - build a consensus genome from the mapping
+- `make_sgc_conf` - make a config file for spacegraphcats based on `gather`
+
 ## Other information
 
 ### Resource requirements
