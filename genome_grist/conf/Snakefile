@@ -161,6 +161,11 @@ rule summarize_gather:
         expand(f'{outdir}/reports/report-gather-{{sample}}.html',
                sample=SAMPLES)
 
+rule summarize_tax:
+    input:
+        expand(f'{outdir}/gathertax/{{sample}}.x.genbank.gather.with-lineages.csv',
+               sample=SAMPLES)
+
 rule download_matching_genomes_info:
     input:
         expand(f"{outdir}/genbank/{{sample}}.genomes.info.csv",
@@ -683,6 +688,22 @@ rule sourmash_gather_wc:
           --picklist {input.picklist}:match_md5:md5short \
           --save-matches {output.matches} > {output.out}
     """
+
+# run sourmash tax annotate on the gather results
+rule summarize_tax_wc:
+    input:
+        gather_csv = f"{outdir}/genbank/{{sample}}.x.genbank.gather.csv",
+        tax_csv = "../sourmash/gtdb-rs202.taxonomy.v2.csv",
+    output:
+        f"{outdir}/gathertax/{{sample}}.x.genbank.gather.with-lineages.csv",
+    conda: "env/sourmash.yml"
+    params:
+        o_param = f"{outdir}/gathertax/"
+    shell: """
+        sourmash tax annotate -g {input.gather_csv} -t {input.tax_csv} \
+            -o {params.o_param}
+    """
+
 
 # download genbank genome details; make an info.csv file for entry.
 rule make_genome_info_csv:
