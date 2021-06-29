@@ -4,6 +4,7 @@
 # - smash_reads
 # - summarize_sample_info
 # - gather_genbank
+# - summarize_gather
 # - download_matching_genomes
 # - map_reads
 # - summarize
@@ -71,7 +72,7 @@ onerror:
 
 wildcard_constraints:
     size="\d+",
-    sample='[a-zA-Z0-9._-]+'                   # should be everything but /
+    sample='[a-zA-Z0-9._]+'                   # should be everything but /
 
 rule all:
     input:
@@ -154,6 +155,11 @@ class Checkpoint_GatherResults:
 
         p = expand(self.pattern, acc=genome_accs, **w)
         return p
+
+rule summarize_gather:
+    input:
+        expand(f'{outdir}/reports/report-gather-{{sample}}.html',
+               sample=SAMPLES)
 
 rule download_matching_genomes_info:
     input:
@@ -525,8 +531,31 @@ rule set_kernel:
     """
 
 
+# papermill -> gather reporting notebook + html
+rule make_gather_notebook_wc:
+    input:
+        nb = srcdir('../notebooks/report-gather.ipynb'),
+        gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
+        genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
+        kernel_set = rules.set_kernel.output,
+    output:
+        nb = outdir + f'/reports/report-gather-{{sample}}.ipynb',
+        html = outdir + f'/reports/report-gather-{{sample}}.html',
+    params:
+        cwd = outdir + '/reports/',
+        outdir = outdir,
+    conda: 'env/papermill.yml'
+    shell: """
+        papermill {input.nb} - -k genome_grist \
+              -p sample_id {wildcards.sample:q} -p render '' -p outdir {outdir:q}\
+              --cwd {params.cwd} \
+              > {output.nb}
+        python -m nbconvert {output.nb} --to html --stdout --no-input \
+             --ExecutePreprocessor.kernel_name=genome_grist > {output.html}
+    """
+
 # papermill -> reporting notebook + html
-rule make_notebook_wc:
+rule make_mapping_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-sample.ipynb'),
         all_csv = f"{outdir}/minimap/depth/{{sample}}.summary.csv",
