@@ -75,9 +75,9 @@ wildcard_constraints:
     sample='[a-zA-Z0-9._]+'                   # should be everything but /
 
 rule all:
-    input:
-        expand(f'{outdir}/reports/report-{{sample}}.html',
-               sample=SAMPLES)
+    run:
+        print("\n\n** Please see documentation for possible targets. **\n\n",
+              file=sys.stderr)
 
 rule download_reads:
     input:
@@ -180,9 +180,11 @@ rule build_consensus:
         Checkpoint_GatherResults(outdir + f"/minimap/{{sample}}.x.{{acc}}.consensus.fa.gz"),
         Checkpoint_GatherResults(outdir + f"/leftover/{{sample}}.x.{{acc}}.consensus.fa.gz"),
 
-rule summarize:
+rule summarize_mapping:
     input:
         expand(f'{outdir}/reports/report-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/reports/report-gather-{{sample}}.html',
                sample=SAMPLES)
 
 rule make_sgc_conf:
