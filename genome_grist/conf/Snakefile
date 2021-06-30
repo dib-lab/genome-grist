@@ -75,9 +75,9 @@ wildcard_constraints:
     sample='[a-zA-Z0-9._]+'                   # should be everything but /
 
 rule all:
-    input:
-        expand(f'{outdir}/reports/report-{{sample}}.html',
-               sample=SAMPLES)
+    run:
+        print("\n\n** Please see documentation for possible targets. **\n\n",
+              file=sys.stderr)
 
 rule download_reads:
     input:
@@ -185,9 +185,11 @@ rule build_consensus:
         Checkpoint_GatherResults(outdir + f"/minimap/{{sample}}.x.{{acc}}.consensus.fa.gz"),
         Checkpoint_GatherResults(outdir + f"/leftover/{{sample}}.x.{{acc}}.consensus.fa.gz"),
 
-rule summarize:
+rule summarize_mapping:
     input:
         expand(f'{outdir}/reports/report-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/reports/report-gather-{{sample}}.html',
                sample=SAMPLES)
 
 rule make_sgc_conf:
@@ -537,11 +539,13 @@ rule set_kernel:
 
 
 # papermill -> gather reporting notebook + html
+# CTB: it's not clear why 'ancient' is needed here, but it prevents this rule
+# from being run over and over!
 rule make_gather_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-gather.ipynb'),
         gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
-        genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
+        genomes_info_csv = ancient(f"{outdir}/genbank/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
     output:
         nb = outdir + f'/reports/report-gather-{{sample}}.ipynb',
@@ -560,13 +564,15 @@ rule make_gather_notebook_wc:
     """
 
 # papermill -> reporting notebook + html
+# CTB: it's not clear why 'ancient' is needed here, but it prevents this rule
+# from being run over and over!
 rule make_mapping_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-sample.ipynb'),
-        all_csv = f"{outdir}/minimap/depth/{{sample}}.summary.csv",
-        depth_csv = f"{outdir}/leftover/depth/{{sample}}.summary.csv",
+        all_csv = ancient(f"{outdir}/minimap/depth/{{sample}}.summary.csv"),
+        depth_csv = ancient(f"{outdir}/leftover/depth/{{sample}}.summary.csv"),
         gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
-        genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
+        genomes_info_csv = ancient(f"{outdir}/genbank/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
     output:
         nb = outdir + f'/reports/report-{{sample}}.ipynb',
