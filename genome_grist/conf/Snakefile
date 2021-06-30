@@ -39,6 +39,8 @@ assert SOURMASH_COMPUTE_TYPE in ('DNA', 'protein')
 
 PREFETCH_MEMORY = float(config.get('prefetch_memory', '100e9'))
 
+TAXONOMY_DB = config.get('database_taxonomy', 'MUST SPECIFY IN CONFIG')
+
 # make a `sourmash sketch` -p param string.
 def make_param_str(ksizes, scaled):
     ks = [ f'k={k}' for k in ksizes ]
@@ -170,6 +172,8 @@ rule summarize_gather:
 @toplevel
 rule summarize_tax:
     input:
+        expand(f'{outdir}/reports/report-taxonomy-{{sample}}.html',
+               sample=SAMPLES),
         expand(f'{outdir}/gathertax/{{sample}}.x.genbank.gather.with-lineages.csv',
                sample=SAMPLES)
 
@@ -199,7 +203,7 @@ rule build_consensus:
 @toplevel
 rule summarize_mapping:
     input:
-        expand(f'{outdir}/reports/report-{{sample}}.html',
+        expand(f'{outdir}/reports/report-mapping-{{sample}}.html',
                sample=SAMPLES),
         expand(f'{outdir}/reports/report-gather-{{sample}}.html',
                sample=SAMPLES)
@@ -579,20 +583,44 @@ rule make_gather_notebook_wc:
              --ExecutePreprocessor.kernel_name=genome_grist > {output.html}
     """
 
+# papermill -> taxonomy reporting notebook + html
+# CTB: it's not clear why 'ancient' is needed here, but it prevents this rule
+# from being run over and over!
+rule make_taxonomy_notebook_wc:
+    input:
+        nb = srcdir('../notebooks/report-taxonomy.ipynb'),
+        taxcsv = ancient(f'{outdir}/gathertax/{{sample}}.x.genbank.gather.with-lineages.csv'),
+        kernel_set = rules.set_kernel.output,
+    output:
+        nb = outdir + f'/reports/report-taxonomy-{{sample}}.ipynb',
+        html = outdir + f'/reports/report-taxonomy-{{sample}}.html',
+    params:
+        cwd = outdir + '/reports/',
+        outdir = outdir,
+    conda: 'env/papermill.yml'
+    shell: """
+        papermill {input.nb} - -k genome_grist \
+              -p sample_id {wildcards.sample:q} -p render '' -p outdir {outdir:q}\
+              --cwd {params.cwd} \
+              > {output.nb}
+        python -m nbconvert {output.nb} --to html --stdout --no-input \
+             --ExecutePreprocessor.kernel_name=genome_grist > {output.html}
+    """
+
 # papermill -> reporting notebook + html
 # CTB: it's not clear why 'ancient' is needed here, but it prevents this rule
 # from being run over and over!
 rule make_mapping_notebook_wc:
     input:
-        nb = srcdir('../notebooks/report-sample.ipynb'),
+        nb = srcdir('../notebooks/report-mapping.ipynb'),
         all_csv = ancient(f"{outdir}/minimap/depth/{{sample}}.summary.csv"),
         depth_csv = ancient(f"{outdir}/leftover/depth/{{sample}}.summary.csv"),
         gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
         genomes_info_csv = ancient(f"{outdir}/genbank/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
     output:
-        nb = outdir + f'/reports/report-{{sample}}.ipynb',
-        html = outdir + f'/reports/report-{{sample}}.html',
+        nb = outdir + f'/reports/report-mapping-{{sample}}.ipynb',
+        html = outdir + f'/reports/report-mapping-{{sample}}.html',
     params:
         cwd = outdir + '/reports/',
         outdir = outdir,
@@ -715,7 +743,7 @@ rule sourmash_gather_wc:
 rule summarize_tax_wc:
     input:
         gather_csv = f"{outdir}/genbank/{{sample}}.x.genbank.gather.csv",
-        tax_csv = "../sourmash/gtdb-rs202.taxonomy.v2.csv",
+        tax_csv = TAXONOMY_DB,
     output:
         f"{outdir}/gathertax/{{sample}}.x.genbank.gather.with-lineages.csv",
     conda: "env/sourmash.yml"
