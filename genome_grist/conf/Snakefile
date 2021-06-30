@@ -751,7 +751,7 @@ rule summarize_tax_wc:
         o_param = f"{outdir}/gathertax/"
     shell: """
         sourmash tax annotate -g {input.gather_csv} -t {input.tax_csv} \
-            -o {params.o_param}
+            -o {params.o_param} --fail-on-missing-taxonomy
     """
 
 
