@@ -1,16 +1,4 @@
-# top-level targets:
-# - download_reads
-# - trim_reads
-# - smash_reads
-# - summarize_sample_info
-# - gather_genbank
-# - summarize_gather
-# - download_matching_genomes
-# - map_reads
-# - summarize
-# - build_consensus
-# - make_sgc_conf
-
+# see README or genome_grist/__main__.py for top-level targets.
 import glob, os, csv, tempfile, shutil, sys
 
 SAMPLES=config['sample']
@@ -64,6 +52,13 @@ except:
 
 ###
 
+# mark top-level rules:
+_toplevel_rules = []
+def toplevel(fn):
+    assert fn.__name__.startswith('__')
+    _toplevel_rules.append(fn.__name__[2:])
+    return fn
+
 onsuccess:
     shutil.rmtree(base_tempdir, ignore_errors=True)
 
@@ -74,46 +69,56 @@ wildcard_constraints:
     size="\d+",
     sample='[a-zA-Z0-9._]+'                   # should be everything but /
 
-rule all:
+rule print_rules:
     run:
-        print("\n\n** Please see documentation for possible targets. **\n\n",
+        print("\nTop level rules are: \n", file=sys.stderr)
+        print("* " + "\n* ".join(_toplevel_rules), file=sys.stderr)
+        print("\nPlease see documentation for details.\n\n",
               file=sys.stderr)
 
+@toplevel
 rule download_reads:
     input:
         expand(f"{outdir}/raw/{{sample}}_1.fastq.gz", sample=SAMPLES),
         expand(f"{outdir}/raw/{{sample}}_2.fastq.gz", sample=SAMPLES),
         expand(f"{outdir}/raw/{{sample}}.raw.sig", sample=SAMPLES),
 
+@toplevel
 rule trim_reads:
     input:
         url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz",
                           sample=SAMPLES)
 
+@toplevel
 rule estimate_distinct_kmers:
     input:
         url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz.kmer-report.txt",
                           sample=SAMPLES)
 
+@toplevel
 rule count_trimmed_reads:
     input:
         url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz.reads-report.txt",
                           sample=SAMPLES)
 
+@toplevel
 rule smash_reads:
     input:
         url_file = expand(f"{outdir}/sigs/{{sample}}.abundtrim.sig",
                           sample=SAMPLES)
 
+@toplevel
 rule search_genbank:
     input:
         expand(outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
                sample=SAMPLES)
 
+@toplevel
 rule summarize_sample_info:
     input:
         expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
 
+@toplevel
 checkpoint gather_genbank:
     input:
         expand(f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
@@ -156,35 +161,42 @@ class Checkpoint_GatherResults:
         p = expand(self.pattern, acc=genome_accs, **w)
         return p
 
+@toplevel
 rule summarize_gather:
     input:
         expand(f'{outdir}/reports/report-gather-{{sample}}.html',
                sample=SAMPLES)
 
+@toplevel
 rule summarize_tax:
     input:
         expand(f'{outdir}/gathertax/{{sample}}.x.genbank.gather.with-lineages.csv',
                sample=SAMPLES)
 
+@toplevel
 rule download_matching_genomes_info:
     input:
         expand(f"{outdir}/genbank/{{sample}}.genomes.info.csv",
                sample=SAMPLES)
 
+@toplevel
 rule download_matching_genomes:
     input:
         Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz"),
 
+@toplevel
 rule map_reads:
     input:
         expand(f"{outdir}/minimap/depth/{{sample}}.summary.csv", sample=SAMPLES),
         expand(f"{outdir}/leftover/depth/{{sample}}.summary.csv", sample=SAMPLES)
 
+@toplevel
 rule build_consensus:
     input:
         Checkpoint_GatherResults(outdir + f"/minimap/{{sample}}.x.{{acc}}.consensus.fa.gz"),
         Checkpoint_GatherResults(outdir + f"/leftover/{{sample}}.x.{{acc}}.consensus.fa.gz"),
 
+@toplevel
 rule summarize_mapping:
     input:
         expand(f'{outdir}/reports/report-{{sample}}.html',
@@ -192,11 +204,13 @@ rule summarize_mapping:
         expand(f'{outdir}/reports/report-gather-{{sample}}.html',
                sample=SAMPLES)
 
+@toplevel
 rule make_sgc_conf:
     input:
         expand(f"{outdir}/sgc/{{sample}}.conf", sample=SAMPLES)
 
 # print out the configuration
+@toplevel
 rule showconf:
     run:
         import yaml
@@ -205,10 +219,12 @@ rule showconf:
         print('# END')
 
 # check config files only
+@toplevel
 rule check:
     run:
         pass
 
+@toplevel
 rule zip:
     shell: """
         rm -f transfer.zip
