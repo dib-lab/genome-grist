@@ -588,7 +588,6 @@ rule make_mapping_notebook_wc:
     """
 
 # convert mapped reads to leftover reads
-# @CTB update subtract-gather to take sample ID as param, instead of inferring it from filename
 # @CTB update for intersected/overlapping reads too
 rule extract_leftover_reads_wc:
     input:
@@ -600,8 +599,8 @@ rule extract_leftover_reads_wc:
     params:
         outdir = outdir,
     shell: """
-        python -Werror -m genome_grist.subtract_gather {input.csv} \
-            --outdir={params.outdir:q}
+        python -Werror -m genome_grist.subtract_gather \
+            {wildcards.sample:q} {input.csv} --outdir={params.outdir:q}
     """
 
 # rule for mapping leftover reads to genomes -> BAM

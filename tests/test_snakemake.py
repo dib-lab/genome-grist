@@ -61,22 +61,19 @@ def test_smash_sig():
 def test_summarize_sample_info():
     global _tempdir
 
+    conf = utils.relative_file('tests/test-data/SRR5950647.subset.conf')
     test_data = utils.relative_file("tests/test-data")
-    test_db = os.path.join(test_data, "SRR5950647.x.gtdb-rs202.matches.zip")
 
-    config_params = ["sample=HSMA33MX-subset",
-                     f"sourmash_database_glob_pattern={test_db}"]
     extra_args = ["summarize_sample_info"]
     status = run_snakemake(
-        "conf.yml",
+        conf,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
-        config_params=config_params,
     )
     assert status == 0
 
-    info_file = f"{_tempdir}/HSMA33MX-subset.info.yaml"
+    info_file = f"{_tempdir}/SRR5950647.subset.info.yaml"
     assert os.path.exists(info_file)
 
     with open(info_file, 'rt') as fp:
@@ -86,42 +83,40 @@ def test_summarize_sample_info():
     #{'kmers': 928685, 'known_hashes': 807, 'n_bases': 2276334, 'n_reads': 24663, 'sample': 'HSMA33MX-subset', 'total_hashes': 907, 'unknown_hashes': 100}
 
     assert info['kmers'] == 928685
-    assert info['sample'] == 'HSMA33MX-subset'
+    assert info['sample'] == 'SRR5950647.subset'
     assert info['known_hashes'] == 653
     assert info['n_bases'] == 2276334
     assert info['n_reads'] == 24663
     assert info['total_hashes'] == 907
     assert info['unknown_hashes'] == 254
 
+
 @pytest.mark.dependency(depends=["test_summarize_sample_info"])
 def test_map_reads():
     global _tempdir
 
+    conf = utils.relative_file('tests/test-data/SRR5950647.subset.conf')
     test_data = utils.relative_file("tests/test-data")
-    test_db = os.path.join(test_data, "SRR5950647.x.gtdb-rs202.matches.zip")
 
     genomes_dir = os.path.join(_tempdir, "genomes")
     os.mkdir(genomes_dir)
 
     cplist = (
-        ("HSMA33MX-GCA_001881345.1.fna.gz", "GCA_001881345.1.fna.gz"),
-        ("HSMA33MX-GCA_009494275.1.fna.gz", "GCA_009494275.1.fna.gz"),
+        ("SRR5950647-GCF_003697165.2_genomic.fna.gz", "GCF_003697165.2_genomic.fna.gz"),
+        ("SRR5950647-GCF_902167755.1_genomic.fna.gz", "GCF_902167755.1_genomic.fna.gz"),
     )
+    cplist = ()
 
     for src, dest in cplist:
         frompath = os.path.join(test_data, src)
         topath = os.path.join(genomes_dir, dest)
         shutil.copyfile(frompath, topath)
 
-    config_params = ["sample=HSMA33MX-subset",
-                     f"sourmash_database_glob_pattern={test_db}"]
-
     extra_args = ["map_reads", "-j", "4"]
     status = run_snakemake(
-        "conf.yml",
+        conf,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
-        config_params=config_params,
     )
     assert status == 0
