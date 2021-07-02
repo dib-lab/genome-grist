@@ -36,21 +36,20 @@ def test_smash_sig():
     abundtrim_dir = os.path.join(_tempdir, "abundtrim")
     os.mkdir(abundtrim_dir)
 
-    src = utils.relative_file("tests/test-data/HSMA33MX-subset.abundtrim.fq.gz")
+    conf = utils.relative_file('tests/test-data/SRR5950647.subset.conf')
+    src = utils.relative_file("tests/test-data/SRR5950647.subset.abundtrim.fq.gz")
     shutil.copy(src, abundtrim_dir)
 
-    config_params = ["sample=HSMA33MX-subset"]
     extra_args = ["smash_reads"]
     status = run_snakemake(
-        "conf.yml",
+        conf,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
-        config_params=config_params,
     )
     assert status == 0
 
-    output_sig = f"{_tempdir}/sigs/HSMA33MX-subset.abundtrim.sig"
+    output_sig = f"{_tempdir}/sigs/SRR5950647.subset.abundtrim.sig"
     assert os.path.exists(output_sig)
     sigs = list(sourmash.load_file_as_signatures(output_sig))
     assert len(sigs) == 3
