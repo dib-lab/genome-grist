@@ -14,11 +14,11 @@
 import glob, os, csv, tempfile, shutil, sys
 
 SAMPLES=config['sample']
-print(f'sample: {SAMPLES}')
+print(f'sample: {SAMPLES}', file=sys.stderr)
 
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
-print('outdir:', outdir)
+print('outdir:', outdir, file=sys.stderr)
 
 base_tempdir = None
 try_temp_locations = config.get('tempdir', [])
@@ -38,7 +38,7 @@ ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 sourmash_db_pattern = config.get('sourmash_database_glob_pattern', 'MUST SPECIFY IN CONFIG')
 SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
 if not SOURMASH_DB_LIST:
-    print(f"WARNING: no sourmash databases found!? glob pattern was '{sourmash_db_pattern}'")
+    print(f"WARNING: no sourmash databases found!? glob pattern was '{sourmash_db_pattern}'", file=sys.stderr)
     SOURMASH_DB_LIST = ["DB_DOES_NOT_EXIST_BUT_IS_USED"]
 SOURMASH_DB_KSIZE = config.get('sourmash_database_ksize', ['31'])
 SOURMASH_DATABASE_THRESHOLD_BP = config.get('sourmash_database_threshold_bp',
@@ -107,7 +107,7 @@ rule smash_reads:
 
 rule search_genbank:
     input:
-        expand(outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
+        expand(outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
                sample=SAMPLES)
 
 rule summarize_sample_info:
@@ -139,7 +139,8 @@ class Checkpoint_GatherResults:
            for row in r:
                acc = row['name'].split(' ')[0]
                genome_accs.append(acc)
-        print(f'loaded {len(genome_accs)} accessions from {gather_csv}.')
+        print(f'loaded {len(genome_accs)} accessions from {gather_csv}.',
+              file=sys.stderr)
 
         return genome_accs
 
@@ -482,7 +483,8 @@ rule summarize_samtools_depth_wc:
 
         runs = {}
         for n, sra_stat in enumerate(input):
-            print(f'reading from {sra_stat} - {n+1}/{len(input)}...')
+            print(f'reading from {sra_stat} - {n+1}/{len(input)}...',
+                  file=sys.stderr)
             data = pd.read_table(sra_stat, names=["contig", "pos", "coverage"])
             sample = sra_stat.split("/")[-1].split(".")[0]
             genome_id = sra_stat.split("/")[-1].split(".")[2]
@@ -534,11 +536,13 @@ rule set_kernel:
 
 
 # papermill -> gather reporting notebook + html
+# CTB: it's not clear why 'ancient' is needed here, but it prevents this rule
+# from being run over and over!
 rule make_gather_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-gather.ipynb'),
         gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
-        genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
+        genomes_info_csv = ancient(f"{outdir}/genbank/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
     output:
         nb = outdir + f'/reports/report-gather-{{sample}}.ipynb',
@@ -557,13 +561,15 @@ rule make_gather_notebook_wc:
     """
 
 # papermill -> reporting notebook + html
+# CTB: it's not clear why 'ancient' is needed here, but it prevents this rule
+# from being run over and over!
 rule make_mapping_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-sample.ipynb'),
-        all_csv = f"{outdir}/minimap/depth/{{sample}}.summary.csv",
-        depth_csv = f"{outdir}/leftover/depth/{{sample}}.summary.csv",
+        all_csv = ancient(f"{outdir}/minimap/depth/{{sample}}.summary.csv"),
+        depth_csv = ancient(f"{outdir}/leftover/depth/{{sample}}.summary.csv"),
         gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
-        genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
+        genomes_info_csv = ancient(f"{outdir}/genbank/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
     output:
         nb = outdir + f'/reports/report-{{sample}}.ipynb',
@@ -582,7 +588,6 @@ rule make_mapping_notebook_wc:
     """
 
 # convert mapped reads to leftover reads
-# @CTB update subtract-gather to take sample ID as param, instead of inferring it from filename
 # @CTB update for intersected/overlapping reads too
 rule extract_leftover_reads_wc:
     input:
@@ -594,8 +599,8 @@ rule extract_leftover_reads_wc:
     params:
         outdir = outdir,
     shell: """
-        python -Werror -m genome_grist.subtract_gather {input.csv} \
-            --outdir={params.outdir:q}
+        python -Werror -m genome_grist.subtract_gather \
+            {wildcards.sample:q} {input.csv} --outdir={params.outdir:q}
     """
 
 # rule for mapping leftover reads to genomes -> BAM
@@ -616,12 +621,16 @@ rule map_leftover_reads_wc:
 
 # run sourmash search x genbank and find anything matching.
 rule sourmash_prefetch_gather_wc:
+    message: """
+       Find all potentially relevant database matches for {wildcards.sample}
+    """
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
         db = SOURMASH_DB_LIST,
     output:
-        matches = outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
         csv = outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
+        known = outdir + "/genbank/{sample}.x.genbank.known.sig",
+        unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
     resources:
         mem_mb=int(PREFETCH_MEMORY / 1e3)
     conda: "env/sourmash.yml"
@@ -631,39 +640,43 @@ rule sourmash_prefetch_gather_wc:
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
         echo "DB is {input.db}"
-        sourmash prefetch {input.sig} {input.db} \
-          --save-matches {output.matches} -k {params.ksize} \
+        sourmash prefetch {input.sig} {input.db} -k {params.ksize} \
           --threshold-bp={params.threshold_bp} {params.moltype} \
+          --save-matching-hashes={output.known} \
+          --save-unmatched-hashes={output.unknown} \
           -o {output.csv}
     """
 
 # run sourmash search x genbank and find anything matching.
-rule split_query_known_unknown_wc:
+rule report_query_known_unknown_wc:
     message: """
-       Split the sourmash signature for {wildcards.sample} into "known" and "unknown" hashes
+       Report on "known" and "unknown" hashes for {wildcards.sample}
     """
     input:
-        sig = outdir + "/sigs/{sample}.abundtrim.sig",
-        prefetch = outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
-    output:
+        query = outdir + "/sigs/{sample}.abundtrim.sig",
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
         unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
-        report = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.zip.report.txt",
+    output:
+        report = outdir + "/genbank/{sample}.x.genbank.prefetch.report.txt",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
         moltype = SOURMASH_COMPUTE_TYPE,
     shell: """
-        python -W error -m genome_grist.gather_split {input.sig} {input.prefetch} \
-          {output.known} {output.unknown}  \
+         python -W error -m genome_grist.summarize_gather_hashes \
+          {input.query} {input.known} {input.unknown}  \
           -k {params.ksize} --moltype {params.moltype} --report {output.report}
     """
 
 # run sourmash gather with known hashes on prefetched matches.
 rule sourmash_gather_wc:
+    message: """
+       Run gather for {wildcards.sample}
+    """
     input:
         known = outdir + "/genbank/{sample}.x.genbank.known.sig",
-        db = outdir + "/genbank/{sample}.x.genbank.prefetch.zip",
+        picklist = outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
+        db = SOURMASH_DB_LIST,
     output:
         csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
         matches = outdir + "/genbank/{sample}.x.genbank.matches.sig",
@@ -674,6 +687,7 @@ rule sourmash_gather_wc:
     shell: """
         sourmash gather {input.known} {input.db} -o {output.csv} \
           --threshold-bp {params.threshold_bp} \
+          --picklist {input.picklist}:match_md5:md5short \
           --save-matches {output.matches} > {output.out}
     """
 
@@ -713,12 +727,14 @@ rule download_matching_genome_wc:
              url = row['genome_url']
              name = row['ncbi_tax_name']
 
-             print(f"downloading genome for acc {acc}/{name} from NCBI...")
+             print(f"downloading genome for acc {acc}/{name} from NCBI...",
+                   file=sys.stderr)
              with open(output.genome, 'wb') as outfp:
                  with urllib.request.urlopen(url) as response:
                      content = response.read()
                      outfp.write(content)
-                     print(f"...wrote {len(content)} bytes to {output.genome}")
+                     print(f"...wrote {len(content)} bytes to {output.genome}",
+                           file=sys.stderr)
 
 
 # summarize_reads_info
@@ -726,7 +742,7 @@ rule summarize_reads_info_wc:
     input:
         kmers = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.kmer-report.txt",
         reads = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.reads-report.txt",
-        sigs = outdir + "/genbank/{sample}.abundtrim.fq.gz.prefetch.zip.report.txt",
+        gather_report = outdir + "/genbank/{sample}.x.genbank.prefetch.report.txt",
     output:
         outdir + '/{sample}.info.yaml',
     run:
@@ -742,7 +758,7 @@ rule summarize_reads_info_wc:
             d['n_reads'] = int(row['n_reads'])
             d['n_bases'] = int(row['n_bases'])
 
-        with open(str(input.sigs), 'rt') as fp:
+        with open(str(input.gather_report), 'rt') as fp:
             r = csv.DictReader(fp)
             row = next(iter(r))
             d['total_hashes'] = int(row['total_hashes'])
