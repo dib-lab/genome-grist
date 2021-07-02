@@ -114,7 +114,9 @@ def cli():
 @click.argument("snakemake_args", nargs=-1)
 def run(configfile, snakemake_args, no_use_conda, verbose, outdir, help):
     "execute genome-grist workflow (using snakemake underneath)"
-    if help or not snakemake_args:
+    targets = [ arg for arg in snakemake_args if not arg.startswith('-') ]
+    if help or not targets:
+        #CTB: note, this should match what's in README, please :)
         print(f"""
 This is genome-grist v{version}.
 
@@ -122,22 +124,28 @@ Usage:
 
    genome-grist run <conf file> <target> [ <target 2>... ] [ <snakemake args> ]
 
-Possible targets:
+Recommended targets:
+
+ * summarize_gather - produce summary reports on metagenome composition
+ * summarize_mapping - produce summary reports on k-mer and read mapping
+
+Note, 'summarize_mapping' includes 'summarize_gather'; reports will be
+in {{outdir}}/reports, where 'outdir' is specified in the config file.
+
+Additional intermediate targets:
 
  * download_reads - download SRA metagenomes specified in conf file
- * trim_reads - do basic read trimming/adapter removal
- * smash_reads - create sourmash signatures from reads
- * summarize_sample_info - ???
- * gather_genbank - run 'sourmash gather' on metagenome against Genbank
- * download_matching_genomes - download all matching Genbank genomes.
- * map_reads - map all metagenome reads to Genbank genomes.
- * summarize - produce summary reports on k-mer and read mapping
- * build_consensus - XXX
+ * trim_reads - do basic read trimming/adapter removal for metagenome reads
+ * smash_reads - create sourmash signatures from metagenome reads
+ * summarize_sample_info - build a info.yaml summary file for each metagenome
+ * gather_genbank - run 'sourmash gather' on metagenomes against Genbank
+ * download_matching_genomes - download all matching Genbank genomes
+ * map_reads - map all metagenome reads to Genbank genomes
  * make_sgc_conf - make a spacegraphcats config file
 
 Please see https://github.com/dib-lab/genome-grist for quickstart docs.
 
-Please ask questions at https://github.com/dib-lab/genome-grist/issues!
+Please post questions at https://github.com/dib-lab/genome-grist/issues!
 """)
         sys.exit(0)
 
