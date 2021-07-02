@@ -16,12 +16,12 @@ def read_readnames(filename):
 
 def main():
     p = argparse.ArgumentParser()
+    p.add_argument("sample_id")
     p.add_argument("gather_csv")
     p.add_argument("--outdir", default="outputs")
     args = p.parse_args()
 
-    sample_id = os.path.basename(args.gather_csv).split(".")[0]
-
+    sample_id = args.sample_id
     outdir = args.outdir.rstrip("/")
 
     print(f"reading gather results from {args.gather_csv}")
@@ -60,12 +60,14 @@ def main():
         overlap_fp = gzip.open(overlapping, "wt")
         leftover_fp = gzip.open(leftover, "wt")
 
+        print('-'*30)
         print(f"reading sequences from {filename};")
         print(f"writing overlapping to {overlapping}")
         print(f"writing remaining to {leftover}")
 
         n_wrote = 0
-        for record in screed.open(filename):
+        screed_fp = screed.open(filename)
+        for record in screed_fp:
             fq = f"@{record.name}\n{record.sequence}\n+\n{record.quality}\n"
             if record.name in ignore_reads:
                 overlap_fp.write(fq)
@@ -73,10 +75,14 @@ def main():
                 ignore_reads.add(record.name)
                 leftover_fp.write(fq)
             n_wrote += 1
+        screed_fp.close()
 
         print(f"wrote {n_wrote} leftover records for {sample_id}.x.{acc};")
         print(f"{len(ignore_reads)} total reads to ignore moving forward.")
         print(f"file {n+1} of {len(pairs)} total")
+
+        overlap_fp.close()
+        leftover_fp.close()
 
     # <-- here is where we can go through the input reads and output unmapped.
     # (OR, save 'ignore_reads' and let another script handle it.)
