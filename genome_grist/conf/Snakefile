@@ -71,6 +71,7 @@ wildcard_constraints:
     size="\d+",
     sample='[a-zA-Z0-9._]+'                   # should be everything but /
 
+@toplevel
 rule print_rules:
     run:
         print("\nTop level rules are: \n", file=sys.stderr)
