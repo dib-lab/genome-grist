@@ -99,6 +99,7 @@ Please see [the genome-grist Snakefile](https://github.com/dib-lab/genome-grist/
 Recommended targets:
 
  * summarize_gather - produce summary reports on metagenome composition
+ * summarize_tax - produce summary reports on taxonomic composition
  * summarize_mapping - produce summary reports on k-mer and read mapping
 
 Note, 'summarize_mapping' includes 'summarize_gather'; reports will be

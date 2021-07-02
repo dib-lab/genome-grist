@@ -95,6 +95,7 @@ def main():
     args = p.parse_args()
 
     fieldnames = ["acc", "genome_url", "assembly_report_url", "ncbi_tax_name"]
+    fp = None
     if args.output:
         fp = open(args.output, "wt")
         w = csv.DictWriter(fp, fieldnames=fieldnames)
@@ -117,6 +118,9 @@ def main():
 
     w.writerow(d)
     print(f"retrieved for {acc} - {tax_name}", file=sys.stderr)
+
+    if fp:
+        fp.close()
 
     return 0
 
