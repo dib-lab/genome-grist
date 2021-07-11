@@ -23,7 +23,7 @@ if not base_tempdir:
 
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
-sourmash_db_pattern = config.get('sourmash_database_glob_pattern', 'MUST SPECIFY IN CONFIG')
+sourmash_db_pattern = config.get('sourmash_database_glob_pattern', "MUST SPECIFY 'sourmash_database_glob_pattern' IN CONFIG")
 SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
 if not SOURMASH_DB_LIST:
     print(f"WARNING: no sourmash databases found!? glob pattern was '{sourmash_db_pattern}'", file=sys.stderr)
@@ -39,7 +39,7 @@ assert SOURMASH_COMPUTE_TYPE in ('DNA', 'protein')
 
 PREFETCH_MEMORY = float(config.get('prefetch_memory', '100e9'))
 
-TAXONOMY_DB = config.get('database_taxonomy', 'MUST SPECIFY IN CONFIG')
+TAXONOMY_DB = config.get('database_taxonomy', "MUST SPECIFY 'database_taxonomy' IN CONFIG")
 
 # make a `sourmash sketch` -p param string.
 def make_param_str(ksizes, scaled):
