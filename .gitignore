@@ -10,4 +10,4 @@ build/
 dist/
 genome_grist.egg-info/
 genome_grist/version.py
-outputs.test.HSMA33MX/
+outputs.*

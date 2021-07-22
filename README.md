@@ -58,7 +58,7 @@ Notes:
 
 Execute:
 ```
-genome-grist run conf-tutorial.yml summarize
+genome-grist run conf-tutorial.yml summarize_mapping
 ```
 
 This will perform the following steps:
@@ -68,9 +68,7 @@ This will perform the following steps:
 * perform a `sourmash gather` against the specified database (target `gather_genbank`).
 * download the matching genomes from GenBank into `genbank_genomes/` (target `download_matching_genomes`).
 * map the metagenome reads to the various genomes (target `map_reads`).
-* produce a summary notebook (target `summarize`).
-
-The default target is `gather_genbank`, and you can put one or more targets on the command line as above with `summarize`.
+* produce a summary notebook (target `summarize_mapping`).
 
 ## Output files
 
@@ -95,6 +93,28 @@ For example,
 * you can put your own sourmash signature (k=31, scaled=1000) in `sigs/SAMPLE.abundtrim.sig` if you want to have it do the database search for you;
 
 Please see [the genome-grist Snakefile](https://github.com/dib-lab/genome-grist/blob/latest/genome_grist/conf/Snakefile) for all the gory details.
+
+## Additional targets
+
+Recommended targets:
+
+ * summarize_gather - produce summary reports on metagenome composition
+ * summarize_tax - produce summary reports on taxonomic composition
+ * summarize_mapping - produce summary reports on k-mer and read mapping
+
+Note, 'summarize_mapping' includes 'summarize_gather'; reports will be
+in {{outdir}}/reports, where 'outdir' is specified in the config file.
+
+Additional intermediate targets:
+
+ * download_reads - download SRA metagenomes specified in conf file
+ * trim_reads - do basic read trimming/adapter removal for metagenome reads
+ * smash_reads - create sourmash signatures from metagenome reads
+ * summarize_sample_info - build a info.yaml summary file for each metagenome
+ * gather_genbank - run 'sourmash gather' on metagenomes against Genbank
+ * download_matching_genomes - download all matching Genbank genomes
+ * map_reads - map all metagenome reads to Genbank genomes
+ * make_sgc_conf - make a spacegraphcats config file
 
 ## Other information
 
