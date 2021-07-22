@@ -296,9 +296,9 @@ rule trim_adapters_wc:
     shell: """
         fastp --in1 {input.r1} --in2 {input.r2} \
              --detect_adapter_for_pe  --qualified_quality_phred 4 \
-             --length_required 25 --correction --thread {threads} \
+             --length_required 25 --thread {threads} \
              --json {output.json} --html {output.html} \
-             --low_complexity_filter --stdout | gzip -9 > {output.interleaved}
+             --stdout | gzip -9 > {output.interleaved}
     """
 
 # adapter trimming for the singleton reads
@@ -318,8 +318,8 @@ rule trim_unpaired_adapters_wc:
     shell: """
         fastp --in1 {input.unp} --out1 {output.unp} \
             --detect_adapter_for_se  --qualified_quality_phred 4 \
-            --low_complexity_filter --thread {threads} \
-            --length_required 25 --correction \
+            --thread {threads} \
+            --length_required 25 \
             --json {output.json} --html {output.html}
     """
 
