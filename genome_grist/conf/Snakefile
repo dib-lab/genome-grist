@@ -472,7 +472,7 @@ rule mpileup_wc:
         gunzip -c {input.query} > $genomefile
         bcftools mpileup -Ou -f $genomefile {input.bam} | bcftools call -mv -Ob -o {output.bcf}
         rm $genomefile
-        bcftools view {output.bcf} | b -9 > {output.vcf}
+        bcftools view {output.bcf} | bgzip -1 > {output.vcf}
         bcftools index {output.vcf}
     """
 
