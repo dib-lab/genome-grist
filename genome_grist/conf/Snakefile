@@ -737,7 +737,7 @@ rule sourmash_gather_wc:
     shell: """
         sourmash gather {input.known} {input.db} -o {output.csv} \
           --threshold-bp {params.threshold_bp} \
-          --picklist {input.picklist}:match_md5:md5short \
+          --picklist {input.picklist}::prefetch \
           --save-matches {output.matches} > {output.out}
     """
 
