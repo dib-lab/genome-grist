@@ -1,11 +1,11 @@
 #!/bin/bash -login
-#SBATCH -p med2                # partition, or queue, to assign to
+#SBATCH -p bmm                # partition, or queue, to assign to
 #SBATCH -J gather-paper            # name for job
 #SBATCH -N 1                   # one "node", or computer
 #SBATCH -n 1                   # one task for this node
-#SBATCH -c 16                  # cores per task
+#SBATCH -c 32                  # cores per task
 #SBATCH -t 5-0                 # ask for 2 days
-#SBATCH --mem=150000             # memory (30,000 mb = 30gb)
+#SBATCH --mem=120000             # memory (30,000 mb = 30gb)
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=titus@idyll.org
 
@@ -13,7 +13,7 @@
 . ~/miniconda3/etc/profile.d/conda.sh
 
 # activate your desired conda environment
-conda activate charcoal
+conda activate grist3
 
 # fail on weird errors
 set -o nounset
@@ -25,8 +25,8 @@ set -x
 cd ~/genome-grist
 
 # run the snakemake!
-genome-grist process SRR2657229 gather_genbank --unlock
-genome-grist process SRR2657229 gather_genbank
+genome-grist run conf-paper.yml -k --unlock -j 4
+genome-grist run conf-paper.yml -k --resources mem_mb=210000 -j 32 summarize_tax summarize_gather summarize_mapping
 
 # print out various information about the job
 env | grep SLURM            # Print out values of the current jobs SLURM environment variables
