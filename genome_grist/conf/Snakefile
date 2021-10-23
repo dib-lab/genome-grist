@@ -552,6 +552,8 @@ rule smash_abundtrim_wc:
 
 # configure ipython kernel for papermill
 rule set_kernel:
+    input:
+        srcdir('env/papermill.yml')
     output:
         touch(f"{outdir}/.kernel.set")
     conda: 'env/papermill.yml'
