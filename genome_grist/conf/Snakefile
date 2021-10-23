@@ -557,7 +557,6 @@ rule set_kernel:
     conda: 'env/papermill.yml'
     shell: """
         python -m ipykernel install --user --name genome_grist
-        python -m pip install matplotlib numpy pandas
     """
 
 
@@ -578,10 +577,9 @@ rule make_gather_notebook_wc:
         outdir = outdir,
     conda: 'env/papermill.yml'
     shell: """
-        papermill {input.nb} - -k genome_grist \
+        papermill {input.nb} {output.nb} -k genome_grist \
               -p sample_id {wildcards.sample:q} -p render '' -p outdir {outdir:q}\
-              --cwd {params.cwd} \
-              > {output.nb}
+              --cwd {params.cwd}
         python -m nbconvert {output.nb} --to html --stdout --no-input \
              --ExecutePreprocessor.kernel_name=genome_grist > {output.html}
     """
@@ -602,10 +600,9 @@ rule make_taxonomy_notebook_wc:
         outdir = outdir,
     conda: 'env/papermill.yml'
     shell: """
-        papermill {input.nb} - -k genome_grist \
+        papermill {input.nb} {output.nb} -k genome_grist \
               -p sample_id {wildcards.sample:q} -p render '' -p outdir {outdir:q}\
-              --cwd {params.cwd} \
-              > {output.nb}
+              --cwd {params.cwd}
         python -m nbconvert {output.nb} --to html --stdout --no-input \
              --ExecutePreprocessor.kernel_name=genome_grist > {output.html}
     """
@@ -629,10 +626,9 @@ rule make_mapping_notebook_wc:
         outdir = outdir,
     conda: 'env/papermill.yml'
     shell: """
-        papermill {input.nb} - -k genome_grist \
+        papermill {input.nb} {output.nb} -k genome_grist \
               -p sample_id {wildcards.sample:q} -p render '' -p outdir {outdir:q}\
-              --cwd {params.cwd} \
-              > {output.nb}
+              --cwd {params.cwd}
         python -m nbconvert {output.nb} --to html --stdout --no-input \
              --ExecutePreprocessor.kernel_name=genome_grist > {output.html}
     """
