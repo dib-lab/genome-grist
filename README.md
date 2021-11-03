@@ -43,7 +43,7 @@ curl -L https://osf.io/4n3m5/download -o gtdb-r95.nucleotide-k31-scaled1000.sbt.
 Put the following in a config file named `conf-tutorial.yml`:
 ```
 sample:
-- HSMA33MX
+- SRR5950647
 outdir: outputs.tutorial/
 metagenome_trim_memory: 1e9
 sourmash_database_glob_pattern: gtdb-r95.nucleotide-k31-scaled1000.sbt.zip

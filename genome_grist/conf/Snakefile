@@ -776,29 +776,29 @@ rule make_combined_info_csv:
 
 # download actual genomes!
 rule download_matching_genome_wc:
-     input:
-         csvfile = ancient('genbank_genomes/{acc}.info.csv')
-     output:
-         genome = "genbank_genomes/{acc}_genomic.fna.gz"
-     run:
-         with open(input.csvfile, 'rt') as infp:
-             r = csv.DictReader(infp)
-             rows = list(r)
-             assert len(rows) == 1
-             row = rows[0]
-             acc = row['acc']
-             assert wildcards.acc.startswith(acc)
-             url = row['genome_url']
-             name = row['ncbi_tax_name']
+    input:
+        csvfile = ancient('genbank_genomes/{acc}.info.csv')
+    output:
+        genome = "genbank_genomes/{acc}_genomic.fna.gz"
+    run:
+        with open(input.csvfile, 'rt') as infp:
+            r = csv.DictReader(infp)
+            rows = list(r)
+            assert len(rows) == 1
+            row = rows[0]
+            acc = row['acc']
+            assert wildcards.acc.startswith(acc)
+            url = row['genome_url']
+            name = row['ncbi_tax_name']
 
-             print(f"downloading genome for acc {acc}/{name} from NCBI...",
-                   file=sys.stderr)
-             with open(output.genome, 'wb') as outfp:
-                 with urllib.request.urlopen(url) as response:
-                     content = response.read()
-                     outfp.write(content)
-                     print(f"...wrote {len(content)} bytes to {output.genome}",
-                           file=sys.stderr)
+            print(f"downloading genome for acc {acc}/{name} from NCBI...",
+                file=sys.stderr)
+            with open(output.genome, 'wb') as outfp:
+                with urllib.request.urlopen(url) as response:
+                    content = response.read()
+                    outfp.write(content)
+                    print(f"...wrote {len(content)} bytes to {output.genome}",
+                        file=sys.stderr)
 
 
 # summarize_reads_info
