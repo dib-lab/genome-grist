@@ -3,7 +3,7 @@ channels:
  - bioconda
  - defaults
 dependencies:
- - python=3.7
+ - python>=3.7,<3.10
  - screed
  - sourmash>=4.2.1,<5
  - pip
