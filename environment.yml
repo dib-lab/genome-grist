@@ -9,3 +9,4 @@ dependencies:
  - click>=7,<8
  - lxml==4.6.4
  - pandas>1,<2
+ - python>=3.7,<3.10
