@@ -278,7 +278,7 @@ rule map_reads:
 @toplevel
 rule map_prefetch:
     input:
-        expand(f"{outdir}/prefetch/depth/{{sample}}.summary.csv", sample=SAMPLES)
+        expand(f"{outdir}/prefetch/depth/{{sample}}.summary2.csv", sample=SAMPLES),
 
 @toplevel
 rule build_consensus:
@@ -507,6 +507,20 @@ rule minimap_wc:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
+# map abundtrim reads and produce a bam for prefetch results
+rule minimap_prefetch_wc:
+    input:
+        query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
+        metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
+    output:
+        bam = outdir + "/prefetch/{sample}.x.{acc}.bam",
+    conda: "env/minimap2.yml"
+    threads: 4
+    shell: """
+        minimap2 -ax sr -t {threads} {input.query} {input.metagenome} | \
+            samtools view -b -F 4 - | samtools sort - > {output.bam}
+    """
+
 # extract FASTQ from BAM
 rule bam_to_fastq_wc:
     input:
@@ -588,6 +602,41 @@ rule summarize_samtools_depth_wc:
         Checkpoint_GatherResults(outdir + f"/{{dir}}/depth/{{sample}}.x.{{acc}}.txt")
     output:
         f"{outdir}/{{dir}}/depth/{{sample}}.summary.csv"
+    run:
+        import pandas as pd
+
+        runs = {}
+        for n, sra_stat in enumerate(input):
+            print(f'reading from {sra_stat} - {n+1}/{len(input)}...',
+                  file=sys.stderr)
+            data = pd.read_table(sra_stat, names=["contig", "pos", "coverage"])
+            sample = sra_stat.split("/")[-1].split(".")[0]
+            genome_id = sra_stat.split("/")[-1].split(".")[2]
+
+            d = {}
+            value_counts = data['coverage'].value_counts()
+            d['genome bp'] = int(len(data))
+            d['missed'] = int(value_counts.get(0, 0))
+            d['percent missed'] = 100 * d['missed'] / d['genome bp']
+            d['coverage'] = data['coverage'].sum() / len(data)
+            if d['missed'] != 0:
+                uniq_cov = d['coverage'] / (1 - d['missed'] / d['genome bp'])
+                d['unique_mapped_coverage'] = uniq_cov
+            else:
+                d['unique_mapped_coverage'] = d['coverage']
+            d['covered_bp'] = (1 - d['percent missed']/100.0) * d['genome bp']
+            d['genome_id'] = genome_id
+            d['sample_id'] = sample
+            runs[genome_id] = d
+
+        pd.DataFrame(runs).T.to_csv(output[0])
+
+# summarize depth into a CSV for prefetch results
+rule summarize_samtools_depth_prefetch_wc:
+    input:
+        Checkpoint_PrefetchResults(outdir + f"/{{dir}}/depth/{{sample}}.x.{{acc}}.txt")
+    output:
+        f"{outdir}/{{dir}}/depth/{{sample}}.summary2.csv"
     run:
         import pandas as pd
 
