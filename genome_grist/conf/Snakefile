@@ -1,8 +1,9 @@
 # see README or genome_grist/__main__.py for top-level targets.
 import glob, os, csv, tempfile, shutil, sys
+import snakemake
 
 SAMPLES=config['sample']
-print(f'sample: {SAMPLES}', file=sys.stderr)
+print(f'samples: {SAMPLES}', file=sys.stderr)
 
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
@@ -122,6 +123,71 @@ rule summarize_sample_info:
         expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
 
 @toplevel
+checkpoint prefetch_genbank:
+    input:
+        expand(f'{outdir}/genbank/{{sample}}.x.genbank.prefetch.csv',
+               sample=SAMPLES),
+        expand(f"{outdir}/.prefetch.{{sample}}", sample=SAMPLES)
+
+checkpoint prefetch_genbank_wc:
+    input:
+        prefetch_csv = f'{outdir}/genbank/{{sample}}.x.genbank.prefetch.csv'
+    output:
+        touch(f"{outdir}/.prefetch.{{sample}}")   # checkpoints need an output ;)
+
+class Checkpoint_PrefetchResults:
+    def __init__(self, pattern, samples=None):
+        self.pattern = pattern
+        self.samples = samples
+
+    def get_genome_accs(self, sample):
+        prefetch_csv = f'{outdir}/genbank/{sample}.x.genbank.prefetch.csv'
+        assert os.path.exists(prefetch_csv)
+
+        genome_accs = []
+        with open(prefetch_csv, 'rt') as fp:
+           r = csv.DictReader(fp)
+           for row in r:
+               name = row['match_name']
+               if 'Shewanella' not in name: # @CTB select here :)
+                   continue
+               acc = name.split(' ')[0]
+               genome_accs.append(acc)
+        print(f'loaded {len(genome_accs)} accessions from {prefetch_csv}.',
+              file=sys.stderr)
+
+        return genome_accs
+
+    def __call__(self, w):
+        global checkpoints
+
+        if self.samples:
+            assert not hasattr(w, 'sample')
+
+            ret = []
+            for sample in self.samples:
+                d = dict(sample=sample)
+                w = snakemake.io.Wildcards(fromdict=d)
+
+                x = self.do_sample(w)
+                ret.extend(x)
+
+            return ret
+        else:
+            return self.do_sample(w)
+
+    def do_sample(self, w):
+        # wait for the results of 'prefetch_genbank_wc'; this will trigger
+        # exception until that rule has been run.
+        checkpoints.prefetch_genbank_wc.get(**w)
+
+        # parse hitlist_genomes,
+        genome_accs = self.get_genome_accs(w.sample)
+
+        p = expand(self.pattern, acc=genome_accs, **w)
+        return p
+
+@toplevel
 checkpoint gather_genbank:
     input:
         expand(f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
@@ -186,15 +252,33 @@ rule download_matching_genomes_info:
                sample=SAMPLES)
 
 @toplevel
+rule download_prefetch_genomes_info:
+    input:
+        expand(f"{outdir}/genbank/{{sample}}.genomes.prefetch.info.csv",
+               sample=SAMPLES)
+
+@toplevel
 rule download_matching_genomes:
     input:
         Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz"),
+
+@toplevel
+rule download_prefetch_genomes:
+    input:
+        Checkpoint_PrefetchResults("genbank_genomes/{acc}_genomic.fna.gz",
+                                   SAMPLES),
+        Checkpoint_PrefetchResults('genbank_genomes/{acc}.info.csv', SAMPLES)
 
 @toplevel
 rule map_reads:
     input:
         expand(f"{outdir}/minimap/depth/{{sample}}.summary.csv", sample=SAMPLES),
         expand(f"{outdir}/leftover/depth/{{sample}}.summary.csv", sample=SAMPLES)
+
+@toplevel
+rule map_prefetch:
+    input:
+        expand(f"{outdir}/prefetch/depth/{{sample}}.summary.csv", sample=SAMPLES)
 
 @toplevel
 rule build_consensus:
@@ -770,6 +854,16 @@ rule make_combined_info_csv:
         Checkpoint_GatherResults('genbank_genomes/{acc}.info.csv')
     output:
         genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
+    shell: """
+        python -Werror -m genome_grist.combine_csvs {input} > {output}
+    """
+
+# combined info.csv for prefetch
+rule make_combined_prefetch_info_csv:
+    input:
+        Checkpoint_PrefetchResults('genbank_genomes/{acc}.info.csv')
+    output:
+        genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.prefetch.info.csv",
     shell: """
         python -Werror -m genome_grist.combine_csvs {input} > {output}
     """
