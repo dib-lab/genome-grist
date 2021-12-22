@@ -150,7 +150,7 @@ Please post questions at https://github.com/dib-lab/genome-grist/issues!
 """)
         sys.exit(0)
 
-    run_snakemake(
+    return run_snakemake(
         configfile,
         snakefile_name="Snakefile",
         no_use_conda=no_use_conda,
@@ -172,7 +172,7 @@ def process(sample, snakemake_args, no_use_conda, verbose, outdir):
     "execute genome-grist workflow (using snakemake underneath)"
     snakemake_args = list(snakemake_args)
     snakemake_args += ["--config", f"sample={sample}"]
-    run_snakemake(
+    return run_snakemake(
         None,
         snakefile_name="Snakefile",
         no_use_conda=no_use_conda,
@@ -187,7 +187,7 @@ def process(sample, snakemake_args, no_use_conda, verbose, outdir):
 @click.argument("configfile")
 def check(configfile):
     "check configuration"
-    run_snakemake(configfile, extra_args=["check"])
+    return run_snakemake(configfile, extra_args=["check"])
 
 
 # 'showconf' command
@@ -195,7 +195,7 @@ def check(configfile):
 @click.argument("configfile")
 def showconf(configfile):
     "show full configuration"
-    run_snakemake(configfile, extra_args=["showconf"])
+    return run_snakemake(configfile, extra_args=["showconf"])
 
 
 # 'info' command
