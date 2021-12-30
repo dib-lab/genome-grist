@@ -1,9 +1,11 @@
 # see README or genome_grist/__main__.py for top-level targets.
+import snakemake
 import glob, os, csv, tempfile, shutil, sys
 import snakemake
 
 SAMPLES=config['sample']
 print(f'samples: {SAMPLES}', file=sys.stderr)
+assert isinstance(SAMPLES, list), "config 'sample' must be a list."
 
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
@@ -200,8 +202,15 @@ checkpoint gather_genbank_wc:
         touch(f"{outdir}/.gather.{{sample}}")   # checkpoints need an output ;)
 
 class Checkpoint_GatherResults:
-    def __init__(self, pattern):
+    """Given a pattern containing {acc} and {sample}, this class
+    will generate the list of {acc} for that {sample}'s gather results.
+
+    Alternatively, you can omit {sample} from the pattern and include the
+    list of sample names in the second argument to the constructor.
+    """
+    def __init__(self, pattern, samples=None):
         self.pattern = pattern
+        self.samples = samples
 
     def get_genome_accs(self, sample):
         gather_csv = f'{outdir}/genbank/{sample}.x.genbank.gather.csv'
@@ -221,6 +230,23 @@ class Checkpoint_GatherResults:
     def __call__(self, w):
         global checkpoints
 
+        # get 'sample' from wildcards?
+        if self.samples is None:
+            return self.do_sample(w)
+        else:
+            assert not hasattr(w, 'sample'), "if 'samples' provided to constructor, cannot also be in rule inputs"
+
+            ret = []
+            for sample in self.samples:
+                d = dict(sample=sample)
+                w = snakemake.io.Wildcards(fromdict=d)
+
+                x = self.do_sample(w)
+                ret.extend(x)
+
+            return ret
+
+    def do_sample(self, w):
         # wait for the results of 'gather_genbank_wc'; this will trigger
         # exception until that rule has been run.
         checkpoints.gather_genbank_wc.get(**w)
@@ -260,7 +286,8 @@ rule download_prefetch_genomes_info:
 @toplevel
 rule download_matching_genomes:
     input:
-        Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz"),
+        Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz",
+                                 samples=SAMPLES)
 
 @toplevel
 rule download_prefetch_genomes:
@@ -983,7 +1010,7 @@ rule summarize_reads_info_wc:
 rule create_sgc_conf_wc:
     input:
         csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
-        queries = Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz"),
+        queries = Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz")
     output:
         conf = outdir + "/sgc/{sample}.conf"
     run:
