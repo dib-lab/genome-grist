@@ -34,6 +34,10 @@ if not base_tempdir:
     print("Please set 'tempdir' in the config.", file=sys.stderr)
     sys.exit(-1)
 
+# prefetch mapping analysis selection
+prefetch_select = config.get('prefetch_select', [])
+print('XXX', prefetch_select)
+
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
 sourmash_db_pattern = config.get('sourmash_database_glob_pattern', "MUST SPECIFY 'sourmash_database_glob_pattern' IN CONFIG")
@@ -159,14 +163,26 @@ class Checkpoint_PrefetchResults:
         genome_accs = []
         with open(prefetch_csv, 'rt') as fp:
            r = csv.DictReader(fp)
+           n_nomatch = 0
            for row in r:
                name = row['match_name']
-#               if 'Shewanella' not in name: # @CTB select here :)
-#                   continue
-               acc = name.split(' ')[0]
-               genome_accs.append(acc)
-        print(f'loaded {len(genome_accs)} accessions from {prefetch_csv}.',
+
+               is_substr_match = False
+               for substr in prefetch_select:
+                   if substr in name:
+                       is_substr_match = True
+                       break
+
+               if is_substr_match:
+                   acc = name.split(' ')[0]
+                   genome_accs.append(acc)
+               else:
+                   n_nomatch += 1
+
+        print(f'prefetch: loaded {len(genome_accs)} accessions from {prefetch_csv}.',
               file=sys.stderr)
+        print(f"skipped {n_nomatch} because they did not match 'prefetch_select' configuration.",
+               file=sys.stderr)
 
         return genome_accs
 
