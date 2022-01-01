@@ -538,7 +538,7 @@ rule summarize_samtools_depth_wc:
     input:
         Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{acc}}.depth.txt")
     output:
-        csv = f"{outdir}/{{dir}}/depth/{{sample}}.summary.csv"
+        csv = f"{outdir}/{{dir}}/{{sample}}.summary.csv"
     shell: """
         python -m genome_grist.summarize_mapping {wildcards.sample} \
              {input} -o {output.csv}
@@ -626,8 +626,8 @@ rule make_taxonomy_notebook_wc:
 rule make_mapping_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-mapping.ipynb'),
-        all_csv = ancient(f"{outdir}/minimap/depth/{{sample}}.summary.csv"),
-        depth_csv = ancient(f"{outdir}/leftover/depth/{{sample}}.summary.csv"),
+        all_csv = ancient(f"{outdir}/minimap/{{sample}}.summary.csv"),
+        depth_csv = ancient(f"{outdir}/leftover/{{sample}}.summary.csv"),
         gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
         genomes_info_csv = ancient(f"{outdir}/genbank/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
@@ -665,7 +665,7 @@ rule extract_leftover_reads_wc:
 # rule for mapping leftover reads to genomes -> BAM
 rule map_leftover_reads_wc:
     input:
-        all_csv = f"{outdir}/minimap/depth/{{sample}}.summary.csv",
+        all_csv = f"{outdir}/minimap/{{sample}}.summary.csv",
         query = ancient(f"genbank_genomes/{{acc}}_genomic.fna.gz"),
         leftover_reads_flag = f"{outdir}/.leftover-reads.{{sample}}",
     output:
