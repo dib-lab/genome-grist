@@ -6,6 +6,16 @@ SAMPLES=config['sample']
 print(f'sample: {SAMPLES}', file=sys.stderr)
 assert isinstance(SAMPLES, list), "config 'sample' must be a list."
 
+fail = False
+for sample in SAMPLES:
+    if '.' in sample:
+        print(f"sample name '{sample}' contains a period; please remove",
+              file=sys.stderr)
+        fail = True
+
+if fail:
+    sys.exit(-1)
+
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
 print('outdir:', outdir, file=sys.stderr)
@@ -148,7 +158,7 @@ class Checkpoint_GatherResults:
 
     def get_genome_accs(self, sample):
         gather_csv = f'{outdir}/genbank/{sample}.x.genbank.gather.csv'
-        assert os.path.exists(gather_csv)
+        assert os.path.exists(gather_csv), "gather output does not exist!?"
 
         genome_accs = []
         with open(gather_csv, 'rt') as fp:
@@ -162,8 +172,6 @@ class Checkpoint_GatherResults:
         return genome_accs
 
     def __call__(self, w):
-        global checkpoints
-
         # get 'sample' from wildcards?
         if self.samples is None:
             return self.do_sample(w)
@@ -220,8 +228,8 @@ rule download_matching_genomes:
 @toplevel
 rule map_reads:
     input:
-        expand(f"{outdir}/minimap/depth/{{sample}}.summary.csv", sample=SAMPLES),
-        expand(f"{outdir}/leftover/depth/{{sample}}.summary.csv", sample=SAMPLES)
+        expand(f"{outdir}/minimap/{{sample}}.summary.csv", sample=SAMPLES),
+        expand(f"{outdir}/leftover/{{sample}}.summary.csv", sample=SAMPLES)
 
 @toplevel
 rule build_consensus:
@@ -261,8 +269,8 @@ rule check:
 rule zip:
     shell: """
         rm -f transfer.zip
-        zip -r transfer.zip {outdir}/leftover/depth/*.summary.csv \
-                {outdir}/minimap/depth/*.summary.csv {outdir}/*.yaml \
+        zip -r transfer.zip {outdir}/leftover/*.summary.csv \
+                {outdir}/minimap/*.summary.csv {outdir}/*.yaml \
                 {outdir}/genbank/*.csv {outdir}/gathertax/ {outdir}/reports/
     """
 
@@ -466,7 +474,7 @@ rule bam_to_depth_wc:
     input:
         bam = outdir + "/{dir}/{bam}.bam",
     output:
-        depth = outdir + "/{dir}/depth/{bam}.txt",
+        depth = outdir + "/{dir}/{bam}.depth.txt",
     conda: "env/minimap2.yml"
     shell: """
         samtools depth -aa {input.bam} > {output.depth}
@@ -477,7 +485,7 @@ rule bam_covered_regions_wc:
     input:
         bam = outdir + "/{dir}/{bam}.bam",
     output:
-        regions = outdir + "/{dir}/depth/{bam}.regions.bed",
+        regions = outdir + "/{dir}/{bam}.regions.bed",
     conda: "env/covtobed.yml"
     shell: """
         covtobed {input.bam} -l 100 -m 1 | \
@@ -508,7 +516,7 @@ rule build_new_consensus_wc:
     input:
         vcf = outdir + "/{dir}/{sample}.x.{acc}.vcf.gz",
         query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
-        regions = outdir + "/{dir}/depth/{sample}.x.{acc}.regions.bed",
+        regions = outdir + "/{dir}/{sample}.x.{acc}.regions.bed",
     output:
         mask = outdir + "/{dir}/{sample}.x.{acc}.mask.bed",
         genomefile = outdir + "/{dir}/{sample}.x.{acc}.fna.gz.sizes",
@@ -528,9 +536,9 @@ rule build_new_consensus_wc:
 # summarize depth into a CSV
 rule summarize_samtools_depth_wc:
     input:
-        Checkpoint_GatherResults(outdir + f"/{{dir}}/depth/{{sample}}.x.{{acc}}.txt")
+        Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{acc}}.depth.txt")
     output:
-        csv = f"{outdir}/{{dir}}/depth/{{sample}}.summary.csv"
+        csv = f"{outdir}/{{dir}}/{{sample}}.summary.csv"
     shell: """
         python -m genome_grist.summarize_mapping {wildcards.sample} \
              {input} -o {output.csv}
@@ -618,8 +626,8 @@ rule make_taxonomy_notebook_wc:
 rule make_mapping_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-mapping.ipynb'),
-        all_csv = ancient(f"{outdir}/minimap/depth/{{sample}}.summary.csv"),
-        depth_csv = ancient(f"{outdir}/leftover/depth/{{sample}}.summary.csv"),
+        all_csv = ancient(f"{outdir}/minimap/{{sample}}.summary.csv"),
+        depth_csv = ancient(f"{outdir}/leftover/{{sample}}.summary.csv"),
         gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
         genomes_info_csv = ancient(f"{outdir}/genbank/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
@@ -632,8 +640,8 @@ rule make_mapping_notebook_wc:
     conda: 'env/papermill.yml'
     shell: """
         papermill {input.nb} {output.nb} -k genome_grist \
-              -p sample_id {wildcards.sample:q} -p render '' -p outdir {outdir:q}\
-              --cwd {params.cwd}
+              -p sample_id {wildcards.sample:q} -p render '' \
+              -p outdir {outdir:q} --cwd {params.cwd}
         python -m nbconvert {output.nb} --to html --stdout --no-input \
              --ExecutePreprocessor.kernel_name=genome_grist > {output.html}
     """
@@ -657,7 +665,7 @@ rule extract_leftover_reads_wc:
 # rule for mapping leftover reads to genomes -> BAM
 rule map_leftover_reads_wc:
     input:
-        all_csv = f"{outdir}/minimap/depth/{{sample}}.summary.csv",
+        all_csv = f"{outdir}/minimap/{{sample}}.summary.csv",
         query = ancient(f"genbank_genomes/{{acc}}_genomic.fna.gz"),
         leftover_reads_flag = f"{outdir}/.leftover-reads.{{sample}}",
     output:
