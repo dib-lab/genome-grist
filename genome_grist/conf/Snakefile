@@ -641,7 +641,7 @@ rule build_new_consensus_wc:
 rule summarize_samtools_depth_wc:
     input:
         depth = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{acc}}.depth.txt"),
-        bcf = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{acc}}.vcf.gz")
+        vcf = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{acc}}.vcf.gz")
     output:
         csv = f"{outdir}/{{dir}}/{{sample}}.summary.csv"
     shell: """
