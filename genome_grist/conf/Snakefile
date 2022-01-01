@@ -360,7 +360,8 @@ rule zip:
         rm -f transfer.zip
         zip -r transfer.zip {outdir}/leftover/*.summary.csv \
                 {outdir}/minimap/*.summary.csv {outdir}/*.yaml \
-                {outdir}/genbank/*.csv {outdir}/gathertax/ {outdir}/reports/
+                {outdir}/genbank/*.csv {outdir}/gathertax/ {outdir}/reports/ \
+                {outdir}/prefetch/*.summary2.csv
     """
 
 
