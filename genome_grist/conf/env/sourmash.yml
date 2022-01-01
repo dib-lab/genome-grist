@@ -5,7 +5,7 @@ channels:
 dependencies:
  - python>=3.7,<3.10
  - screed
- - sourmash>=4.2.1,<5
+ - sourmash>=4.2.3,<5
  - pip
  - pip:
    - git+https://github.com/dib-lab/genome-grist.git#egg=genome-grist
