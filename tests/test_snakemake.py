@@ -36,8 +36,8 @@ def test_smash_sig():
     abundtrim_dir = os.path.join(_tempdir, "abundtrim")
     os.mkdir(abundtrim_dir)
 
-    conf = utils.relative_file('tests/test-data/SRR5950647.subset.conf')
-    src = utils.relative_file("tests/test-data/SRR5950647.subset.abundtrim.fq.gz")
+    conf = utils.relative_file('tests/test-data/SRR5950647_subset.conf')
+    src = utils.relative_file("tests/test-data/SRR5950647_subset.abundtrim.fq.gz")
     shutil.copy(src, abundtrim_dir)
 
     extra_args = ["smash_reads"]
@@ -49,7 +49,7 @@ def test_smash_sig():
     )
     assert status == 0
 
-    output_sig = f"{_tempdir}/sigs/SRR5950647.subset.abundtrim.sig"
+    output_sig = f"{_tempdir}/sigs/SRR5950647_subset.abundtrim.sig"
     assert os.path.exists(output_sig)
     sigs = list(sourmash.load_file_as_signatures(output_sig))
     assert len(sigs) == 3
@@ -61,7 +61,7 @@ def test_smash_sig():
 def test_summarize_sample_info():
     global _tempdir
 
-    conf = utils.relative_file('tests/test-data/SRR5950647.subset.conf')
+    conf = utils.relative_file('tests/test-data/SRR5950647_subset.conf')
     test_data = utils.relative_file("tests/test-data")
 
     extra_args = ["summarize_sample_info"]
@@ -73,7 +73,7 @@ def test_summarize_sample_info():
     )
     assert status == 0
 
-    info_file = f"{_tempdir}/SRR5950647.subset.info.yaml"
+    info_file = f"{_tempdir}/SRR5950647_subset.info.yaml"
     assert os.path.exists(info_file)
 
     with open(info_file, 'rt') as fp:
@@ -83,7 +83,7 @@ def test_summarize_sample_info():
     #{'kmers': 928685, 'known_hashes': 807, 'n_bases': 2276334, 'n_reads': 24663, 'sample': 'HSMA33MX-subset', 'total_hashes': 907, 'unknown_hashes': 100}
 
     assert info['kmers'] == 928685
-    assert info['sample'] == 'SRR5950647.subset'
+    assert info['sample'] == 'SRR5950647_subset'
     assert info['known_hashes'] == 653
     assert info['n_bases'] == 2276334
     assert info['n_reads'] == 24663
@@ -95,7 +95,7 @@ def test_summarize_sample_info():
 def test_map_reads():
     global _tempdir
 
-    conf = utils.relative_file('tests/test-data/SRR5950647.subset.conf')
+    conf = utils.relative_file('tests/test-data/SRR5950647_subset.conf')
     test_data = utils.relative_file("tests/test-data")
 
     genomes_dir = os.path.join(_tempdir, "genomes")
