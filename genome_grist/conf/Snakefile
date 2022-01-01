@@ -151,8 +151,8 @@ class Checkpoint_PrefetchResults:
            r = csv.DictReader(fp)
            for row in r:
                name = row['match_name']
-               if 'Shewanella' not in name: # @CTB select here :)
-                   continue
+#               if 'Shewanella' not in name: # @CTB select here :)
+#                   continue
                acc = name.split(' ')[0]
                genome_accs.append(acc)
         print(f'loaded {len(genome_accs)} accessions from {prefetch_csv}.',
@@ -306,6 +306,11 @@ rule map_reads:
 rule map_prefetch:
     input:
         expand(f"{outdir}/prefetch/depth/{{sample}}.summary2.csv", sample=SAMPLES),
+
+@toplevel
+rule prefetch_to_vcf:
+    input:
+        Checkpoint_PrefetchResults(outdir + f"/prefetch/{{sample}}.x.{{acc}}.vcf.gz", samples=SAMPLES)
 
 @toplevel
 rule build_consensus:
