@@ -679,7 +679,7 @@ rule map_leftover_reads_wc:
     """
 
 # run sourmash search x genbank and find anything matching.
-rule sourmash_prefetch_gather_wc:
+rule sourmash_prefetch_wc:
     message: """
        Find all potentially relevant database matches for {wildcards.sample}
     """
