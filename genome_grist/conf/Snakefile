@@ -447,7 +447,7 @@ rule count_trimmed_reads_wc:
 # map abundtrim reads and produce a bam
 rule minimap_wc:
     input:
-        query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
+        query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
         metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
     output:
         bam = outdir + "/minimap/{sample}.x.{acc}.bam",
@@ -495,7 +495,7 @@ rule bam_covered_regions_wc:
 # calculating SNPs/etc.
 rule mpileup_wc:
     input:
-        query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
+        query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
         bam = outdir + "/{dir}/{sample}.x.{acc}.bam",
     output:
         bcf = outdir + "/{dir}/{sample}.x.{acc}.bcf",
@@ -515,7 +515,7 @@ rule mpileup_wc:
 rule build_new_consensus_wc:
     input:
         vcf = outdir + "/{dir}/{sample}.x.{acc}.vcf.gz",
-        query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
+        query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
         regions = outdir + "/{dir}/{sample}.x.{acc}.regions.bed",
     output:
         mask = outdir + "/{dir}/{sample}.x.{acc}.mask.bed",
@@ -666,7 +666,7 @@ rule extract_leftover_reads_wc:
 rule map_leftover_reads_wc:
     input:
         all_csv = f"{outdir}/minimap/{{sample}}.summary.csv",
-        query = ancient(f"genbank_genomes/{{acc}}_genomic.fna.gz"),
+        query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
         leftover_reads_flag = f"{outdir}/.leftover-reads.{{sample}}",
     output:
         bam=outdir + "/leftover/{sample}.x.{acc}.bam",
@@ -811,6 +811,16 @@ rule download_matching_genome_wc:
                     print(f"...wrote {len(content)} bytes to {output.genome}",
                         file=sys.stderr)
 
+# link downloaded genomes into outdir
+rule link_genomes_to_outputs_wc:
+    input:
+        cache_genome = "genbank_genomes/{acc}_genomic.fna.gz"
+    output:
+        genome = f"{outdir}/genomes/{{acc}}_genomic.fna.gz"
+    shell: """
+        cp {input} {output}
+    """
+
 
 # summarize_reads_info
 rule summarize_reads_info_wc:
@@ -851,7 +861,7 @@ rule summarize_reads_info_wc:
 rule create_sgc_conf_wc:
     input:
         csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
-        queries = Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz")
+        queries = Checkpoint_GatherResults(f"{outdir}/genomes/{{acc}}_genomic.fna.gz")
     output:
         conf = outdir + "/sgc/{sample}.conf"
     run:
