@@ -39,6 +39,7 @@ ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
 genbank_databases = config.get('genbank_databases', [])
 private_databases = config.get('private_databases', [])
+private_databases_info = config.get('private_databases_info', [])
 
 SOURMASH_DB_LIST = genbank_databases + private_databases
 if not SOURMASH_DB_LIST:
@@ -205,6 +206,49 @@ class Checkpoint_GatherResults:
         p = expand(self.pattern, acc=genome_accs, **w)
         return p
 
+
+def list_private_genomes(wildcards):
+    print('XYZ', wildcards)
+    #checkpoints.gather_genbank_wc.get(**wildcards)
+
+    # get list of private genomes first...
+    private_info = {}
+    for filename in private_databases_info:
+        csv_dirpath = os.path.dirname(filename)
+        with open(filename, 'rt') as fp:
+            r = csv.DictReader(fp)
+            for row in r:
+                acc = row['acc']
+
+                # adjust filenames to be relative to CSV location -
+                newpath = os.path.join(csv_dirpath, row['filename'])
+                row['filename'] = os.path.normpath(newpath)
+
+                private_info[acc] = row
+
+    # no private genomes; done!
+    if not private_info:
+        return []
+    print(f"Loaded info on {len(private_info)} private genomes.")
+
+    for sample in SAMPLES:
+
+        gather_csv = f'{outdir}/genbank/{sample}.x.genbank.gather.csv'
+        assert os.path.exists(gather_csv), "gather output does not exist!?"
+
+        # now, intersect...
+        private_files = []
+        genome_accs = []
+        with open(gather_csv, 'rt') as fp:
+           r = csv.DictReader(fp)
+           for row in r:
+               acc = row['name'].split(' ')[0]
+               if acc in private_info:
+                   info = private_info[acc]
+                   private_files.append(info['filename'])
+
+    return private_files
+
 @toplevel
 rule summarize_gather:
     input:
@@ -230,6 +274,17 @@ rule download_matching_genomes:
     input:
         Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz",
                                  samples=SAMPLES)
+
+@toplevel
+rule copy_private_genomes:
+    input:
+        list_private_genomes
+    output:
+        touch(f"{outdir}/.private-genomes-are-copied")
+    shell: """
+        mkdir -p {outdir}/genomes/
+        cp {input} {outdir}/genomes/
+    """
 
 @toplevel
 rule map_reads:
@@ -780,6 +835,13 @@ rule make_genome_info_csv:
         python -Werror -m genome_grist.genbank_genomes {wildcards.acc} \
             --output {output.csvfile}
     """
+
+# copy info.csv into the /genomes/ directory
+rule copy_genome_info_csv:
+    input:
+        csvfile = 'genbank_genomes/{acc}.info.csv'
+    output:
+        csvfile = f'{outdir}/genomes/{{acc}}.info.csv'
 
 # combined info.csv
 rule make_combined_info_csv:
