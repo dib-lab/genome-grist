@@ -1,6 +1,6 @@
 # see README or genome_grist/__main__.py for top-level targets.
 import snakemake
-import glob, os, csv, tempfile, shutil, sys
+import os, csv, tempfile, shutil, sys
 
 SAMPLES=config['sample']
 print(f'sample: {SAMPLES}', file=sys.stderr)
@@ -35,11 +35,17 @@ if not base_tempdir:
 
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
-sourmash_db_pattern = config.get('sourmash_database_glob_pattern', "MUST SPECIFY 'sourmash_database_glob_pattern' IN CONFIG")
-SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
+### collect databases
+
+genbank_databases = config.get('genbank_databases', [])
+private_databases = config.get('private_databases', [])
+
+SOURMASH_DB_LIST = genbank_databases + private_databases
 if not SOURMASH_DB_LIST:
-    print(f"WARNING: no sourmash databases found!? glob pattern was '{sourmash_db_pattern}'", file=sys.stderr)
+    print(f"WARNING: no sourmash databases specified in config file!",
+          file=sys.stderr)
     SOURMASH_DB_LIST = ["DB_DOES_NOT_EXIST_BUT_IS_USED"]
+
 SOURMASH_DB_KSIZE = config.get('sourmash_database_ksize', ['31'])
 SOURMASH_DATABASE_THRESHOLD_BP = config.get('sourmash_database_threshold_bp',
                                             1e5)
@@ -51,7 +57,7 @@ assert SOURMASH_COMPUTE_TYPE in ('DNA', 'protein')
 
 PREFETCH_MEMORY = float(config.get('prefetch_memory', '100e9'))
 
-TAXONOMY_DB = config.get('database_taxonomy', "MUST SPECIFY 'database_taxonomy' IN CONFIG")
+TAXONOMY_DB = config.get('taxonomies', ["NO_TAXONOMIES_SPECIFIED_IN_CONFIG"])
 
 # make a `sourmash sketch` -p param string.
 def make_param_str(ksizes, scaled):
@@ -778,7 +784,7 @@ rule make_genome_info_csv:
 # combined info.csv
 rule make_combined_info_csv:
     input:
-        Checkpoint_GatherResults('genbank_genomes/{acc}.info.csv')
+        Checkpoint_GatherResults(f'{outdir}/genomes/{{acc}}.info.csv')
     output:
         genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
     shell: """
