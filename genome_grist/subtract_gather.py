@@ -37,9 +37,6 @@ def main():
     fail = False
     for row in rows:
         acc = row["name"].split(" ")[0]
-        assert acc.startswith("GC")
-        acc = acc.split("_")[:2]
-        acc = "_".join(acc)
 
         filename = f"{outdir}/minimap/{sample_id}.x.{acc}.mapped.fq.gz"
         overlapping = f"{outdir}/minimap/{sample_id}.x.{acc}.overlap.fq.gz"
