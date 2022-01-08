@@ -171,6 +171,7 @@ checkpoint gather_reads_wc:
     output:
         touch(f"{outdir}/gather/.gather.{{sample}}")   # checkpoints need an output ;)
 
+
 class Checkpoint_GatherResults:
     """Given a pattern containing {acc} and {sample}, this class
     will generate the list of {acc} for that {sample}'s gather results.
@@ -223,6 +224,7 @@ class Checkpoint_GatherResults:
         genome_accs = self.get_genome_accs(w.sample)
 
         p = expand(self.pattern, acc=genome_accs, **w)
+
         return p
 
 
@@ -233,8 +235,8 @@ class ListGatherGenomes(Checkpoint_GatherResults):
     This is used to get the filenames for the various genome files; the
     assumption is that snakemake already knows how to generate those :).
     """
-    def __init__(self, samples):
-        self.samples = SAMPLES
+    def __init__(self, samples=None):
+        self.samples = samples
 
     def _load_private_database_info(self):
         # get list of private genomes first...
@@ -285,6 +287,20 @@ class ListGatherGenomes(Checkpoint_GatherResults):
 
         return genome_filenames
 
+class Checkpoint_GenomeFiles(Checkpoint_GatherResults):
+    def do_sample(self, w):
+        checkpoints.copy_sample_genomes_to_output_wc.get(**w)
+
+        # parse hitlist_genomes,
+        genome_accs = self.get_genome_accs(w.sample)
+
+        if 'acc' in dict(w):
+            p = expand(self.pattern, **w)
+        else:
+            p = expand(self.pattern, acc=genome_accs, **w)
+
+        return p
+
 
 @toplevel
 rule summarize_gather:
@@ -307,7 +323,7 @@ rule combine_genome_info:
                sample=SAMPLES)
 
 @toplevel
-rule download_matching_genomes:
+rule download_genbank_genomes:
     input:
         Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz",
                                  samples=SAMPLES)
@@ -315,13 +331,7 @@ rule download_matching_genomes:
 @toplevel
 rule retrieve_genomes:
     input:
-        genomes = ListGatherGenomes(samples=SAMPLES),
-    output:
-        touch(f"{outdir}/genomes/.genomes-are-copied")
-    shell: """
-        mkdir -p {outdir}/genomes/
-        cp {input} {outdir}/genomes/
-    """
+        expand(f"{outdir}/genomes/.genomes.{{sample}}", sample=SAMPLES)
 
 @toplevel
 rule map_reads:
@@ -545,9 +555,8 @@ rule count_trimmed_reads_wc:
 # map abundtrim reads and produce a bam
 rule minimap_wc:
     input:
-        query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
+        query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
         metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
-        genomes_copied = f"{outdir}/genomes/.genomes-are-copied"
     output:
         bam = outdir + "/mapping/{sample}.x.{acc}.bam",
     conda: "env/minimap2.yml"
@@ -594,7 +603,7 @@ rule bam_covered_regions_wc:
 # calculating SNPs/etc.
 rule mpileup_wc:
     input:
-        query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
+        query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
         bam = outdir + "/{dir}/{sample}.x.{acc}.bam",
     output:
         bcf = outdir + "/{dir}/{sample}.x.{acc}.bcf",
@@ -614,7 +623,7 @@ rule mpileup_wc:
 rule build_new_consensus_wc:
     input:
         vcf = outdir + "/{dir}/{sample}.x.{acc}.vcf.gz",
-        query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
+        query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
         regions = outdir + "/{dir}/{sample}.x.{acc}.regions.bed",
     output:
         mask = outdir + "/{dir}/{sample}.x.{acc}.mask.bed",
@@ -765,7 +774,7 @@ rule extract_leftover_reads_wc:
 rule map_leftover_reads_wc:
     input:
         all_csv = f"{outdir}/mapping/{{sample}}.summary.csv",
-        query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
+        query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
         leftover_reads_flag = f"{outdir}/leftover/.leftover.{{sample}}",
     output:
         bam=outdir + "/leftover/{sample}.x.{acc}.bam",
@@ -874,11 +883,21 @@ rule make_genbank_info_csv:
             --output {output.csvfile}
     """
 
-# combined info.csv
-rule make_combined_info_csv:
+# copy genomes for this sample
+checkpoint copy_sample_genomes_to_output_wc:
     input:
-        f"{outdir}/genomes/.genomes-are-copied",
-        csvs = Checkpoint_GatherResults(f'{outdir}/genomes/{{acc}}.info.csv'),
+        genomes = ListGatherGenomes(),
+    output:
+        touch(f"{outdir}/genomes/.genomes.{{sample}}")
+    shell: """
+        mkdir -p {outdir}/genomes/
+        cp {input} {outdir}/genomes/
+    """
+
+# combined info.csv per sample
+rule make_combined_info_csv_wc:
+    input:
+        csvs = Checkpoint_GenomeFiles(f'{outdir}/genomes/{{acc}}.info.csv'),
     output:
         genomes_info_csv = f"{outdir}/gather/{{sample}}.genomes.info.csv",
     shell: """
@@ -912,17 +931,6 @@ rule download_matching_genome_wc:
                     outfp.write(content)
                     print(f"...wrote {len(content)} bytes to {output.genome}",
                         file=sys.stderr)
-
-# link downloaded genomes into outdir
-rule link_genomes_to_outputs_wc:
-    input:
-        cache_genome = "genbank_genomes/{acc}_genomic.fna.gz"
-    output:
-        genome = f"{outdir}/genomes/{{acc}}_genomic.fna.gz"
-    shell: """
-        cp {input} {output}
-    """
-
 
 # summarize_reads_info
 rule summarize_reads_info_wc:
