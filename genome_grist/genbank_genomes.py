@@ -13,7 +13,7 @@ from lxml import etree
 
 def url_for_accession(accession):
     accsplit = accession.strip().split("_")
-    assert len(accsplit) == 2, f"ERROR: '{accession}' has too many underscores! only one expected."
+    assert len(accsplit) == 2, f"ERROR: '{accession}' should have precisely one underscore!"
 
     db, acc = accsplit("_")
     if '.' in acc:

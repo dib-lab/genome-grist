@@ -217,7 +217,7 @@ class Checkpoint_GatherResults:
         return p
 
 
-class ListGenomes:
+class ListGatherGenomes(Checkpoint_GatherResults):
     """Provide list of the source genome files for either private or
     genbank databases, depending on the source of the genome info.
 
@@ -236,6 +236,9 @@ class ListGenomes:
                 acc = row['acc']
 
                 # adjust filenames to be relative to CSV location -
+                newpath = os.path.join(csv_dirpath, row['info_filename'])
+                row['info_filename'] = os.path.normpath(newpath)
+
                 newpath = os.path.join(csv_dirpath, row['filename'])
                 row['filename'] = os.path.normpath(newpath)
 
@@ -264,7 +267,7 @@ class ListGenomes:
             if acc in private_info:
                 info = private_info[acc]
                 genome_filenames.append(info['filename'])
-                genome_filenames.append(info['filename'] + '.info.csv')
+                genome_filenames.append(info['info_filename'])
 
             # genbank: point at genbank_genomes
             else:
@@ -273,22 +276,6 @@ class ListGenomes:
 
         return genome_filenames
 
-    def __call__(self, w):
-        # get 'sample' from wildcards?
-        if self.samples is None:
-            return self.do_sample(w)
-        else:
-            assert not hasattr(w, 'sample'), "if 'samples' provided to constructor, cannot also be in rule inputs"
-
-            ret = []
-            for sample in self.samples:
-                d = dict(sample=sample)
-                w = snakemake.io.Wildcards(fromdict=d)
-
-                x = self.do_sample(w)
-                ret.extend(x)
-
-            return ret
 
 @toplevel
 rule summarize_gather:
@@ -319,7 +306,7 @@ rule download_matching_genomes:
 @toplevel
 rule retrieve_genomes:
     input:
-        private = ListGenomes(samples=SAMPLES),
+        private = ListGatherGenomes(samples=SAMPLES),
     output:
         touch(f"{outdir}/genomes/.genomes-are-copied")
     shell: """
@@ -878,13 +865,6 @@ rule make_genome_info_csv:
             --output {output.csvfile}
     """
 
-# copy info.csv into the /genomes/ directory
-rule copy_genome_info_csv:
-    input:
-        csvfile = 'genbank_genomes/{acc}.info.csv'
-    output:
-        csvfile = f'{outdir}/genomes/{{acc}}.info.csv'
-
 # combined info.csv
 rule make_combined_info_csv:
     input:
@@ -892,7 +872,9 @@ rule make_combined_info_csv:
     output:
         genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
     shell: """
-        python -Werror -m genome_grist.combine_csvs {input} > {output}
+        python -Werror -m genome_grist.combine_csvs \
+             --fields acc,ncbi_tax_name \
+             {input} > {output}
     """
 
 # download actual genomes!
