@@ -971,7 +971,7 @@ rule summarize_reads_info_wc:
 rule create_sgc_conf_wc:
     input:
         csv = outdir + "/gather/{sample}.gather.csv",
-        queries = Checkpoint_GatherResults(f"{outdir}/genomes/{{acc}}_genomic.fna.gz")
+        queries = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{acc}}_genomic.fna.gz")
     output:
         conf = outdir + "/sgc/{sample}.conf"
     run:
