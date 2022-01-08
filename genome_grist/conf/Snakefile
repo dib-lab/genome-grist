@@ -207,47 +207,72 @@ class Checkpoint_GatherResults:
         return p
 
 
-def list_private_genomes(wildcards):
-    print('XYZ', wildcards)
-    #checkpoints.gather_genbank_wc.get(**wildcards)
+class ListGenomes:
+    def __init__(self, source):
+        assert source in ('private', 'genbank')
+        self.source = source
 
-    # get list of private genomes first...
-    private_info = {}
-    for filename in private_databases_info:
-        csv_dirpath = os.path.dirname(filename)
-        with open(filename, 'rt') as fp:
-            r = csv.DictReader(fp)
-            for row in r:
-                acc = row['acc']
+    def _load_private_database_info(self):
+        # get list of private genomes first...
+        private_info = {}
+        for filename in private_databases_info:
+            csv_dirpath = os.path.dirname(filename)
+            with open(filename, 'rt') as fp:
+                r = csv.DictReader(fp)
+                for row in r:
+                    acc = row['acc']
 
-                # adjust filenames to be relative to CSV location -
-                newpath = os.path.join(csv_dirpath, row['filename'])
-                row['filename'] = os.path.normpath(newpath)
+                    # adjust filenames to be relative to CSV location -
+                    newpath = os.path.join(csv_dirpath, row['filename'])
+                    row['filename'] = os.path.normpath(newpath)
 
-                private_info[acc] = row
+                    private_info[acc] = row
 
-    # no private genomes; done!
-    if not private_info:
-        return []
-    print(f"Loaded info on {len(private_info)} private genomes.")
+        print(f"Loaded info on {len(private_info)} private genomes.")
+        return private_info
 
-    for sample in SAMPLES:
+    def __call__(self, wildcards):
+        print('XYZ', wildcards)
+        #checkpoints.gather_genbank_wc.get(**wildcards)
 
-        gather_csv = f'{outdir}/genbank/{sample}.x.genbank.gather.csv'
-        assert os.path.exists(gather_csv), "gather output does not exist!?"
+        private_info = self._load_private_database_info()
 
-        # now, intersect...
-        private_files = []
-        genome_accs = []
-        with open(gather_csv, 'rt') as fp:
-           r = csv.DictReader(fp)
-           for row in r:
-               acc = row['name'].split(' ')[0]
-               if acc in private_info:
-                   info = private_info[acc]
-                   private_files.append(info['filename'])
+        if self.source == 'private':
 
-    return private_files
+            # no private genomes; done!
+            if not private_info:
+                return []
+
+            for sample in SAMPLES:
+                gather_csv = f'{outdir}/genbank/{sample}.x.genbank.gather.csv'
+                assert os.path.exists(gather_csv), "gather output does not exist!?"
+
+                # now, intersect...
+                private_files = []
+                genome_accs = []
+                with open(gather_csv, 'rt') as fp:
+                   r = csv.DictReader(fp)
+                   for row in r:
+                       acc = row['name'].split(' ')[0]
+                       if acc in private_info:
+                           info = private_info[acc]
+                           private_files.append(info['filename'])
+
+            return private_files
+        elif self.source == 'genbank':
+            for sample in SAMPLES:
+                gather_csv = f'{outdir}/genbank/{sample}.x.genbank.gather.csv'
+                assert os.path.exists(gather_csv), "gather output does not exist!?"
+                # now, intersect...
+                genbank_files = []
+                genome_accs = []
+                with open(gather_csv, 'rt') as fp:
+                   r = csv.DictReader(fp)
+                   for row in r:
+                       acc = row['name'].split(' ')[0]
+                       if acc not in private_info:
+                           genbank_files.append(f'genbank_genomes/{acc}_genomic.fna.gz')
+            return genbank_files
 
 @toplevel
 rule summarize_gather:
@@ -278,7 +303,8 @@ rule download_matching_genomes:
 @toplevel
 rule copy_private_genomes:
     input:
-        list_private_genomes
+        private = ListGenomes(source='private'),
+        genbank = ListGenomes(source='genbank'),
     output:
         touch(f"{outdir}/.private-genomes-are-copied")
     shell: """
@@ -510,6 +536,7 @@ rule minimap_wc:
     input:
         query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
         metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
+        genomes_copied = f"{outdir}/.private-genomes-are-copied"
     output:
         bam = outdir + "/minimap/{sample}.x.{acc}.bam",
     conda: "env/minimap2.yml"
