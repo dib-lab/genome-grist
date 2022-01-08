@@ -15,7 +15,7 @@ def url_for_accession(accession):
     accsplit = accession.strip().split("_")
     assert len(accsplit) == 2, f"ERROR: '{accession}' should have precisely one underscore!"
 
-    db, acc = accsplit("_")
+    db, acc = accsplit
     if '.' in acc:
         number, version = acc.split(".")
     else:
