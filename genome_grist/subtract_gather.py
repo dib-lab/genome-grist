@@ -38,9 +38,9 @@ def main():
     for row in rows:
         acc = row["name"].split(" ")[0]
 
-        filename = f"{outdir}/minimap/{sample_id}.x.{acc}.mapped.fq.gz"
-        overlapping = f"{outdir}/minimap/{sample_id}.x.{acc}.overlap.fq.gz"
-        leftover = f"{outdir}/minimap/{sample_id}.x.{acc}.leftover.fq.gz"
+        filename = f"{outdir}/mapping/{sample_id}.x.{acc}.mapped.fq.gz"
+        overlapping = f"{outdir}/mapping/{sample_id}.x.{acc}.overlap.fq.gz"
+        leftover = f"{outdir}/mapping/{sample_id}.x.{acc}.leftover.fq.gz"
 
         if not os.path.exists(filename):
             print(f"ERROR: input filename {filename} does not exist. Will exit.")

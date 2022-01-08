@@ -109,6 +109,15 @@ rule print_rules:
               file=sys.stderr)
 
 @toplevel
+rule clean_gather:
+    # the '|| true' here makes this command succeed even when dirs do not exist
+    # (adding -fr to rm seemed too dangerous!)
+    shell: """
+        (rm -r {outdir}/{{gather,genomes,mapping,leftover,reports}}/ \
+            {outdir}/.kernel.set || true)
+    """
+
+@toplevel
 rule download_reads:
     input:
         expand(f"{outdir}/raw/{{sample}}_1.fastq.gz", sample=SAMPLES),
@@ -292,7 +301,7 @@ rule summarize_tax:
                sample=SAMPLES)
 
 @toplevel
-rule download_matching_genomes_info:
+rule combine_genome_info:
     input:
         expand(f"{outdir}/gather/{{sample}}.genomes.info.csv",
                sample=SAMPLES)
@@ -306,7 +315,7 @@ rule download_matching_genomes:
 @toplevel
 rule retrieve_genomes:
     input:
-        private = ListGatherGenomes(samples=SAMPLES),
+        genomes = ListGatherGenomes(samples=SAMPLES),
     output:
         touch(f"{outdir}/genomes/.genomes-are-copied")
     shell: """
@@ -317,13 +326,13 @@ rule retrieve_genomes:
 @toplevel
 rule map_reads:
     input:
-        expand(f"{outdir}/minimap/{{sample}}.summary.csv", sample=SAMPLES),
+        expand(f"{outdir}/mapping/{{sample}}.summary.csv", sample=SAMPLES),
         expand(f"{outdir}/leftover/{{sample}}.summary.csv", sample=SAMPLES)
 
 @toplevel
 rule build_consensus:
     input:
-        Checkpoint_GatherResults(outdir + f"/minimap/{{sample}}.x.{{acc}}.consensus.fa.gz"),
+        Checkpoint_GatherResults(outdir + f"/mapping/{{sample}}.x.{{acc}}.consensus.fa.gz"),
         Checkpoint_GatherResults(outdir + f"/leftover/{{sample}}.x.{{acc}}.consensus.fa.gz"),
 
 @toplevel
@@ -359,7 +368,7 @@ rule zip:
     shell: """
         rm -f transfer.zip
         zip -r transfer.zip {outdir}/leftover/*.summary.csv \
-                {outdir}/minimap/*.summary.csv {outdir}/*.yaml \
+                {outdir}/mapping/*.summary.csv {outdir}/*.yaml \
                 {outdir}/gather/*.csv {outdir}/reports/
     """
 
@@ -540,7 +549,7 @@ rule minimap_wc:
         metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
         genomes_copied = f"{outdir}/genomes/.genomes-are-copied"
     output:
-        bam = outdir + "/minimap/{sample}.x.{acc}.bam",
+        bam = outdir + "/mapping/{sample}.x.{acc}.bam",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -551,9 +560,9 @@ rule minimap_wc:
 # extract FASTQ from BAM
 rule bam_to_fastq_wc:
     input:
-        bam = outdir + "/minimap/{bam}.bam",
+        bam = outdir + "/mapping/{bam}.bam",
     output:
-        mapped = outdir + "/minimap/{bam}.mapped.fq.gz",
+        mapped = outdir + "/mapping/{bam}.mapped.fq.gz",
     conda: "env/minimap2.yml"
     shell: """
         samtools bam2fq {input.bam} | gzip > {output.mapped}
@@ -716,7 +725,7 @@ rule make_taxonomy_notebook_wc:
 rule make_mapping_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-mapping.ipynb'),
-        all_csv = ancient(f"{outdir}/minimap/{{sample}}.summary.csv"),
+        all_csv = ancient(f"{outdir}/mapping/{{sample}}.summary.csv"),
         depth_csv = ancient(f"{outdir}/leftover/{{sample}}.summary.csv"),
         gather_csv = f'{outdir}/gather/{{sample}}.gather.csv',
         genomes_info_csv = ancient(f"{outdir}/gather/{{sample}}.genomes.info.csv"),
@@ -741,7 +750,7 @@ rule make_mapping_notebook_wc:
 rule extract_leftover_reads_wc:
     input:
         csv = f'{outdir}/gather/{{sample}}.gather.csv',
-        mapped = Checkpoint_GatherResults(f"{outdir}/minimap/{{sample}}.x.{{acc}}.mapped.fq.gz"),
+        mapped = Checkpoint_GatherResults(f"{outdir}/mapping/{{sample}}.x.{{acc}}.mapped.fq.gz"),
     output:
         touch(f"{outdir}/leftover/.leftover.{{sample}}")
     conda: "env/sourmash.yml"
@@ -755,7 +764,7 @@ rule extract_leftover_reads_wc:
 # rule for mapping leftover reads to genomes -> BAM
 rule map_leftover_reads_wc:
     input:
-        all_csv = f"{outdir}/minimap/{{sample}}.summary.csv",
+        all_csv = f"{outdir}/mapping/{{sample}}.summary.csv",
         query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
         leftover_reads_flag = f"{outdir}/leftover/.leftover.{{sample}}",
     output:
@@ -764,7 +773,7 @@ rule map_leftover_reads_wc:
     threads: 4
     shell: """
         minimap2 -ax sr -t {threads} {input.query} \
-     {outdir}/minimap/{wildcards.sample}.x.{wildcards.acc}.leftover.fq.gz | \
+     {outdir}/mapping/{wildcards.sample}.x.{wildcards.acc}.leftover.fq.gz | \
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
@@ -857,7 +866,7 @@ rule summarize_tax_wc:
 
 
 # download genbank genome details; make an info.csv file for entry.
-rule make_genome_info_csv:
+rule make_genbank_info_csv:
     output:
         csvfile = 'genbank_genomes/{acc}.info.csv'
     shell: """
@@ -868,13 +877,14 @@ rule make_genome_info_csv:
 # combined info.csv
 rule make_combined_info_csv:
     input:
-        Checkpoint_GatherResults(f'{outdir}/genomes/{{acc}}.info.csv')
+        f"{outdir}/genomes/.genomes-are-copied",
+        csvs = Checkpoint_GatherResults(f'{outdir}/genomes/{{acc}}.info.csv'),
     output:
         genomes_info_csv = f"{outdir}/gather/{{sample}}.genomes.info.csv",
     shell: """
         python -Werror -m genome_grist.combine_csvs \
              --fields acc,ncbi_tax_name \
-             {input} > {output}
+             {input.csvs} > {output}
     """
 
 # download actual genomes!
