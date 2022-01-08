@@ -73,6 +73,16 @@ except:
 
 ###
 
+# utility function
+
+def load_csv(filename):
+    with open(filename, "r", newline="") as fp:
+        r = csv.DictReader(fp)
+        for row in r:
+            yield row
+
+###
+
 # mark top-level rules:
 _toplevel_rules = []
 def toplevel(fn):
@@ -208,71 +218,77 @@ class Checkpoint_GatherResults:
 
 
 class ListGenomes:
-    def __init__(self, source):
-        assert source in ('private', 'genbank')
-        self.source = source
+    """Provide list of the source genome files for either private or
+    genbank databases, depending on the source of the genome info.
+
+    This is used to get the filenames for the various genome files; the
+    assumption is that snakemake already knows how to generate those :).
+    """
+    def __init__(self, samples):
+        self.samples = SAMPLES
 
     def _load_private_database_info(self):
         # get list of private genomes first...
         private_info = {}
         for filename in private_databases_info:
             csv_dirpath = os.path.dirname(filename)
-            with open(filename, 'rt') as fp:
-                r = csv.DictReader(fp)
-                for row in r:
-                    acc = row['acc']
+            for row in load_csv(filename):
+                acc = row['acc']
 
-                    # adjust filenames to be relative to CSV location -
-                    newpath = os.path.join(csv_dirpath, row['filename'])
-                    row['filename'] = os.path.normpath(newpath)
+                # adjust filenames to be relative to CSV location -
+                newpath = os.path.join(csv_dirpath, row['filename'])
+                row['filename'] = os.path.normpath(newpath)
 
-                    private_info[acc] = row
+                private_info[acc] = row
 
         print(f"Loaded info on {len(private_info)} private genomes.")
         return private_info
 
-    def __call__(self, wildcards):
-        print('XYZ', wildcards)
-        #checkpoints.gather_genbank_wc.get(**wildcards)
+    def do_sample(self, w):
+        # wait for the results of 'gather_genbank_wc'; this will trigger
+        # exception until that rule has been run.
+        checkpoints.gather_genbank_wc.get(**w)
+
+        sample = w.sample
 
         private_info = self._load_private_database_info()
+        genome_filenames = []
 
-        if self.source == 'private':
+        gather_csv = f'{outdir}/genbank/{sample}.x.genbank.gather.csv'
+        assert os.path.exists(gather_csv), f"gather output does not exist for {sample}!?"
 
-            # no private genomes; done!
-            if not private_info:
-                return []
+        for row in load_csv(gather_csv):
+            acc = row['name'].split(' ')[0]
 
-            for sample in SAMPLES:
-                gather_csv = f'{outdir}/genbank/{sample}.x.genbank.gather.csv'
-                assert os.path.exists(gather_csv), "gather output does not exist!?"
+            # if in private information, use that as genome source.
+            if acc in private_info:
+                info = private_info[acc]
+                genome_filenames.append(info['filename'])
+                genome_filenames.append(info['filename'] + '.info.csv')
 
-                # now, intersect...
-                private_files = []
-                genome_accs = []
-                with open(gather_csv, 'rt') as fp:
-                   r = csv.DictReader(fp)
-                   for row in r:
-                       acc = row['name'].split(' ')[0]
-                       if acc in private_info:
-                           info = private_info[acc]
-                           private_files.append(info['filename'])
+            # genbank: point at genbank_genomes
+            else:
+                genome_filenames.append(f'genbank_genomes/{acc}_genomic.fna.gz')
+                genome_filenames.append(f'genbank_genomes/{acc}.info.csv')
 
-            return private_files
-        elif self.source == 'genbank':
-            for sample in SAMPLES:
-                gather_csv = f'{outdir}/genbank/{sample}.x.genbank.gather.csv'
-                assert os.path.exists(gather_csv), "gather output does not exist!?"
-                # now, intersect...
-                genbank_files = []
-                genome_accs = []
-                with open(gather_csv, 'rt') as fp:
-                   r = csv.DictReader(fp)
-                   for row in r:
-                       acc = row['name'].split(' ')[0]
-                       if acc not in private_info:
-                           genbank_files.append(f'genbank_genomes/{acc}_genomic.fna.gz')
-            return genbank_files
+        return genome_filenames
+
+    def __call__(self, w):
+        # get 'sample' from wildcards?
+        if self.samples is None:
+            return self.do_sample(w)
+        else:
+            assert not hasattr(w, 'sample'), "if 'samples' provided to constructor, cannot also be in rule inputs"
+
+            ret = []
+            for sample in self.samples:
+                d = dict(sample=sample)
+                w = snakemake.io.Wildcards(fromdict=d)
+
+                x = self.do_sample(w)
+                ret.extend(x)
+
+            return ret
 
 @toplevel
 rule summarize_gather:
@@ -301,12 +317,11 @@ rule download_matching_genomes:
                                  samples=SAMPLES)
 
 @toplevel
-rule copy_private_genomes:
+rule retrieve_genomes:
     input:
-        private = ListGenomes(source='private'),
-        genbank = ListGenomes(source='genbank'),
+        private = ListGenomes(samples=SAMPLES),
     output:
-        touch(f"{outdir}/.private-genomes-are-copied")
+        touch(f"{outdir}/genomes/.genomes-are-copied")
     shell: """
         mkdir -p {outdir}/genomes/
         cp {input} {outdir}/genomes/
