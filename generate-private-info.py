@@ -1,4 +1,8 @@
 #! /usr/bin/env python
+"""
+Scan a list of genome files and prepare a draft "info file" for genome-grist
+to use as a private database info file.
+"""
 import sys
 import argparse
 import screed
