@@ -97,7 +97,7 @@ def main():
     p.add_argument("-o", "--output")
     args = p.parse_args()
 
-    fieldnames = ["acc", "genome_url", "assembly_report_url", "ncbi_tax_name"]
+    fieldnames = ["ident", "genome_url", "assembly_report_url", "display_name"]
     fp = None
     if args.output:
         fp = open(args.output, "wt")
@@ -106,21 +106,21 @@ def main():
         w = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
     w.writeheader()
 
-    acc = args.accession
+    ident = args.accession
 
-    genome_url, assembly_report_url = url_for_accession(acc)
+    genome_url, assembly_report_url = url_for_accession(ident)
     taxid = get_taxid_from_assembly_report(assembly_report_url)
     tax_name = get_tax_name_for_taxid(taxid)
 
     d = dict(
-        acc=acc,
+        ident=ident,
         genome_url=genome_url,
         assembly_report_url=assembly_report_url,
-        ncbi_tax_name=tax_name,
+        display_name=tax_name,
     )
 
     w.writerow(d)
-    print(f"retrieved for {acc} - {tax_name}", file=sys.stderr)
+    print(f"retrieved for {ident} - {display_name}", file=sys.stderr)
 
     if fp:
         fp.close()
