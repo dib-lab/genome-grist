@@ -120,7 +120,7 @@ def main():
     )
 
     w.writerow(d)
-    print(f"retrieved for {ident} - {display_name}", file=sys.stderr)
+    print(f"retrieved for {ident} - {tax_name}", file=sys.stderr)
 
     if fp:
         fp.close()
