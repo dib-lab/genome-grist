@@ -19,8 +19,8 @@ def main():
     args = p.parse_args()
 
     output_fp = open(args.output_csv, 'wt')
-    w = csv.DictWriter(output_fp, fieldnames=['acc',
-                                              'ncbi_tax_name',
+    w = csv.DictWriter(output_fp, fieldnames=['ident',
+                                              'display_name',
                                               'genome_filename'])
     w.writeheader()
 
@@ -42,15 +42,15 @@ def main():
             break
 
         record_name = record_name.split(' ', 1)
-        acc, remainder = record_name
+        ident, remainder = record_name
 
-        print(f"read identifer '{acc}' and name '{remainder}'")
+        print(f"read identifer '{ident}' and name '{remainder}'")
 
-        destfile = os.path.join(args.output_directory, f"{acc}_genomic.fna.gz")
+        destfile = os.path.join(args.output_directory, f"{ident}_genomic.fna.gz")
         print(f"copying '{filename}' to '{destfile}'")
         shutil.copyfile(filename, destfile)
 
-        w.writerow(dict(acc=acc, ncbi_tax_name=remainder,
+        w.writerow(dict(ident=ident, display_name=remainder,
                         genome_filename=destfile))
         n += 1
 

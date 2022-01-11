@@ -20,23 +20,23 @@ def main():
     with open(args.info_csv, 'r', newline="") as fp:
         r = csv.DictReader(fp)
         for row in r:
-            acc = row['acc']
-            info_d[acc] = row
+            ident = row['ident']
+            info_d[ident] = row
 
     print(f"loaded {len(info_d)} info files from '{args.info_csv}'")
 
     n = 0
-    for acc, item_d in info_d.items():
+    for ident, item_d in info_d.items():
         # write .info.csv.
         dirname = os.path.dirname(item_d['genome_filename'])
-        info_filename = os.path.join(dirname, f"{acc}.info.csv")
-        name = item_d['ncbi_tax_name']
+        info_filename = os.path.join(dirname, f"{ident}.info.csv")
+        name = item_d['display_name']
 
         with open(info_filename, 'wt') as fp:
-            w2 = csv.DictWriter(fp, fieldnames=['acc',
-                                                'ncbi_tax_name'])
+            w2 = csv.DictWriter(fp, fieldnames=['ident',
+                                                'display_name'])
             w2.writeheader()
-            w2.writerow(dict(acc=acc, ncbi_tax_name=name))
+            w2.writerow(dict(ident=ident, display_name=name))
         print(f"Created info CSV '{info_filename}'")
 
         n += 1
