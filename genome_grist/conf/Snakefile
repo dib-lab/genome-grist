@@ -242,16 +242,17 @@ class ListGatherGenomes(Checkpoint_GatherResults):
         # get list of private genomes first...
         private_info = {}
         for filename in private_databases_info:
-            csv_dirpath = os.path.dirname(filename)
             for row in load_csv(filename):
                 acc = row['acc']
 
-                # adjust filenames to be relative to CSV location -
-                newpath = os.path.join(csv_dirpath, row['info_filename'])
-                row['info_filename'] = os.path.normpath(newpath)
+                genome_dir = os.path.dirname(row['genome_filename'])
+                row['genome_filename'] = os.path.normpath(row['genome_filename'])
 
-                newpath = os.path.join(csv_dirpath, row['filename'])
-                row['filename'] = os.path.normpath(newpath)
+                genome_dir = os.path.dirname(row['genome_filename'])
+                info_filename = f'{acc}.info.csv'
+                info_filename = os.path.join(genome_dir, info_filename)
+                
+                row['info_filename'] = os.path.normpath(info_filename)
 
                 private_info[acc] = row
 
@@ -277,7 +278,7 @@ class ListGatherGenomes(Checkpoint_GatherResults):
             # if in private information, use that as genome source.
             if acc in private_info:
                 info = private_info[acc]
-                genome_filenames.append(info['filename'])
+                genome_filenames.append(info['genome_filename'])
                 genome_filenames.append(info['info_filename'])
 
             # genbank: point at genbank_genomes
