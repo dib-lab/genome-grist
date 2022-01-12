@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 """
-TODO:
-* only get filenames for accs that are not already in output
+Retrieve genome information for genbank genomes.
 """
 import sys
 import argparse

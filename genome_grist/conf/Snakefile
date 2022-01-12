@@ -756,7 +756,6 @@ rule make_mapping_notebook_wc:
     """
 
 # convert mapped reads to leftover reads
-# @CTB update for intersected/overlapping reads too
 rule extract_leftover_reads_wc:
     input:
         csv = f'{outdir}/gather/{{sample}}.gather.csv',
@@ -815,7 +814,7 @@ rule sourmash_prefetch_wc:
           -o {output.csv}
     """
 
-# run sourmash search x genbank and find anything matching.
+# report on known and unknown hashes
 rule report_query_known_unknown_wc:
     message: """
        Report on "known" and "unknown" hashes for {wildcards.sample}
@@ -884,7 +883,7 @@ rule make_genbank_info_csv:
             --output {output.csvfile}
     """
 
-# copy genomes for this sample
+# copy genbank + private genomes for this sample into output dir
 checkpoint copy_sample_genomes_to_output_wc:
     input:
         genomes = ListGatherGenomes(),
@@ -907,7 +906,7 @@ rule make_combined_info_csv_wc:
              {input.csvs} > {output}
     """
 
-# download actual genomes!
+# download actual genomes from genbank!
 rule download_matching_genome_wc:
     input:
         csvfile = ancient('genbank_genomes/{ident}.info.csv')
