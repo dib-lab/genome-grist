@@ -1,7 +1,9 @@
-sample:
+samples:
 - podar
 
 outdir: outputs.private/
+
+genbank_databases: []
 
 private_databases:
 - databases/podar-ref.zip
