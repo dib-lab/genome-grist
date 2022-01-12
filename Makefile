@@ -34,7 +34,7 @@ outputs.private/abundtrim/podar.abundtrim.fq.gz:
 	curl -L https://osf.io/ckbq3/download -o outputs.private/abundtrim/podar.abundtrim.fq.gz
 
 # download the ref genomes
-databases/podar-ref: 
+databases/podar-ref/: 
 	mkdir -p databases/podar-ref
 	curl -L https://osf.io/vbhy5/download -o databases/podar-ref.tar.gz
 	cd databases/podar-ref/ && tar xzf ../podar-ref.tar.gz
