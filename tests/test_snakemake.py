@@ -6,6 +6,7 @@ import os
 import yaml
 import sourmash
 
+
 from genome_grist.__main__ import run_snakemake
 from . import pytest_utils as utils
 
@@ -120,3 +121,27 @@ def test_map_reads():
         extra_args=extra_args,
     )
     assert status == 0
+
+
+def test_bad_config_1():
+    # check for presence of sourmash_database_glob_pattern, old config
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/bad-1.conf')
+
+    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+                           extra_args=["check"])
+
+    assert status != 0
+
+
+def test_bad_config_2():
+    # check for presence of 'sample' instead of 'samples', old config
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/bad-2.conf')
+
+    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+                           extra_args=["check"])
+
+    assert status != 0

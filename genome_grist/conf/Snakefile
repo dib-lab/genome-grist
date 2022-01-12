@@ -2,9 +2,14 @@
 import snakemake
 import os, csv, tempfile, shutil, sys
 
-SAMPLES=config['sample']
-print(f'sample: {SAMPLES}', file=sys.stderr)
-assert isinstance(SAMPLES, list), "config 'sample' must be a list."
+if config.get('sample'):
+    print(f"ERROR: this is an old config file. Please use 'samples' instead of 'sample'.",
+          file=sys.stderr)
+    sys.exit(-1)
+
+SAMPLES=config['samples']
+print(f'samples: {SAMPLES}', file=sys.stderr)
+assert isinstance(SAMPLES, list), "config 'samples' must be a list."
 
 fail = False
 for sample in SAMPLES:
@@ -39,6 +44,11 @@ GENBANK_CACHE = config.get('genbank_cache', './genbank_cache/')
 GENBANK_CACHE = os.path.normpath(GENBANK_CACHE)
 
 ### collect databases
+
+if config.get('sourmash_database_glob_pattern'):
+    print(f"ERROR: this is an old config file. Please provide a list of 'genbank_databases' instead of a 'sourmash_database_glob_pattern'",
+          file=sys.stderr)
+    sys.exit(-1)
 
 genbank_databases = config.get('genbank_databases', [])
 private_databases = config.get('private_databases', [])
