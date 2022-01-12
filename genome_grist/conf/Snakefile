@@ -35,6 +35,9 @@ if not base_tempdir:
 
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
+GENBANK_CACHE = config.get('genbank_cache', './genbank_cache/')
+GENBANK_CACHE = os.path.normpath(GENBANK_CACHE)
+
 ### collect databases
 
 genbank_databases = config.get('genbank_databases', [])
@@ -65,11 +68,6 @@ def make_param_str(ksizes, scaled):
     ks = [ f'k={k}' for k in ksizes ]
     ks = ",".join(ks)
     return f"{ks},scaled={scaled},abund"
-
-try:
-    os.mkdir('genbank_genomes/')
-except:
-    pass
 
 ###
 
@@ -283,8 +281,8 @@ class ListGatherGenomes(Checkpoint_GatherResults):
 
             # genbank: point at genbank_genomes
             else:
-                genome_filenames.append(f'genbank_genomes/{ident}_genomic.fna.gz')
-                genome_filenames.append(f'genbank_genomes/{ident}.info.csv')
+                genome_filenames.append(f'{GENBANK_CACHE}/{ident}_genomic.fna.gz')
+                genome_filenames.append(f'{GENBANK_CACHE}/{ident}.info.csv')
 
         return genome_filenames
 
@@ -326,7 +324,7 @@ rule combine_genome_info:
 @toplevel
 rule download_genbank_genomes:
     input:
-        Checkpoint_GatherResults("genbank_genomes/{ident}_genomic.fna.gz",
+        Checkpoint_GatherResults(f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz",
                                  samples=SAMPLES)
 
 @toplevel
@@ -877,7 +875,7 @@ rule summarize_tax_wc:
 # download genbank genome details; make an info.csv file for entry.
 rule make_genbank_info_csv:
     output:
-        csvfile = 'genbank_genomes/{ident}.info.csv'
+        csvfile = f'{GENBANK_CACHE}/{{ident}}.info.csv'
     shell: """
         python -Werror -m genome_grist.genbank_genomes {wildcards.ident} \
             --output {output.csvfile}
@@ -909,9 +907,9 @@ rule make_combined_info_csv_wc:
 # download actual genomes from genbank!
 rule download_matching_genome_wc:
     input:
-        csvfile = ancient('genbank_genomes/{ident}.info.csv')
+        csvfile = ancient(f'{GENBANK_CACHE}/{{ident}}.info.csv')
     output:
-        genome = "genbank_genomes/{ident}_genomic.fna.gz"
+        genome = f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz"
     run:
         with open(input.csvfile, 'rt') as infp:
             r = csv.DictReader(infp)
