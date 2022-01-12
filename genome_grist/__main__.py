@@ -194,7 +194,6 @@ snakemake Snakefile: {get_snakefile_path('Snakefile')}
 
 
 cli.add_command(run)
-cli.add_command(process)
 cli.add_command(check)
 cli.add_command(showconf)
 cli.add_command(info)
