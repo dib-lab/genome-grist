@@ -71,6 +71,11 @@ assert SOURMASH_COMPUTE_TYPE in ('DNA', 'protein')
 
 PREFETCH_MEMORY = float(config.get('prefetch_memory', '100e9'))
 
+if config.get('database_taxonomy'):
+    print(f"ERROR: this is an old config file. Please use 'taxonomies' instead of 'database_taxonomy'.",
+          file=sys.stderr)
+    sys.exit(-1)
+
 TAXONOMY_DB = config.get('taxonomies', ["NO_TAXONOMIES_SPECIFIED_IN_CONFIG"])
 
 # make a `sourmash sketch` -p param string.
