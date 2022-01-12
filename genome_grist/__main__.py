@@ -161,29 +161,6 @@ Please post questions at https://github.com/dib-lab/genome-grist/issues!
     sys.exit(ret)
 
 
-# create a do subcommand that passes most of its arguments
-# on to snakemake (after setting Snakefile and config)
-@click.command(context_settings={"ignore_unknown_options": True})
-@click.argument("sample")
-@click.option("--no-use-conda", is_flag=True, default=False)
-@click.option("--verbose", is_flag=True)
-@click.option("--outdir", nargs=1)
-@click.argument("snakemake_args", nargs=-1)
-def process(sample, snakemake_args, no_use_conda, verbose, outdir):
-    "execute genome-grist workflow (using snakemake underneath)"
-    snakemake_args = list(snakemake_args)
-    snakemake_args += ["--config", f"sample={sample}"]
-    ret = run_snakemake(
-        None,
-        snakefile_name="Snakefile",
-        no_use_conda=no_use_conda,
-        verbose=verbose,
-        extra_args=snakemake_args,
-        outdir=outdir,
-    )
-    sys.exit(ret)
-
-
 # 'check' command
 @click.command()
 @click.argument("configfile")
