@@ -242,6 +242,10 @@ class ListGatherGenomes(Checkpoint_GatherResults):
 
     This is used to get the filenames for the various genome files; the
     assumption is that snakemake already knows how to generate those :).
+
+    Note: a key thing here is that the filenames themselves are correct,
+    so we are not renaming any files, merely copying them with their
+    existing names into the output subdirectory 'genomes/'.
     """
     def __init__(self, samples=None):
         self.samples = samples
@@ -894,6 +898,9 @@ rule make_genbank_info_csv:
 # copy genbank + private genomes for this sample into output dir
 checkpoint copy_sample_genomes_to_output_wc:
     input:
+        # note: a key thing here is that the filenames themselves are correct,
+        # so we are simply copying from (multiple) directories into one.
+        # this is why the genome filenames need to be {acc}_genomic.fna.gz.
         genomes = ListGatherGenomes(),
     output:
         touch(f"{outdir}/genomes/.genomes.{{sample}}")
