@@ -1,5 +1,8 @@
 # genome-grist docs: supporting private genome databases
 
+[![hackmd-github-sync-badge](https://hackmd.io/p7QfD_SsQg6sElDbrzpcsA/badge)](https://hackmd.io/p7QfD_SsQg6sElDbrzpcsA)
+
+
 [toc]
 
 Note: this currently requires [genome-grist#130](https://github.com/dib-lab/genome-grist/pull/130).
