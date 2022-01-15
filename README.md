@@ -14,6 +14,10 @@ please see
 [the full documentation](https://dib-lab.github.io/genome-grist/) for
 more information after that.
 
+## A figure showing the strain composition of a gut microbiome from the iHMP
+
 ![an example image made with genome-grist](doc/gather-vs-mapping.png)
+
+---
 
 [CTB](https://twitter.com/ctitusbrown/) 01/22
