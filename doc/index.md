@@ -75,7 +75,7 @@ That having been said, genome-grist is still in beta. Please be patient and kind
 
 Please ask questions and add comments [on the github issue tracker for genome-grist](https://github.com/dib-lab/genome-grist/issues).
 
-## Why the name `grist`?
+### Why the name `grist`?
 
 'grist' is in the sourmash family of names (sourmash, wort, distillerycats, etc.) See [Grist in Wikipedia](https://en.wikipedia.org/wiki/Grist).
 
