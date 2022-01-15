@@ -59,20 +59,20 @@ If you've named your genomes so that the first sequence contains the identifier,
 
 If not, you'll need to manually adjust the names of the signatures produced by `sourmash sketch`. (You can do this with `sourmash sig rename`, but there's no simple way to do this in bulk.)
 
-Once you have all your genome signatures, you can combine them into a single file with 
+Once you have all your genome signatures, you can create a sourmash database with
 
 ```
 sourmash index output.sbt.zip *.sig
 ```
-and that will then be your sourmash database that you can cherish and treasure!
+and then you can cherish and treasure your sourmash database forever!
 
 If you have lots of genomes (1000 or more?) there are other approaches that might make your life more convenient; just ask for suggestions on [the sourmash issue tracker](https://github.com/dib-lab/sourmash/issues).
 
-We chose k=31 above (in the `sourmash sketch` command) because that matches our default parameters, and we have provided Genbank databases for k=31 (as well as k=21 and k=51). But the only real requirement here is that all your databases support the requested k-mer and scaled sizes.
+We chose k=31 above (in the `sourmash sketch` command) because that matches our default parameters, and we have provided Genbank and GTDB databases for k=31 (as well as k=21 and k=51). But the only real requirement here is that all your databases support the same requested k-mer and scaled sizes.
 
 ### Providing your genomes to genome-grist
 
-You'll also need to provide your genome files to genome-grist, along with their "display name", which will be used in reporting.  The information will be provided via the config parameter `private_databases_info`, which takes a list of paths to info file CSVs
+You'll also need to provide your genome files to genome-grist, along with their "display name", which will be used in reporting.  The information will be provided via the config parameter `private_databases_info`, which takes a list of paths to info file CSVs.
 
 **First**, genome-grist needs the genomes in their own individual files, in one or more directories. The files need to be named by their identifiers in the format `{ident}_genomic.fna.gz`, and must come with an "info file" that contains their identifier, a display name, and the location of the genome file (which _must_ be named as above).
 
