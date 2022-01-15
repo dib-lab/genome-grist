@@ -1,5 +1,7 @@
 # Configuring a genome-grist project
 
+<!-- CTB: this is doc/configuring.md in dib-lab/genome-grist -->
+
 [![hackmd-github-sync-badge](https://hackmd.io/p7QfD_SsQg6sElDbrzpcsA/badge)](https://hackmd.io/p7QfD_SsQg6sElDbrzpcsA)
 
 [toc]
@@ -44,7 +46,7 @@ You'll need to choose unique identifiers for your genomes. genome-grist requires
 
 You'll need one FASTA file per genome (gzip or bz2 compressed is fine). The filename doesn't matter. It's probably easiest if they're all in one directory, although this isn't necessary.
 
-We suggest naming at the first sequence in each FASTA file with the identifier at the start, space delimited - for example `MY_ID_1.1 first_sequence_name is very special` .
+For now, we suggest naming at the first sequence in each FASTA file with the genome identifier at the start, space delimited - for example `MY_ID_1.1 first_sequence_name is very special`. This will allow sourmash to name the resulting signature with the right identifier using `--name-from-first` (see below).
 
 ### Creating one or more sourmash databases
 
@@ -66,7 +68,7 @@ sourmash index output.sbt.zip *.sig
 ```
 and then you can cherish and treasure your sourmash database forever!
 
-If you have lots of genomes (1000 or more?) there are other approaches that might make your life more convenient; just ask for suggestions on [the sourmash issue tracker](https://github.com/dib-lab/sourmash/issues).
+If you have lots of genomes (1000 or more?) we suggest using a workflow system to sketch and rename your genomes appropriately; please ask us for some examples over on [the sourmash issue tracker](https://github.com/dib-lab/sourmash/issues).
 
 We chose k=31 above (in the `sourmash sketch` command) because that matches our default parameters, and we have provided Genbank and GTDB databases for k=31 (as well as k=21 and k=51). But the only real requirement here is that all your databases support the same requested k-mer and scaled sizes.
 
@@ -78,9 +80,33 @@ You'll also need to provide your genome files to genome-grist, along with their 
 
 genome-grist has a utility to help set this all up! The script `genome_grist.copy_private_genomes` will take in a list of FASTA files containing genome(s), read the header of the first sequence to find the identifier for that genome, and then copy it into a directory for you. (see "Step 3", below, for execution instructions for this script). It will also output a provisional info file, which you can edit.
 
+Here's an example of the output of the info file produced by `copy_private_genomes`:
+```
+ident,display_name,genome_filename
+CP001472.1,"Acidobacterium capsulatum ATCC 51196, complete genome",databases/podar-ref.d/CP001472.1_genomic.fna.gz
+CP001941.1,"Aciduliprofundum boonei T469, complete genome",databases/podar-ref.d/CP001941.1_genomic.fna.gz
+CP001097.1,"Chlorobium limicola DSM 245, complete genome",databases/podar-ref.d/CP001097.1_genomic.fna.gz
+```
+
+
 **Second**, for each genome, genome-grist also needs a separate `{ident}.info.csv` file, containing just the identifier and the display name. This needs to be in the same directory as the genome itself.
 
 The utility script `genome_grist.make_info_file` will produce this for you, based on the whole-database info CSV file created above. (See "Step 4", below, for execution instructions for this script.)
+
+Here's an example of the output of `make_info_file:`; this is the file `CP001097.1.info.csv`:
+```
+ident,display_name
+CP001097.1,"Chlorobium limicola DSM 245, complete genome"
+```
+
+and the final contents of the `databases/podar-ref.d/` directory include:
+
+```
+CP001097.1.info.csv             CP001472.1_genomic.fna.gz
+CP001097.1_genomic.fna.gz       CP001941.1.info.csv
+CP001472.1.info.csv             CP001941.1_genomic.fna.gz
+```
+
 
 ### Providing taxonomy information
 
