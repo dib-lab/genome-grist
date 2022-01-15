@@ -46,20 +46,21 @@ You'll need to choose unique identifiers for your genomes. genome-grist requires
 
 You'll need one FASTA file per genome (gzip or bz2 compressed is fine). The filename doesn't matter. It's probably easiest if they're all in one directory, although this isn't necessary.
 
-For now, we suggest naming at the first sequence in each FASTA file with the genome identifier at the start, space delimited - for example `MY_ID_1.1 first_sequence_name is very special`. This will allow sourmash to name the resulting signature with the right identifier using `--name-from-first` (see below).
+For now, we suggest naming the first sequence in each FASTA file with the genome identifier at the start, space delimited - for example `MY_ID_1.1 first_sequence_name is very special`. This will allow sourmash to name the resulting signature with the right identifier using `--name-from-first` (see below).
 
 ### Creating one or more sourmash databases
 
-You'll need to provide at least one sourmash database for your private collection to genome-grist under the config parameter `private_databases`, which takes a list of paths to sourmash database locations.
+You can mix private databases with genbank databases, but 
+you'll need to provide one or more sourmash databases for any private collections. You can do this with the config parameter `private_databases`, which takes a list of paths to sourmash database locations.
 
 Sketch all your genomes with the following command:
 ```
 sourmash sketch dna -p k=31,scaled=1000
 ```
 
-If you've named your genomes so that the first sequence contains the identifier, you can add `--name-from-first` and then the sequences will be named the right thing for the next step.
+If you've named your genomes so that the first sequence contains the identifier, you can add `--name-from-first` and then the signatures will be named the right thing for the next step.
 
-If not, you'll need to manually adjust the names of the signatures produced by `sourmash sketch`. (You can do this with `sourmash sig rename`, but there's no simple way to do this in bulk.)
+If not, you'll need to manually rename of the signatures produced by `sourmash sketch`. (You can do this with `sourmash sig rename`, but there's no simple way to do this in bulk.)
 
 Once you have all your genome signatures, you can create a sourmash database with
 
@@ -385,3 +386,15 @@ genbank_cache: ./genbank_cache
 prefetch_memory: 100e9
 ```
 
+## More advanced genome-grist usage
+
+### Where to insert your own files
+
+genome-grist is built on top of [the snakemake workflow](https://snakemake.readthedocs.io/en/stable/), which lets you substitute your own files in many places.
+
+For example,
+* you can put your own `{sample}_1.fastq.gz`, `{sample}_2.fastq.gz`, and `{sample}_unpaired.fastq.gz` files in `raw/` to have genome-grist process reads for you.
+* you can put your own interleaved reads file in `abundtrim/{sample}.abundtrim.fq.gz` to run genome-grist on a private or preprocessed set of reads;
+* you can put your own sourmash signature (k=31, scaled=1000) in `sigs/{sample}.abundtrim.sig` if you want to have it do the database search for you;
+
+Please see [the genome-grist Snakefile](https://github.com/dib-lab/genome-grist/blob/latest/genome_grist/conf/Snakefile) for all the gory details.
