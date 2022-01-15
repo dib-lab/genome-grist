@@ -139,8 +139,8 @@ Additional intermediate targets:
  * trim_reads - do basic read trimming/adapter removal for metagenome reads
  * smash_reads - create sourmash signatures from metagenome reads
  * summarize_sample_info - build a info.yaml summary file for each metagenome
- * gather_genbank - run 'sourmash gather' on metagenomes against Genbank
- * download_matching_genomes - download all matching Genbank genomes
+ * gather_reads - run 'sourmash gather' on metagenomes against Genbank
+ * download_genbank_genomes - download all matching Genbank genomes
  * map_reads - map all metagenome reads to Genbank genomes
  * make_sgc_conf - make a spacegraphcats config file
 
