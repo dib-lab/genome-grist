@@ -46,7 +46,7 @@ You'll need to choose unique identifiers for your genomes. genome-grist requires
 
 You'll need one FASTA file per genome (gzip or bz2 compressed is fine). The filename doesn't matter. It's probably easiest if they're all in one directory, although this isn't necessary.
 
-For now, we suggest naming at the first sequence in each FASTA file with the genome identifier at the start, space delimited - for example `MY_ID_1.1 first_sequence_name is very special`. This will allow sourmash to name the resulting signature with the right identifier using `--name-from-first` (see below).
+For now, we suggest naming the first sequence in each FASTA file with the genome identifier at the start, space delimited - for example `MY_ID_1.1 first_sequence_name is very special`. This will allow sourmash to name the resulting signature with the right identifier using `--name-from-first` (see below).
 
 ### Creating one or more sourmash databases
 
@@ -57,9 +57,9 @@ Sketch all your genomes with the following command:
 sourmash sketch dna -p k=31,scaled=1000
 ```
 
-If you've named your genomes so that the first sequence contains the identifier, you can add `--name-from-first` and then the sequences will be named the right thing for the next step.
+If you've named your genomes so that the first sequence contains the identifier, you can add `--name-from-first` and then the signatures will be named the right thing for the next step.
 
-If not, you'll need to manually adjust the names of the signatures produced by `sourmash sketch`. (You can do this with `sourmash sig rename`, but there's no simple way to do this in bulk.)
+If not, you'll need to manually rename of the signatures produced by `sourmash sketch`. (You can do this with `sourmash sig rename`, but there's no simple way to do this in bulk.)
 
 Once you have all your genome signatures, you can create a sourmash database with
 
