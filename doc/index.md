@@ -1,26 +1,53 @@
 # Welcome to genome-grist!
 
+<!-- CTB: this is doc/index.md in dib-lab/genome-grist -->
+
 genome-grist is software that automates a number of tedious metagenome tasks related to reference-based analyses of Illumina metagenomes. Specifically, genome-grist will download public metagenomes from the SRA, preprocess them, and use [sourmash `gather`](https://sourmash.bio) to identify reference genomes for the metagenome. It will then download the reference genomes, map reads to them, and summarize the mapping in a variety of ways.
 
 ## Quickstart
 
-@@ link
-
-## Configuring genome-grist
-
-@@ link
+Please see [a genome-grist quickstart](quickstart.md).
 
 ## Example figures and output
 
 @@
 
-## Other information
+## Configuring genome-grist
+
+Please see [Configuring a genome-grist project](configuring.md).
+
+## Running genome-grist
+
+You can run genome-grist on a config file like so:
+
+```
+genome-grist run <config file> <target> [ <target> ... ]
+```
+
+The main three top-level targets are:
+* `summarize_gather` - summarize metagenome contents using sourmash & k-mers
+* `summarize_mapping` - summarize metagenome contents using mapping
+* `summarize_tax` - summarize metagenome contents using k-mer-based taxonomy
+
+These all produce reports in the `reports/` subdir of the configured output dir.
+
+You can print out a list of documented targets by omitting the target altogether:
+```
+genome-grist run <config file>
+```
+
+genome-grist has many undocumented intermediate targets. You can print them all out by using `run` with the target `print_rules`
+```
+genome-grist run <config file> print_rules
+```
+
+## Additional information
 
 ### Preprints and publications
 
-genome-grist was used for many of the analyses and created a number of the figures in the preprint [Lightweight compositional analysis of metagenomes with FracMinHash and minimum metagenome covers](https://dib-lab.github.io/2020-paper-sourmash-gather/), Irber et al., 2022.
+genome-grist was used extensively in the preprint [Lightweight compositional analysis of metagenomes with FracMinHash and minimum metagenome covers](https://dib-lab.github.io/2020-paper-sourmash-gather/), Irber et al., 2022.
 
-This paper is the primary citation for genome-grist. Any use of genome-grist should be cited as follows:
+For now, Irber et al., 2022 is the primary citation for genome-grist. Any use of genome-grist should be cited as follows:
 
 > **Lightweight compositional analysis of metagenomes with FracMinHash and minimum metagenome covers.**
 > 
@@ -52,16 +79,17 @@ Please ask questions and add comments [on the github issue tracker for genome-gr
 
 'grist' is in the sourmash family of names (sourmash, wort, distillerycats, etc.) See [Grist in Wikipedia](https://en.wikipedia.org/wiki/Grist).
 
-(It is not the [computing grist](https://en.wikipedia.org/wiki/Grist_(computing))!)
+(It is not named for the [computing grist](https://en.wikipedia.org/wiki/Grist_(computing))!)
 
 ### Installing in developer mode
 
-You can run genome-grist from a git checkout directory by using pip to install it in editable mode:
+You can run genome-grist from a working directory (e.g. a clone of the git repository) by using pip to install it in editable mode:
 ```
 pip install -e .
 ```
+in which case your genome-grist installation will track changes and updates in the working directory.
 
-Or you can pip install the latest version from Github
+Or you can pip install the latest version from Github like so:
 ```
 pip install git+https://github.com/dib-lab/genome-grist.git
 ```
