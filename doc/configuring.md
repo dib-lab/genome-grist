@@ -50,7 +50,8 @@ For now, we suggest naming the first sequence in each FASTA file with the genome
 
 ### Creating one or more sourmash databases
 
-You'll need to provide at least one sourmash database for your private collection to genome-grist under the config parameter `private_databases`, which takes a list of paths to sourmash database locations.
+You can mix private databases with genbank databases, but 
+you'll need to provide one or more sourmash databases for any private collections. You can do this with the config parameter `private_databases`, which takes a list of paths to sourmash database locations.
 
 Sketch all your genomes with the following command:
 ```
@@ -385,3 +386,15 @@ genbank_cache: ./genbank_cache
 prefetch_memory: 100e9
 ```
 
+## More advanced genome-grist usage
+
+### Where to insert your own files
+
+genome-grist is built on top of [the snakemake workflow](https://snakemake.readthedocs.io/en/stable/), which lets you substitute your own files in many places.
+
+For example,
+* you can put your own `{sample}_1.fastq.gz`, `{sample}_2.fastq.gz`, and `{sample}_unpaired.fastq.gz` files in `raw/` to have genome-grist process reads for you.
+* you can put your own interleaved reads file in `abundtrim/{sample}.abundtrim.fq.gz` to run genome-grist on a private or preprocessed set of reads;
+* you can put your own sourmash signature (k=31, scaled=1000) in `sigs/{sample}.abundtrim.sig` if you want to have it do the database search for you;
+
+Please see [the genome-grist Snakefile](https://github.com/dib-lab/genome-grist/blob/latest/genome_grist/conf/Snakefile) for all the gory details.
