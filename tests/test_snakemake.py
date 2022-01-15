@@ -16,6 +16,10 @@ from . import pytest_utils as utils
 # - ...if these are wrong, the tests will still succeed, they just may
 #   do some extra work in some tests & take longer.
 
+#
+# NOTE re common output directory - all of these tests run with the same
+# output dir.
+#
 
 def setup_module(m):
     global _tempdir
