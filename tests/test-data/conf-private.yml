@@ -6,10 +6,10 @@ metagenome_trim_memory: 0
 genbank_databases:
 - tests/test-data/SRR5950647.x.gtdb-rs202.matches.zip
 
-private_databases:
+sourmash_databases:
 - databases/podar-ref.zip
 
-private_databases_info:
+local_databases_info:
 - databases/podar-ref.info.csv
 
 taxonomies:

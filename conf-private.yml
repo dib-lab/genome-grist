@@ -3,15 +3,11 @@ samples:
 
 outdir: outputs.private/
 
-genbank_databases: []
-
-private_databases:
+sourmash_databases:
 - databases/podar-ref.zip
 
-private_databases_info:
+local_databases_info:
 - databases/podar-ref.info.csv
 
 taxonomies:
 - databases/podar-ref.tax.csv
-
-picklist: xyz.csv::manifest

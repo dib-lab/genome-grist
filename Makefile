@@ -21,7 +21,7 @@ test:
 	genome-grist run tests/test-data/SRR5950647.conf count_trimmed_reads -j 8 -p
 	genome-grist run tests/test-data/SRR5950647.conf summarize_sample_info -j 8 -p
 
-### private genomes test stuff
+### private/local genomes test stuff
 
 test-private: outputs.private/abundtrim/podar.abundtrim.fq.gz \
 		databases/podar-ref.zip  databases/podar-ref.info.csv \
@@ -50,5 +50,5 @@ databases/podar-ref.tax.csv:
 
 # create info file and genomes directory:
 databases/podar-ref.info.csv:
-	python -m genome_grist.copy_private_genomes databases/podar-ref/*.fa -o databases/podar-ref.info.csv -d databases/podar-ref.d
+	python -m genome_grist.copy_local_genomes databases/podar-ref/*.fa -o databases/podar-ref.info.csv -d databases/podar-ref.d
 	python -m genome_grist.make_info_file databases/podar-ref.info.csv

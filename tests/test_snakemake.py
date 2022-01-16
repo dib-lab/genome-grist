@@ -162,3 +162,16 @@ def test_bad_config_3():
                            extra_args=["check"])
 
     assert status != 0
+
+
+def test_bad_config_4():
+    # check for presence of 'taxonomies' as a string, not a list.
+    # old config
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/bad-4.conf')
+
+    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+                           extra_args=["check"])
+
+    assert status != 0
