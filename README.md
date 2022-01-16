@@ -1,7 +1,9 @@
 # genome-grist README
 
 <!-- CTB: this is /README.md in dib-lab/genome-grist -->
-@@ add badges back
+
+<a href="https://pypi.org/project/genome-grist/"><img alt="PyPI" src="https://badge.fury.io/py/genome-grist.svg"></a>
+<img alt="License: 3-Clause BSD" src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg">
 
 genome-grist analyzes the strain composition of microbial metagenomes
 using
@@ -10,9 +12,9 @@ and produces a variety of compositional and taxonomic summaries.
 
 Check out the
 [quick start!](https://dib-lab.github.io/genome-grist/quickstart/) And
-please see
-[the full documentation](https://dib-lab.github.io/genome-grist/) for
-more information after that.
+please also see
+[the rest of the docs](https://dib-lab.github.io/genome-grist/) for
+more information!
 
 ## Example: the strain composition of a gut microbiome (iHMP)
 
