@@ -206,7 +206,7 @@ Note that `display_name` is just for display purposes; this allows grist to tran
 
 ### Step 4: Build genome "info files" for genome-grist
 
-Next, create `{ident}.info.csv` files for each genome. Run:
+Next, you'll need to create `{ident}.info.csv` files for each genome. Run:
 ```
 python -m genome_grist.make_info_file databases/podar-ref.info.csv
 ```
@@ -235,7 +235,8 @@ mkdir -p outputs.private/abundtrim
 curl -L https://osf.io/ckbq3/download -o outputs.private/abundtrim/podar.abundtrim.fq.gz
 ```
 and then confirm that the config file `conf-private.yml` has the following content:
-```yaml=
+
+```yaml
 sample:
 - podar
 
