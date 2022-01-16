@@ -262,7 +262,7 @@ and (hopefully) it will all work!!
 
 Assuming there are no errors and everything is green, look at the HTML files in `outputs.private/reports/*.html`.
 
-## The complete set of config file options
+## Reference: The complete set of config file options
 
 The options below can be set and/or overridden in a project specific config file that is passed into `genome-grist`.
 
@@ -274,7 +274,7 @@ You can use `showconf` to show the current aggregate config like so: `genome-gri
 
 ### An annotated config file
 
-```yaml=
+```yaml
 # NOTE: all paths are relative to the working directory.
 
 ### PROJECT-SPECIFIC PARAMETERS YOU MUST SET FOR EACH PROJECT
@@ -386,6 +386,7 @@ prefetch_memory: 100e9
 genome-grist is built on top of [the snakemake workflow](https://snakemake.readthedocs.io/en/stable/), which lets you substitute your own files in many places.
 
 For example,
+
 * you can put your own `{sample}_1.fastq.gz`, `{sample}_2.fastq.gz`, and `{sample}_unpaired.fastq.gz` files in `raw/` to have genome-grist process reads for you.
 * you can put your own interleaved reads file in `abundtrim/{sample}.abundtrim.fq.gz` to run genome-grist on an unpublished or already-preprocessed set of reads;
 * you can put your own sourmash signature (k=31, scaled=1000) in `sigs/{sample}.abundtrim.sig` if you want to have it do the database search for you;
