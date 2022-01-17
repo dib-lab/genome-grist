@@ -6,8 +6,6 @@
 
 [toc]
 
-Note: using local genome collections currently requires [genome-grist#130](https://github.com/dib-lab/genome-grist/pull/130).
-
 ## Overview
 
 genome-grist does the following:
@@ -143,27 +141,15 @@ Note: If you have a developer installation of `genome-grist`, you can run everyt
 
 ### Step 0: Install genome-grist and set up your directory
 
-<!-- EITHER follow the installation instructions (@@) -->
+Follow the installation instructions for genome-grist and make sure
+you're in a conda environment where genome-grist is installed.
 
-For now, do this in the genome-grist development directory. Clone the genome-grist repo, create the grist environment with conda, and then:
-
-Switch to the appropriate branch:
-
-```
-git switch allow/private
-git pull
-```
-
-and make sure you've installed things appropriately:
-```
-pip install -e .
-```
-you may also need sourmash...
+You will also need sourmash...
 ```
 pip install sourmash
 ```
 
-Now you should be good to go!
+and now you should be good to go!
 
 ### Step 1: Download and unpack the `podar` reference genomes
 
