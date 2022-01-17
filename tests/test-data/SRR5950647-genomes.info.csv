@@ -1,0 +1,3 @@
+ident,display_name,genome_filename
+GCF_003697165.2,Escherichia coli DSM 30083 = JCM 1649 = ATCC 11775,tests/test-data/SRR5950647-genomes/GCF_003697165.2_genomic.fna.gz
+GCF_902167755.1,Prevotella copri DSM 18205,tests/test-data/SRR5950647-genomes/GCF_902167755.1_genomic.fna.gz

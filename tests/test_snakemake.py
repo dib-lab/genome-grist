@@ -108,17 +108,6 @@ def test_map_reads():
     genomes_dir = os.path.join(_tempdir, "genomes")
     os.mkdir(genomes_dir)
 
-    cplist = (
-        ("SRR5950647-GCF_003697165.2_genomic.fna.gz", "GCF_003697165.2_genomic.fna.gz"),
-        ("SRR5950647-GCF_902167755.1_genomic.fna.gz", "GCF_902167755.1_genomic.fna.gz"),
-    )
-    cplist = ()
-
-    for src, dest in cplist:
-        frompath = os.path.join(test_data, src)
-        topath = os.path.join(genomes_dir, dest)
-        shutil.copyfile(frompath, topath)
-
     extra_args = ["map_reads", "-j", "4"]
     status = run_snakemake(
         conf,
@@ -151,8 +140,6 @@ def test_gather_to_tax():
 
     tax_results = list(utils.load_csv(tax_output))
     assert len(tax_results) == 2
-
-
 
 
 @pytest.mark.dependency(depends=["test_smash_sig"])
