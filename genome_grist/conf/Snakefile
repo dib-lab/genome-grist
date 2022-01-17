@@ -197,11 +197,11 @@ class Checkpoint_PrefetchResults:
         self.pattern = pattern
         self.samples = samples
 
-    def get_genome_accs(self, sample):
+    def get_genome_idents(self, sample):
         prefetch_csv = f'{outdir}/genbank/{sample}.x.genbank.prefetch.csv'
         assert os.path.exists(prefetch_csv)
 
-        genome_accs = []
+        genome_idents = []
         with open(prefetch_csv, 'rt') as fp:
            r = csv.DictReader(fp)
            n_nomatch = 0
@@ -215,17 +215,17 @@ class Checkpoint_PrefetchResults:
                        break
 
                if is_substr_match:
-                   acc = name.split(' ')[0]
-                   genome_accs.append(acc)
+                   ident = name.split(' ')[0]
+                   genome_idents.append(ident)
                else:
                    n_nomatch += 1
 
-        print(f'prefetch: loaded {len(genome_accs)} accessions from {prefetch_csv}.',
+        print(f'prefetch: loaded {len(genome_idents)} identifiers from {prefetch_csv}.',
               file=sys.stderr)
         print(f"skipped {n_nomatch} because they did not match 'prefetch_select' configuration.",
                file=sys.stderr)
 
-        return genome_accs
+        return genome_idents
 
     def __call__(self, w):
         global checkpoints
@@ -251,9 +251,9 @@ class Checkpoint_PrefetchResults:
         checkpoints.prefetch_genbank_wc.get(**w)
 
         # parse hitlist_genomes,
-        genome_accs = self.get_genome_accs(w.sample)
+        genome_idents = self.get_genome_idents(w.sample)
 
-        p = expand(self.pattern, acc=genome_accs, **w)
+        p = expand(self.pattern, ident=genome_idents, **w)
         return p
 
 @toplevel
@@ -447,9 +447,9 @@ rule download_genbank_genomes:
 @toplevel
 rule download_prefetch_genomes:
     input:
-        Checkpoint_PrefetchResults(f"{GENBANK_CACHE}/{{acc}}_genomic.fna.gz",
+        Checkpoint_PrefetchResults(f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz",
                                    SAMPLES),
-        Checkpoint_PrefetchResults(f"GENBANK_CACHE}/{{acc}}.info.csv', SAMPLES)
+        Checkpoint_PrefetchResults(f"{GENBANK_CACHE}/{{ident}}.info.csv", SAMPLES)
 
 @toplevel
 rule retrieve_genomes:
@@ -470,7 +470,7 @@ rule map_prefetch:
 @toplevel
 rule prefetch_to_vcf:
     input:
-        Checkpoint_PrefetchResults(outdir + f"/prefetch/{{sample}}.x.{{acc}}.vcf.gz", samples=SAMPLES)
+        Checkpoint_PrefetchResults(outdir + f"/prefetch/{{sample}}.x.{{ident}}.vcf.gz", samples=SAMPLES)
 
 @toplevel
 rule build_consensus:
@@ -703,10 +703,10 @@ rule minimap_wc:
 # map abundtrim reads and produce a bam for prefetch results
 rule minimap_prefetch_wc:
     input:
-        query = ancient(f"{outdir}/genomes/{{acc}}_genomic.fna.gz"),
+        query = ancient(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
         metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
     output:
-        bam = outdir + "/prefetch/{sample}.x.{acc}.bam",
+        bam = outdir + "/prefetch/{sample}.x.{ident}.bam",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -792,8 +792,8 @@ rule build_new_consensus_wc:
 # summarize depth into a CSV
 rule summarize_samtools_depth_wc:
     input:
-        depth = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{acc}}.depth.txt"),
-        vcf = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{acc}}.vcf.gz")
+        depth = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.depth.txt"),
+        vcf = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.vcf.gz")
     output:
         csv = f"{outdir}/{{dir}}/{{sample}}.summary.csv"
     shell: """
@@ -804,8 +804,8 @@ rule summarize_samtools_depth_wc:
 # summarize depth into a CSV for prefetch results
 rule summarize_samtools_depth_prefetch_wc:
     input:
-        depth = Checkpoint_PrefetchResults(outdir + f"/{{dir}}/{{sample}}.x.{{acc}}.depth.txt"),
-        vcf = Checkpoint_PrefetchResults(outdir + f"/{{dir}}/{{sample}}.x.{{acc}}.vcf.gz")
+        depth = Checkpoint_PrefetchResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.depth.txt"),
+        vcf = Checkpoint_PrefetchResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.vcf.gz")
     output:
         csv = f"{outdir}/{{dir}}/{{sample}}.summary2.csv"
     shell: """
@@ -1049,7 +1049,7 @@ checkpoint copy_sample_genomes_to_output_wc:
     input:
         # note: a key thing here is that the filenames themselves are correct,
         # so we are simply copying from (multiple) directories into one.
-        # this is why the genome filenames need to be {acc}_genomic.fna.gz.
+        # this is why the genome filenames need to be {ident}_genomic.fna.gz.
         genomes = ListGatherGenomes(),
     output:
         touch(f"{outdir}/genomes/.genomes.{{sample}}")
@@ -1073,7 +1073,7 @@ rule make_combined_info_csv_wc:
 # combined info.csv for prefetch
 rule make_combined_prefetch_info_csv:
     input:
-        Checkpoint_PrefetchResults(f'{outdir}/genomes/{{acc}}.info.csv')
+        Checkpoint_PrefetchResults(f'{outdir}/genomes/{{ident}}.info.csv')
     output:
         genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.prefetch.info.csv",
     shell: """
