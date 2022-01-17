@@ -1,10 +1,15 @@
 # see README or genome_grist/__main__.py for top-level targets.
 import snakemake
-import glob, os, csv, tempfile, shutil, sys
+import os, csv, tempfile, shutil, sys
 
-SAMPLES=config['sample']
-print(f'sample: {SAMPLES}', file=sys.stderr)
-assert isinstance(SAMPLES, list), "config 'sample' must be a list."
+if config.get('sample'):
+    print(f"ERROR: this is an old config file. Please use 'samples' instead of 'sample'.",
+          file=sys.stderr)
+    sys.exit(-1)
+
+SAMPLES=config['samples']
+print(f'samples: {SAMPLES}', file=sys.stderr)
+assert isinstance(SAMPLES, list), "config 'samples' must be a list."
 
 fail = False
 for sample in SAMPLES:
@@ -35,11 +40,25 @@ if not base_tempdir:
 
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
-sourmash_db_pattern = config.get('sourmash_database_glob_pattern', "MUST SPECIFY 'sourmash_database_glob_pattern' IN CONFIG")
-SOURMASH_DB_LIST = glob.glob(sourmash_db_pattern)
+GENBANK_CACHE = config.get('genbank_cache', './genbank_cache/')
+GENBANK_CACHE = os.path.normpath(GENBANK_CACHE)
+
+### collect databases
+
+if config.get('sourmash_database_glob_pattern'):
+    print(f"ERROR: this is an old config file. Please provide a list of 'genbank_databases' instead of a 'sourmash_database_glob_pattern'",
+          file=sys.stderr)
+    sys.exit(-1)
+
+sourmash_databases = config.get('sourmash_databases', [])
+local_databases_info = config.get('local_databases_info', [])
+
+SOURMASH_DB_LIST = sourmash_databases
 if not SOURMASH_DB_LIST:
-    print(f"WARNING: no sourmash databases found!? glob pattern was '{sourmash_db_pattern}'", file=sys.stderr)
-    SOURMASH_DB_LIST = ["DB_DOES_NOT_EXIST_BUT_IS_USED"]
+    print(f"ERROR: no sourmash_databases specified in config file!",
+          file=sys.stderr)
+    sys.exit(-1)
+
 SOURMASH_DB_KSIZE = config.get('sourmash_database_ksize', ['31'])
 SOURMASH_DATABASE_THRESHOLD_BP = config.get('sourmash_database_threshold_bp',
                                             1e5)
@@ -51,7 +70,17 @@ assert SOURMASH_COMPUTE_TYPE in ('DNA', 'protein')
 
 PREFETCH_MEMORY = float(config.get('prefetch_memory', '100e9'))
 
-TAXONOMY_DB = config.get('database_taxonomy', "MUST SPECIFY 'database_taxonomy' IN CONFIG")
+if config.get('database_taxonomy'):
+    print(f"ERROR: this is an old config file. Please use 'taxonomies' instead of 'database_taxonomy'.",
+          file=sys.stderr)
+    sys.exit(-1)
+
+TAXONOMY_DB = config.get('taxonomies', ["NO_TAXONOMIES_SPECIFIED_IN_CONFIG"])
+if not isinstance(TAXONOMY_DB, list):
+    print(f"ERROR: 'taxonomies' should be a list.", file=sys.stderr)
+    sys.exit(-1)
+
+PICKLIST = config.get('picklist', '')
 
 # make a `sourmash sketch` -p param string.
 def make_param_str(ksizes, scaled):
@@ -59,10 +88,14 @@ def make_param_str(ksizes, scaled):
     ks = ",".join(ks)
     return f"{ks},scaled={scaled},abund"
 
-try:
-    os.mkdir('genbank_genomes/')
-except:
-    pass
+###
+
+# utility function
+def load_csv(filename):
+    with open(filename, "r", newline="") as fp:
+        r = csv.DictReader(fp)
+        for row in r:
+            yield row
 
 ###
 
@@ -90,6 +123,15 @@ rule print_rules:
         print("* " + "\n* ".join(_toplevel_rules), file=sys.stderr)
         print("\nPlease see documentation for details.\n\n",
               file=sys.stderr)
+
+@toplevel
+rule clean_gather:
+    # the '|| true' here makes this command succeed even when dirs do not exist
+    # (adding -fr to rm seemed too dangerous!)
+    shell: """
+        (rm -r {outdir}/{{gather,genomes,mapping,leftover,reports}}/ \
+            {outdir}/.kernel.set || true)
+    """
 
 @toplevel
 rule download_reads:
@@ -123,9 +165,9 @@ rule smash_reads:
                           sample=SAMPLES)
 
 @toplevel
-rule search_genbank:
+rule prefetch_reads:
     input:
-        expand(outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
+        expand(outdir + "/gather/{sample}.prefetch.csv",
                sample=SAMPLES)
 
 @toplevel
@@ -134,20 +176,22 @@ rule summarize_sample_info:
         expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
 
 @toplevel
-checkpoint gather_genbank:
+checkpoint gather_reads:
     input:
-        expand(f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
+        expand(f'{outdir}/gather/{{sample}}.gather.csv',
                sample=SAMPLES)
 
-checkpoint gather_genbank_wc:
+checkpoint gather_reads_wc:
     input:
-        gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv'
+        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv'
     output:
-        touch(f"{outdir}/.gather.{{sample}}")   # checkpoints need an output ;)
+        touch(f"{outdir}/gather/.gather.{{sample}}")   # checkpoints need an output ;)
 
+
+_gather_csv_cache = {}
 class Checkpoint_GatherResults:
-    """Given a pattern containing {acc} and {sample}, this class
-    will generate the list of {acc} for that {sample}'s gather results.
+    """Given a pattern containing {ident} and {sample}, this class
+    will generate the list of {ident} for that {sample}'s gather results.
 
     Alternatively, you can omit {sample} from the pattern and include the
     list of sample names in the second argument to the constructor.
@@ -156,20 +200,20 @@ class Checkpoint_GatherResults:
         self.pattern = pattern
         self.samples = samples
 
-    def get_genome_accs(self, sample):
-        gather_csv = f'{outdir}/genbank/{sample}.x.genbank.gather.csv'
+    def get_genome_idents(self, sample):
+        gather_csv = f'{outdir}/gather/{sample}.gather.csv'
         assert os.path.exists(gather_csv), "gather output does not exist!?"
 
-        genome_accs = []
+        genome_idents = []
         with open(gather_csv, 'rt') as fp:
            r = csv.DictReader(fp)
            for row in r:
-               acc = row['name'].split(' ')[0]
-               genome_accs.append(acc)
-        print(f'loaded {len(genome_accs)} accessions from {gather_csv}.',
+               ident = row['name'].split(' ')[0]
+               genome_idents.append(ident)
+        print(f'loaded {len(genome_idents)} identifiers from {gather_csv}.',
               file=sys.stderr)
 
-        return genome_accs
+        return genome_idents
 
     def __call__(self, w):
         # get 'sample' from wildcards?
@@ -189,16 +233,103 @@ class Checkpoint_GatherResults:
             return ret
 
     def do_sample(self, w):
-        # wait for the results of 'gather_genbank_wc'; this will trigger
+        # wait for the results of 'gather_reads_wc'; this will trigger
         # exception until that rule has been run.
-        checkpoints.gather_genbank_wc.get(**w)
+        checkpoints.gather_reads_wc.get(**w)
 
         # parse hitlist_genomes,
-        genome_accs = self.get_genome_accs(w.sample)
+        genome_idents = self.get_genome_idents(w.sample)
 
-        p = expand(self.pattern, acc=genome_accs, **w)
+        p = expand(self.pattern, ident=genome_idents, **w)
+
         return p
 
+
+class ListGatherGenomes(Checkpoint_GatherResults):
+    """Provide list of the source genome files for either local or
+    genbank databases, depending on the source of the genome info.
+
+    This is used to get the filenames for the various genome files; the
+    assumption is that snakemake already knows how to generate those :).
+
+    Note: a key thing here is that the filenames themselves are correct,
+    so we are not renaming any files, merely copying them with their
+    existing names into the output subdirectory 'genomes/'.
+    """
+    def __init__(self, samples=None):
+        self.samples = samples
+
+    def _load_local_database_info(self):
+        # get list of local genomes first...
+        local_info = {}
+        for filename in local_databases_info:
+            for row in load_csv(filename):
+                ident = row['ident']
+
+                genome_dir = os.path.dirname(row['genome_filename'])
+                row['genome_filename'] = os.path.normpath(row['genome_filename'])
+
+                genome_dir = os.path.dirname(row['genome_filename'])
+                info_filename = f'{ident}.info.csv'
+                info_filename = os.path.join(genome_dir, info_filename)
+                
+                row['info_filename'] = os.path.normpath(info_filename)
+
+                local_info[ident] = row
+
+        if local_info:
+            print(f"Loaded info on {len(local_info)} local genomes.")
+        return local_info
+
+    def do_sample(self, w):
+        # wait for the results of 'gather_reads_wc'; this will trigger
+        # exception until that rule has been run.
+        checkpoints.gather_reads_wc.get(**w)
+
+        sample = w.sample
+
+        local_info = self._load_local_database_info()
+        genome_filenames = []
+
+        gather_csv = f'{outdir}/gather/{sample}.gather.csv'
+        assert os.path.exists(gather_csv), f"gather output does not exist for {sample}!?"
+
+        for row in load_csv(gather_csv):
+            ident = row['name'].split(' ')[0]
+
+            # if in local information, use that as genome source.
+            if ident in local_info:
+                info = local_info[ident]
+                genome_filenames.append(info['genome_filename'])
+                genome_filenames.append(info['info_filename'])
+
+            # genbank: point at genbank_genomes
+            else:
+                genome_filenames.append(f'{GENBANK_CACHE}/{ident}_genomic.fna.gz')
+                genome_filenames.append(f'{GENBANK_CACHE}/{ident}.info.csv')
+
+        return genome_filenames
+
+class Checkpoint_GenomeFiles(Checkpoint_GatherResults):
+    def do_sample(self, w):
+        checkpoints.copy_sample_genomes_to_output_wc.get(**w)
+
+        # parse hitlist_genomes,
+        genome_idents = self.get_genome_idents(w.sample)
+
+        if 'ident' in dict(w):
+            p = expand(self.pattern, **w)
+        else:
+            p = expand(self.pattern, ident=genome_idents, **w)
+
+        return p
+
+
+@toplevel
+rule gather_to_tax:
+    input:
+        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv',
+               sample=SAMPLES)
 @toplevel
 rule summarize_gather:
     input:
@@ -210,32 +341,37 @@ rule summarize_tax:
     input:
         expand(f'{outdir}/reports/report-taxonomy-{{sample}}.html',
                sample=SAMPLES),
-        expand(f'{outdir}/gathertax/{{sample}}.x.genbank.gather.with-lineages.csv',
+        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv',
                sample=SAMPLES)
 
 @toplevel
-rule download_matching_genomes_info:
+rule combine_genome_info:
     input:
-        expand(f"{outdir}/genbank/{{sample}}.genomes.info.csv",
+        expand(f"{outdir}/gather/{{sample}}.genomes.info.csv",
                sample=SAMPLES)
 
 @toplevel
-rule download_matching_genomes:
+rule download_genbank_genomes:
     input:
-        Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz",
+        Checkpoint_GatherResults(f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz",
                                  samples=SAMPLES)
+
+@toplevel
+rule retrieve_genomes:
+    input:
+        expand(f"{outdir}/genomes/.genomes.{{sample}}", sample=SAMPLES)
 
 @toplevel
 rule map_reads:
     input:
-        expand(f"{outdir}/minimap/{{sample}}.summary.csv", sample=SAMPLES),
+        expand(f"{outdir}/mapping/{{sample}}.summary.csv", sample=SAMPLES),
         expand(f"{outdir}/leftover/{{sample}}.summary.csv", sample=SAMPLES)
 
 @toplevel
 rule build_consensus:
     input:
-        Checkpoint_GatherResults(outdir + f"/minimap/{{sample}}.x.{{acc}}.consensus.fa.gz"),
-        Checkpoint_GatherResults(outdir + f"/leftover/{{sample}}.x.{{acc}}.consensus.fa.gz"),
+        Checkpoint_GatherResults(outdir + f"/mapping/{{sample}}.x.{{ident}}.consensus.fa.gz"),
+        Checkpoint_GatherResults(outdir + f"/leftover/{{sample}}.x.{{ident}}.consensus.fa.gz"),
 
 @toplevel
 rule summarize_mapping:
@@ -270,8 +406,8 @@ rule zip:
     shell: """
         rm -f transfer.zip
         zip -r transfer.zip {outdir}/leftover/*.summary.csv \
-                {outdir}/minimap/*.summary.csv {outdir}/*.yaml \
-                {outdir}/genbank/*.csv {outdir}/gathertax/ {outdir}/reports/
+                {outdir}/mapping/*.summary.csv {outdir}/*.yaml \
+                {outdir}/gather/*.csv {outdir}/reports/
     """
 
 
@@ -447,10 +583,10 @@ rule count_trimmed_reads_wc:
 # map abundtrim reads and produce a bam
 rule minimap_wc:
     input:
-        query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
+        query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
         metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
     output:
-        bam = outdir + "/minimap/{sample}.x.{acc}.bam",
+        bam = outdir + "/mapping/{sample}.x.{ident}.bam",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
@@ -461,9 +597,9 @@ rule minimap_wc:
 # extract FASTQ from BAM
 rule bam_to_fastq_wc:
     input:
-        bam = outdir + "/minimap/{bam}.bam",
+        bam = outdir + "/mapping/{bam}.bam",
     output:
-        mapped = outdir + "/minimap/{bam}.mapped.fq.gz",
+        mapped = outdir + "/mapping/{bam}.mapped.fq.gz",
     conda: "env/minimap2.yml"
     shell: """
         samtools bam2fq {input.bam} | gzip > {output.mapped}
@@ -495,12 +631,12 @@ rule bam_covered_regions_wc:
 # calculating SNPs/etc.
 rule mpileup_wc:
     input:
-        query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
-        bam = outdir + "/{dir}/{sample}.x.{acc}.bam",
+        query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
+        bam = outdir + "/{dir}/{sample}.x.{ident}.bam",
     output:
-        bcf = outdir + "/{dir}/{sample}.x.{acc}.bcf",
-        vcf = outdir + "/{dir}/{sample}.x.{acc}.vcf.gz",
-        vcfi = outdir + "/{dir}/{sample}.x.{acc}.vcf.gz.csi",
+        bcf = outdir + "/{dir}/{sample}.x.{ident}.bcf",
+        vcf = outdir + "/{dir}/{sample}.x.{ident}.vcf.gz",
+        vcfi = outdir + "/{dir}/{sample}.x.{ident}.vcf.gz.csi",
     conda: "env/bcftools.yml"
     shell: """
         genomefile=$(mktemp -t grist.genome.XXXXXXX)
@@ -514,13 +650,13 @@ rule mpileup_wc:
 # build new consensus
 rule build_new_consensus_wc:
     input:
-        vcf = outdir + "/{dir}/{sample}.x.{acc}.vcf.gz",
-        query = ancient("genbank_genomes/{acc}_genomic.fna.gz"),
-        regions = outdir + "/{dir}/{sample}.x.{acc}.regions.bed",
+        vcf = outdir + "/{dir}/{sample}.x.{ident}.vcf.gz",
+        query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
+        regions = outdir + "/{dir}/{sample}.x.{ident}.regions.bed",
     output:
-        mask = outdir + "/{dir}/{sample}.x.{acc}.mask.bed",
-        genomefile = outdir + "/{dir}/{sample}.x.{acc}.fna.gz.sizes",
-        consensus = outdir + "/{dir}/{sample}.x.{acc}.consensus.fa.gz",
+        mask = outdir + "/{dir}/{sample}.x.{ident}.mask.bed",
+        genomefile = outdir + "/{dir}/{sample}.x.{ident}.fna.gz.sizes",
+        consensus = outdir + "/{dir}/{sample}.x.{ident}.consensus.fa.gz",
     conda: "env/bcftools.yml"
     shell: """
         genomefile=$(mktemp -t grist.genome.XXXXXXX)
@@ -536,7 +672,7 @@ rule build_new_consensus_wc:
 # summarize depth into a CSV
 rule summarize_samtools_depth_wc:
     input:
-        Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{acc}}.depth.txt")
+        Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.depth.txt")
     output:
         csv = f"{outdir}/{{dir}}/{{sample}}.summary.csv"
     shell: """
@@ -579,8 +715,8 @@ rule set_kernel:
 rule make_gather_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-gather.ipynb'),
-        gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
-        genomes_info_csv = ancient(f"{outdir}/genbank/{{sample}}.genomes.info.csv"),
+        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv',
+        genomes_info_csv = ancient(f"{outdir}/gather/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
     output:
         nb = outdir + f'/reports/report-gather-{{sample}}.ipynb',
@@ -603,7 +739,7 @@ rule make_gather_notebook_wc:
 rule make_taxonomy_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-taxonomy.ipynb'),
-        taxcsv = ancient(f'{outdir}/gathertax/{{sample}}.x.genbank.gather.with-lineages.csv'),
+        taxcsv = ancient(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv'),
         kernel_set = rules.set_kernel.output,
     output:
         nb = outdir + f'/reports/report-taxonomy-{{sample}}.ipynb',
@@ -626,10 +762,10 @@ rule make_taxonomy_notebook_wc:
 rule make_mapping_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-mapping.ipynb'),
-        all_csv = ancient(f"{outdir}/minimap/{{sample}}.summary.csv"),
+        all_csv = ancient(f"{outdir}/mapping/{{sample}}.summary.csv"),
         depth_csv = ancient(f"{outdir}/leftover/{{sample}}.summary.csv"),
-        gather_csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
-        genomes_info_csv = ancient(f"{outdir}/genbank/{{sample}}.genomes.info.csv"),
+        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv',
+        genomes_info_csv = ancient(f"{outdir}/gather/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
     output:
         nb = outdir + f'/reports/report-mapping-{{sample}}.ipynb',
@@ -647,13 +783,12 @@ rule make_mapping_notebook_wc:
     """
 
 # convert mapped reads to leftover reads
-# @CTB update for intersected/overlapping reads too
 rule extract_leftover_reads_wc:
     input:
-        csv = f'{outdir}/genbank/{{sample}}.x.genbank.gather.csv',
-        mapped = Checkpoint_GatherResults(f"{outdir}/minimap/{{sample}}.x.{{acc}}.mapped.fq.gz"),
+        csv = f'{outdir}/gather/{{sample}}.gather.csv',
+        mapped = Checkpoint_GatherResults(f"{outdir}/mapping/{{sample}}.x.{{ident}}.mapped.fq.gz"),
     output:
-        touch(f"{outdir}/.leftover-reads.{{sample}}")
+        touch(f"{outdir}/leftover/.leftover.{{sample}}")
     conda: "env/sourmash.yml"
     params:
         outdir = outdir,
@@ -665,21 +800,21 @@ rule extract_leftover_reads_wc:
 # rule for mapping leftover reads to genomes -> BAM
 rule map_leftover_reads_wc:
     input:
-        all_csv = f"{outdir}/minimap/{{sample}}.summary.csv",
-        query = ancient(f"genbank_genomes/{{acc}}_genomic.fna.gz"),
-        leftover_reads_flag = f"{outdir}/.leftover-reads.{{sample}}",
+        all_csv = f"{outdir}/mapping/{{sample}}.summary.csv",
+        query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
+        leftover_reads_flag = f"{outdir}/leftover/.leftover.{{sample}}",
     output:
-        bam=outdir + "/leftover/{sample}.x.{acc}.bam",
+        bam=outdir + "/leftover/{sample}.x.{ident}.bam",
     conda: "env/minimap2.yml"
     threads: 4
     shell: """
         minimap2 -ax sr -t {threads} {input.query} \
-     {outdir}/minimap/{wildcards.sample}.x.{wildcards.acc}.leftover.fq.gz | \
+     {outdir}/mapping/{wildcards.sample}.x.{wildcards.ident}.leftover.fq.gz | \
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
 # run sourmash search x genbank and find anything matching.
-rule sourmash_prefetch_gather_wc:
+rule sourmash_prefetch_wc:
     message: """
        Find all potentially relevant database matches for {wildcards.sample}
     """
@@ -687,9 +822,9 @@ rule sourmash_prefetch_gather_wc:
         sig = outdir + "/sigs/{sample}.abundtrim.sig",
         db = SOURMASH_DB_LIST,
     output:
-        csv = outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
-        known = outdir + "/genbank/{sample}.x.genbank.known.sig",
-        unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
+        csv = outdir + "/gather/{sample}.prefetch.csv",
+        known = outdir + "/gather/{sample}.known.sig",
+        unknown = outdir + "/gather/{sample}.unknown.sig",
     resources:
         mem_mb=int(PREFETCH_MEMORY / 1e3)
     conda: "env/sourmash.yml"
@@ -697,26 +832,27 @@ rule sourmash_prefetch_gather_wc:
         ksize = SOURMASH_DB_KSIZE,
         moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
+        picklist = f"--picklist {PICKLIST}" if PICKLIST else ""
     shell: """
         echo "DB is {input.db}"
         sourmash prefetch {input.sig} {input.db} -k {params.ksize} \
           --threshold-bp={params.threshold_bp} {params.moltype} \
           --save-matching-hashes={output.known} \
           --save-unmatched-hashes={output.unknown} \
-          -o {output.csv}
+          {params.picklist} -o {output.csv}
     """
 
-# run sourmash search x genbank and find anything matching.
+# report on known and unknown hashes
 rule report_query_known_unknown_wc:
     message: """
        Report on "known" and "unknown" hashes for {wildcards.sample}
     """
     input:
         query = outdir + "/sigs/{sample}.abundtrim.sig",
-        known = outdir + "/genbank/{sample}.x.genbank.known.sig",
-        unknown = outdir + "/genbank/{sample}.x.genbank.unknown.sig",
+        known = outdir + "/gather/{sample}.known.sig",
+        unknown = outdir + "/gather/{sample}.unknown.sig",
     output:
-        report = outdir + "/genbank/{sample}.x.genbank.prefetch.report.txt",
+        report = outdir + "/gather/{sample}.prefetch.report.txt",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
@@ -733,13 +869,13 @@ rule sourmash_gather_wc:
        Run gather for {wildcards.sample}
     """
     input:
-        known = outdir + "/genbank/{sample}.x.genbank.known.sig",
-        picklist = outdir + "/genbank/{sample}.x.genbank.prefetch.csv",
+        known = outdir + "/gather/{sample}.known.sig",
+        picklist = outdir + "/gather/{sample}.prefetch.csv",
         db = SOURMASH_DB_LIST,
     output:
-        csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
-        matches = outdir + "/genbank/{sample}.x.genbank.matches.sig",
-        out = outdir + "/genbank/{sample}.x.genbank.gather.out",
+        csv = outdir + "/gather/{sample}.gather.csv",
+        matches = outdir + "/gather/{sample}.matches.sig",
+        out = outdir + "/gather/{sample}.gather.out",
     conda: "env/sourmash.yml"
     params:
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
@@ -753,13 +889,13 @@ rule sourmash_gather_wc:
 # run sourmash tax annotate on the gather results
 rule summarize_tax_wc:
     input:
-        gather_csv = f"{outdir}/genbank/{{sample}}.x.genbank.gather.csv",
+        gather_csv = f"{outdir}/gather/{{sample}}.gather.csv",
         tax_csv = TAXONOMY_DB,
     output:
-        f"{outdir}/gathertax/{{sample}}.x.genbank.gather.with-lineages.csv",
+        f"{outdir}/gather/{{sample}}.gather.with-lineages.csv",
     conda: "env/sourmash.yml"
     params:
-        o_param = f"{outdir}/gathertax/"
+        o_param = f"{outdir}/gather/"
     shell: """
         sourmash tax annotate -g {input.gather_csv} -t {input.tax_csv} \
             -o {params.o_param} --fail-on-missing-taxonomy
@@ -767,42 +903,58 @@ rule summarize_tax_wc:
 
 
 # download genbank genome details; make an info.csv file for entry.
-rule make_genome_info_csv:
+rule make_genbank_info_csv:
     output:
-        csvfile = 'genbank_genomes/{acc}.info.csv'
+        csvfile = f'{GENBANK_CACHE}/{{ident}}.info.csv'
     shell: """
-        python -Werror -m genome_grist.genbank_genomes {wildcards.acc} \
+        python -Werror -m genome_grist.genbank_genomes {wildcards.ident} \
             --output {output.csvfile}
     """
 
-# combined info.csv
-rule make_combined_info_csv:
+# copy genbank + local genomes for this sample into output dir
+checkpoint copy_sample_genomes_to_output_wc:
     input:
-        Checkpoint_GatherResults('genbank_genomes/{acc}.info.csv')
+        # note: a key thing here is that the filenames themselves are correct,
+        # so we are simply copying from (multiple) directories into one.
+        # this is why the genome filenames need to be {acc}_genomic.fna.gz.
+        genomes = ListGatherGenomes(),
     output:
-        genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.info.csv",
+        touch(f"{outdir}/genomes/.genomes.{{sample}}")
     shell: """
-        python -Werror -m genome_grist.combine_csvs {input} > {output}
+        mkdir -p {outdir}/genomes/
+        cp {input} {outdir}/genomes/
     """
 
-# download actual genomes!
+# combined info.csv per sample
+rule make_combined_info_csv_wc:
+    input:
+        csvs = Checkpoint_GenomeFiles(f'{outdir}/genomes/{{ident}}.info.csv'),
+    output:
+        genomes_info_csv = f"{outdir}/gather/{{sample}}.genomes.info.csv",
+    shell: """
+        python -Werror -m genome_grist.combine_csvs \
+             --fields ident,display_name \
+             {input.csvs} > {output}
+    """
+
+# download actual genomes from genbank!
 rule download_matching_genome_wc:
     input:
-        csvfile = ancient('genbank_genomes/{acc}.info.csv')
+        csvfile = ancient(f'{GENBANK_CACHE}/{{ident}}.info.csv')
     output:
-        genome = "genbank_genomes/{acc}_genomic.fna.gz"
+        genome = f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz"
     run:
         with open(input.csvfile, 'rt') as infp:
             r = csv.DictReader(infp)
             rows = list(r)
             assert len(rows) == 1
             row = rows[0]
-            acc = row['acc']
-            assert wildcards.acc.startswith(acc)
+            ident = row['ident']
+            assert wildcards.ident.startswith(ident)
             url = row['genome_url']
-            name = row['ncbi_tax_name']
+            name = row['display_name']
 
-            print(f"downloading genome for acc {acc}/{name} from NCBI...",
+            print(f"downloading genome for ident {ident}/{name} from NCBI...",
                 file=sys.stderr)
             with open(output.genome, 'wb') as outfp:
                 with urllib.request.urlopen(url) as response:
@@ -811,13 +963,12 @@ rule download_matching_genome_wc:
                     print(f"...wrote {len(content)} bytes to {output.genome}",
                         file=sys.stderr)
 
-
 # summarize_reads_info
 rule summarize_reads_info_wc:
     input:
         kmers = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.kmer-report.txt",
         reads = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.reads-report.txt",
-        gather_report = outdir + "/genbank/{sample}.x.genbank.prefetch.report.txt",
+        gather_report = outdir + "/gather/{sample}.prefetch.report.txt",
     output:
         outdir + '/{sample}.info.yaml',
     run:
@@ -850,8 +1001,8 @@ rule summarize_reads_info_wc:
 # create a spacegraphcats config file
 rule create_sgc_conf_wc:
     input:
-        csv = outdir + "/genbank/{sample}.x.genbank.gather.csv",
-        queries = Checkpoint_GatherResults("genbank_genomes/{acc}_genomic.fna.gz")
+        csv = outdir + "/gather/{sample}.gather.csv",
+        queries = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz")
     output:
         conf = outdir + "/sgc/{sample}.conf"
     run:

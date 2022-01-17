@@ -6,6 +6,7 @@ import os
 import yaml
 import sourmash
 
+
 from genome_grist.__main__ import run_snakemake
 from . import pytest_utils as utils
 
@@ -15,6 +16,10 @@ from . import pytest_utils as utils
 # - ...if these are wrong, the tests will still succeed, they just may
 #   do some extra work in some tests & take longer.
 
+#
+# NOTE re common output directory - all of these tests run with the same
+# output dir.
+#
 
 def setup_module(m):
     global _tempdir
@@ -31,6 +36,7 @@ def teardown_module(m):
 
 @pytest.mark.dependency()
 def test_smash_sig():
+    # run 'smash_reads'
     global _tempdir
 
     abundtrim_dir = os.path.join(_tempdir, "abundtrim")
@@ -59,6 +65,7 @@ def test_smash_sig():
 
 @pytest.mark.dependency(depends=["test_smash_sig"])
 def test_summarize_sample_info():
+    # run summarize_sample_info
     global _tempdir
 
     conf = utils.relative_file('tests/test-data/SRR5950647_subset.conf')
@@ -101,17 +108,6 @@ def test_map_reads():
     genomes_dir = os.path.join(_tempdir, "genomes")
     os.mkdir(genomes_dir)
 
-    cplist = (
-        ("SRR5950647-GCF_003697165.2_genomic.fna.gz", "GCF_003697165.2_genomic.fna.gz"),
-        ("SRR5950647-GCF_902167755.1_genomic.fna.gz", "GCF_902167755.1_genomic.fna.gz"),
-    )
-    cplist = ()
-
-    for src, dest in cplist:
-        frompath = os.path.join(test_data, src)
-        topath = os.path.join(genomes_dir, dest)
-        shutil.copyfile(frompath, topath)
-
     extra_args = ["map_reads", "-j", "4"]
     status = run_snakemake(
         conf,
@@ -120,3 +116,119 @@ def test_map_reads():
         extra_args=extra_args,
     )
     assert status == 0
+
+
+@pytest.mark.dependency(depends=["test_map_reads"])
+def test_gather_to_tax():
+    # run gather_to_tax
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/SRR5950647_subset.conf')
+    test_data = utils.relative_file("tests/test-data")
+
+    extra_args = ["gather_to_tax"]
+    status = run_snakemake(
+        conf,
+        verbose=True,
+        outdir=_tempdir,
+        extra_args=extra_args,
+    )
+    assert status == 0
+    
+    tax_output = f"{_tempdir}/gather/SRR5950647_subset.gather.with-lineages.csv"
+    assert os.path.exists(tax_output)
+
+    tax_results = list(utils.load_csv(tax_output))
+    assert len(tax_results) == 2
+
+
+@pytest.mark.dependency(depends=["test_smash_sig"])
+def test_gather_reads_with_picklist():
+    # check gather with picklist
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/SRR5950647_picklist.conf')
+    test_data = utils.relative_file("tests/test-data")
+
+    # note: the prefetch command & CSV are what are actually limited by the
+    # passed in picklist.
+    prefetch_output = f"{_tempdir}/gather/SRR5950647_subset.prefetch.csv"
+    if os.path.exists(prefetch_output):
+        os.unlink(prefetch_output)
+
+    gather_output = f"{_tempdir}/gather/SRR5950647_subset.gather.csv"
+    if os.path.exists(gather_output):
+        os.unlink(gather_output)
+
+    extra_args = ["gather_reads"]
+    status = run_snakemake(
+        conf,
+        verbose=True,
+        outdir=_tempdir,
+        extra_args=extra_args,
+    )
+    assert status == 0
+    
+    assert os.path.exists(gather_output)
+
+    prefetch_results = list(utils.load_csv(prefetch_output))
+    assert len(prefetch_results) == 1
+    assert prefetch_results[0]['match_name'].startswith('GCF_902167755.1 ')
+
+    gather_results = list(utils.load_csv(gather_output))
+    assert len(gather_results) == 1
+    assert gather_results[0]['name'].startswith('GCF_902167755.1 ')
+
+    # make sure the picklist version of the CSVs is cleaned up!
+    os.unlink(prefetch_output)
+    os.unlink(gather_output)
+
+
+def test_bad_config_1():
+    # check for presence of sourmash_database_glob_pattern, old config
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/bad-1.conf')
+
+    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+                           extra_args=["check"])
+
+    assert status != 0
+
+
+def test_bad_config_2():
+    # check for presence of 'sample' instead of 'samples', old config
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/bad-2.conf')
+
+    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+                           extra_args=["check"])
+
+    assert status != 0
+
+
+def test_bad_config_3():
+    # check for presence of 'database_taxonomy' instead of 'taxonomies',
+    # old config
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/bad-3.conf')
+
+    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+                           extra_args=["check"])
+
+    assert status != 0
+
+
+def test_bad_config_4():
+    # check for presence of 'taxonomies' as a string, not a list.
+    # old config
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/bad-4.conf')
+
+    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+                           extra_args=["check"])
+
+    assert status != 0

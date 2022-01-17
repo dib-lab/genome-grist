@@ -11,6 +11,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--sort-by', default=None)
     p.add_argument('--reverse', action='store_true')
+    p.add_argument('--fields', type=str)
     p.add_argument('csvs', nargs='+')
     args = p.parse_args()
 
@@ -22,6 +23,9 @@ def main():
         r = csv.DictReader(fp)
         rows.extend(list(r))
         fieldnames = r.fieldnames
+
+    if args.fields:
+        fieldnames = args.fields.split(',')
 
     if args.sort_by:
         sort_by = args.sort_by
@@ -37,7 +41,7 @@ def main():
     for csvfile in csvs:
         with open(csvfile, 'rt') as fp:
             r = csv.DictReader(fp)
-            if r.fieldnames != fieldnames:
+            if not set(fieldnames).issubset(r.fieldnames):
                 diff = set(r.fieldnames) ^ set(fieldnames)
                 print(f"error! disjoint fieldnames b/t {first_csv} and {csvfile}: {str(diff)}", file=sys.stderr)
                 sys.exit(-1)
@@ -52,7 +56,10 @@ def main():
     o = csv.DictWriter(sys.stdout, fieldnames)
     o.writeheader()
     for row in rows:
-        o.writerow(row)
+        subrow = {}
+        for field in fieldnames:
+            subrow[field] = row[field]
+        o.writerow(subrow)
 
     return 0
 
