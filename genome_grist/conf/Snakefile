@@ -179,13 +179,6 @@ rule summarize_sample_info:
     input:
         expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
 
-@toplevel
-checkpoint prefetch_genbank:
-    input:
-        expand(f'{outdir}/genbank/{{sample}}.x.genbank.prefetch.csv',
-               sample=SAMPLES),
-        expand(f"{outdir}/.prefetch.{{sample}}", sample=SAMPLES)
-
 checkpoint prefetch_genbank_wc:
     input:
         prefetch_csv = f'{outdir}/genbank/{{sample}}.x.genbank.prefetch.csv'

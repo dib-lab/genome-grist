@@ -24,6 +24,10 @@ def main():
         rows.extend(list(r))
         fieldnames = r.fieldnames
 
+    if not rows:
+        print(f"error: file {first_csv} is empty!?", file=sys.stderr)
+        sys.exit(-1)
+
     if args.fields:
         fieldnames = args.fields.split(',')
 
