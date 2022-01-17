@@ -149,6 +149,51 @@ def test_gather_to_tax():
     tax_output = f"{_tempdir}/gather/SRR5950647_subset.gather.with-lineages.csv"
     assert os.path.exists(tax_output)
 
+    tax_results = list(utils.load_csv(tax_output))
+    assert len(tax_results) == 2
+
+
+
+
+@pytest.mark.dependency(depends=["test_smash_sig"])
+def test_gather_reads_with_picklist():
+    # check gather with picklist
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/SRR5950647_picklist.conf')
+    test_data = utils.relative_file("tests/test-data")
+
+    prefetch_output = f"{_tempdir}/gather/SRR5950647_subset.prefetch.csv"
+    if os.path.exists(prefetch_output):
+        os.unlink(prefetch_output)
+
+    gather_output = f"{_tempdir}/gather/SRR5950647_subset.gather.csv"
+    if os.path.exists(gather_output):
+        os.unlink(gather_output)
+
+    extra_args = ["gather_reads"]
+    status = run_snakemake(
+        conf,
+        verbose=True,
+        outdir=_tempdir,
+        extra_args=extra_args,
+    )
+    assert status == 0
+    
+    assert os.path.exists(gather_output)
+
+    prefetch_results = list(utils.load_csv(prefetch_output))
+    assert len(prefetch_results) == 1
+    assert prefetch_results[0]['match_name'].startswith('GCF_902167755.1 ')
+
+    gather_results = list(utils.load_csv(gather_output))
+    assert len(gather_results) == 1
+    assert gather_results[0]['name'].startswith('GCF_902167755.1 ')
+
+    # make sure the picklist version of the CSVs is cleaned up!
+    os.unlink(prefetch_output)
+    os.unlink(gather_output)
+
 
 def test_bad_config_1():
     # check for presence of sourmash_database_glob_pattern, old config
