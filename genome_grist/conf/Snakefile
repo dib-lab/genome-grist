@@ -326,6 +326,11 @@ class Checkpoint_GenomeFiles(Checkpoint_GatherResults):
 
 
 @toplevel
+rule gather_to_tax:
+    input:
+        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv',
+               sample=SAMPLES)
+@toplevel
 rule summarize_gather:
     input:
         expand(f'{outdir}/reports/report-gather-{{sample}}.html',

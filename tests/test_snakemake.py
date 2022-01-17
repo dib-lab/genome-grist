@@ -36,6 +36,7 @@ def teardown_module(m):
 
 @pytest.mark.dependency()
 def test_smash_sig():
+    # run 'smash_reads'
     global _tempdir
 
     abundtrim_dir = os.path.join(_tempdir, "abundtrim")
@@ -64,6 +65,7 @@ def test_smash_sig():
 
 @pytest.mark.dependency(depends=["test_smash_sig"])
 def test_summarize_sample_info():
+    # run summarize_sample_info
     global _tempdir
 
     conf = utils.relative_file('tests/test-data/SRR5950647_subset.conf')
@@ -125,6 +127,27 @@ def test_map_reads():
         extra_args=extra_args,
     )
     assert status == 0
+
+
+@pytest.mark.dependency(depends=["test_map_reads"])
+def test_gather_to_tax():
+    # run summarize_sample_info
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/SRR5950647_subset.conf')
+    test_data = utils.relative_file("tests/test-data")
+
+    extra_args = ["gather_to_tax"]
+    status = run_snakemake(
+        conf,
+        verbose=True,
+        outdir=_tempdir,
+        extra_args=extra_args,
+    )
+    assert status == 0
+    
+    tax_output = f"{_tempdir}/gather/SRR5950647_subset.gather.with-lineages.csv"
+    assert os.path.exists(tax_output)
 
 
 def test_bad_config_1():
