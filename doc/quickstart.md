@@ -40,40 +40,35 @@ curl -L https://osf.io/w4bcm/download -o gtdb-rs202.genomic-reps.k31.sbt.zip
 ### Make a configuration file
 
 Put the following in a config file named `conf-tutorial.yml`:
-```
+```yaml
 samples:
 - SRR5950647
 outdir: outputs.tutorial/
 metagenome_trim_memory: 1e9
 
-genbank_databases:
+sourmash_databases:
 - gtdb-rs202.genomic-reps.k31.sbt.zip
 ```
-
-:information_source: Notes:
-* you can put multiple sample IDs here, in a [YAML array format](https://www.cloudbees.com/blog/yaml-tutorial-everything-you-need-get-started/) - put them on a new line after a dash (`-`).
-* if you have multiple databases you can specify them here in a list format.
 
 ### Do your first real run!
 
 Execute:
 ```
-genome-grist run conf-tutorial.yml summarize_gather
+genome-grist run conf-tutorial.yml summarize_gather summarize_mapping
 ```
 
 
 This will perform the following steps:
+
 * download the [SRR5950647 metagenome](https://www.ncbi.nlm.nih.gov/sra/?term=SRR5950647) from the Sequence Read Archive (target `download_reads`).
 * preprocess it to remove adapters and low-abundance k-mers (target `trim_reads`).
 * build a sourmash signature from the preprocess reads. (target `smash_reads`).
 * perform a `sourmash gather` against the specified database (target `gather_reads`).
 * download the matching genomes from GenBank into `genbank_cache/` (target `download_matching_genomes`).
 * map the metagenome reads to the various genomes (target `map_reads`).
-* produce a summary notebook (target `summarize_gather`).
+* produce two summary notebooks (targets `summarize_gather` and `summarize_mapping`).
 
-You can put one or more targets on the command line as above with `summarize_gather`.
-
-
+You can put one or more targets on the command line as above with `summarize_gather` and `summarize_mapping`.
 
 ## Output files
 
