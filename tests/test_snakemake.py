@@ -120,7 +120,7 @@ def test_map_reads():
 
 @pytest.mark.dependency(depends=["test_map_reads"])
 def test_gather_to_tax():
-    # run summarize_sample_info
+    # run gather_to_tax
     global _tempdir
 
     conf = utils.relative_file('tests/test-data/SRR5950647_subset.conf')
@@ -150,6 +150,8 @@ def test_gather_reads_with_picklist():
     conf = utils.relative_file('tests/test-data/SRR5950647_picklist.conf')
     test_data = utils.relative_file("tests/test-data")
 
+    # note: the prefetch command & CSV are what are actually limited by the
+    # passed in picklist.
     prefetch_output = f"{_tempdir}/gather/SRR5950647_subset.prefetch.csv"
     if os.path.exists(prefetch_output):
         os.unlink(prefetch_output)
