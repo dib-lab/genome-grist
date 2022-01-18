@@ -181,7 +181,7 @@ rule summarize_sample_info:
 
 checkpoint prefetch_genbank_wc:
     input:
-        prefetch_csv = f'{outdir}/genbank/{{sample}}.x.genbank.prefetch.csv'
+        prefetch_csv = f'{outdir}/gather/{{sample}}.x.prefetch.csv'
     output:
         touch(f"{outdir}/.prefetch.{{sample}}")   # checkpoints need an output ;)
 
@@ -191,7 +191,7 @@ class Checkpoint_PrefetchResults:
         self.samples = samples
 
     def get_genome_idents(self, sample):
-        prefetch_csv = f'{outdir}/genbank/{sample}.x.genbank.prefetch.csv'
+        prefetch_csv = f'{outdir}/gather/{sample}.prefetch.csv'
         assert os.path.exists(prefetch_csv)
 
         genome_idents = []
@@ -232,11 +232,14 @@ class Checkpoint_PrefetchResults:
                 w = snakemake.io.Wildcards(fromdict=d)
 
                 x = self.do_sample(w)
+                print('ZAZA', (x,))
                 ret.extend(x)
 
             return ret
         else:
-            return self.do_sample(w)
+            x = self.do_sample(w)
+            print('ZIZA', (x,))
+            return x
 
     def do_sample(self, w):
         # wait for the results of 'prefetch_genbank_wc'; this will trigger
@@ -292,7 +295,10 @@ class Checkpoint_GatherResults:
     def __call__(self, w):
         # get 'sample' from wildcards?
         if self.samples is None:
-            return self.do_sample(w)
+            print('XYZ')
+            x = self.do_sample(w)
+            print(x)
+            return x
         else:
             assert not hasattr(w, 'sample'), "if 'samples' provided to constructor, cannot also be in rule inputs"
 
@@ -303,6 +309,7 @@ class Checkpoint_GatherResults:
 
                 x = self.do_sample(w)
                 ret.extend(x)
+                print('YYY', x)
 
             return ret
 
@@ -427,7 +434,7 @@ rule combine_genome_info:
 @toplevel
 rule download_prefetch_genomes_info:
     input:
-        expand(f"{outdir}/genbank/{{sample}}.genomes.prefetch.info.csv",
+        expand(f"{outdir}/gather/{{sample}}.genomes.prefetch.info.csv",
                sample=SAMPLES)
 
 @toplevel
@@ -505,8 +512,8 @@ rule zip:
         rm -f transfer.zip
         zip -r transfer.zip {outdir}/leftover/*.summary.csv \
                 {outdir}/mapping/*.summary.csv {outdir}/*.yaml \
-                {outdir}/gather/*.csv {outdir}/reports/
-                {outdir}/prefetch/*.summary2.csv \
+                {outdir}/gather/*.csv {outdir}/reports/ \
+                {outdir}/prefetch/*.summary2.csv
     """
 
 
@@ -1058,6 +1065,8 @@ rule make_combined_info_csv_wc:
     output:
         genomes_info_csv = f"{outdir}/gather/{{sample}}.genomes.info.csv",
     shell: """
+        echo hello, world
+        echo FOO {input.csvs}
         python -Werror -m genome_grist.combine_csvs \
              --fields ident,display_name \
              {input.csvs} > {output}
@@ -1068,7 +1077,7 @@ rule make_combined_prefetch_info_csv:
     input:
         Checkpoint_PrefetchResults(f'{outdir}/genomes/{{ident}}.info.csv')
     output:
-        genomes_info_csv = f"{outdir}/genbank/{{sample}}.genomes.prefetch.info.csv",
+        genomes_info_csv = f"{outdir}/gather/{{sample}}.genomes.prefetch.info.csv",
     shell: """
         python -Werror -m genome_grist.combine_csvs {input} > {output}
     """
