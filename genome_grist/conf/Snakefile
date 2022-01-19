@@ -90,6 +90,18 @@ def make_param_str(ksizes, scaled):
 
 ###
 
+# handle `fastp` params.
+def handle_fastp():
+    param_string = ""
+    config_correction = config.get("fastp_correction", '')
+    config_low_complexity = config.get("fastp_low_complexity", '')
+    correction_flag = "--correction" if correction in ["ON", '1'] else ''
+    low_complexity_flag = "--low_complexity_filter" if config_low_complexity in ["ON", '1'] else ''
+    params_string = f"{correction_flag} {low_complexity_flag}"
+    return param_string
+
+###
+
 # utility function
 def load_csv(filename):
     with open(filename, "r", newline="") as fp:
@@ -493,6 +505,8 @@ rule trim_adapters_wc:
         interleaved = protected(outdir + '/trim/{sample}.trim.fq.gz'),
         json=outdir + "/trim/{sample}.trim.json",
         html=outdir + "/trim/{sample}.trim.html",
+    params:
+        extra_params = handle_fastp()
     conda: 'env/trim.yml'
     threads: 4
     resources:
@@ -502,9 +516,15 @@ rule trim_adapters_wc:
     shell: """
         fastp --in1 {input.r1} --in2 {input.r2} \
              --detect_adapter_for_pe  --qualified_quality_phred 4 \
+<<<<<<< Updated upstream
              --length_required 25 --thread {threads} \
              --json {output.json} --html {output.html} \
              --stdout | gzip --fast > {output.interleaved}
+=======
+             --length_required 25 {params.extra_params} --thread {threads} \
+             --json {output.json} --html {output.html} \
+             --stdout | gzip -9 > {output.interleaved}
+>>>>>>> Stashed changes
     """
 
 # adapter trimming for the singleton reads
