@@ -1,0 +1,380 @@
+# Configuring a genome-grist project
+
+<!-- CTB: this is doc/configuring.md in dib-lab/genome-grist -->
+
+[![hackmd-github-sync-badge](https://hackmd.io/p7QfD_SsQg6sElDbrzpcsA/badge)](https://hackmd.io/p7QfD_SsQg6sElDbrzpcsA)
+
+[toc]
+
+## Overview
+
+genome-grist does the following:
+
+* downloads metagenome data from the SRA, if requested;
+* pre-processes and trims each metagenome;
+* runs `sourmash gather` on each metagenome, using one or more sourmash databases, to find a [minimum metagenome cover](https://www.biorxiv.org/content/10.1101/2022.01.11.475838v1);
+* retrieves the full genomes for any matches and executes a variety of mapping-based analyses;
+* incorporates taxonomy information for the genomes into the taxonomy summary report (if taxonomy reporting is requested).
+
+Much of the configuration for genome-grist is about where to find more information about matching genomes - specifically, the genomes, their display names, and their taxonomy.
+
+For Genbank genomes, this is easy and genome-grist does it automatically! But if you're providing your own genomes and taxonomy information, it's a bit trickier.
+
+## Using Genbank genomes
+
+For Genbank genomes, all the necessary information is available already, or automatically determined by genome-grist.
+
+sourmash already provides pre-built databases containing [all GTDB genomes (R06 rs202)](https://sourmash.readthedocs.io/en/latest/databases.html) as well as [all 700,000 Genbank microbial genomes from July 2020](https://github.com/sourmash-bio/sourmash/issues/1749#issuecomment-947920226).
+
+For genomes available through Genbank (aka with Genbank accessions), genome-grist does the genome retrieval automatically, so you don't need to have them downloaded already.
+
+Taxonomy spreadsheets are available for GTDB (at the databases page) and for Genbank 700k/July 2020 (link upon request).
+
+## Preparing information on local genomes
+
+You can provide your own sourmash databases, your own set of genome files and genome information and your own taxonomy spreadsheet to genome-grist,
+too! This can be useful if you have unpublished or private genomes that you want to use with genome-grist, or if you have large subsets of Genbank already downloaded. Luckily this is all reasonably straightforward and we provide tools to help you! Read on!
+
+Note that you can absolutely combine Genbank with your own databases here, or just use your own databases. (If there are overlapping identifiers, the local genomes are chosen first; you might want to do this if you already have a bunch of the Genbank genomes downloaded already, for example.)
+
+### Choosing identifiers for your genomes
+
+You'll need to choose unique identifiers for your genomes. genome-grist requires that your identifier does not have a space, colon (:), or forward slash (/) in it; everything else should be fine.
+
+### Preparing your genome files
+
+You'll need one FASTA file per genome (gzip or bz2 compressed is fine). The filename doesn't matter. It's probably easiest if they're all in one directory, although this isn't necessary.
+
+For now, we suggest naming the first sequence in each FASTA file with the genome identifier at the start, space delimited - for example `MY_ID_1.1 first_sequence_name is very special`. This will allow sourmash to name the resulting signature with the right identifier using `--name-from-first` (see below).
+
+### Creating one or more sourmash databases
+
+You can mix local databases with genbank databases without fear! You'll need to provide one or more sourmash databases for any local collections, and you do this as usual via the config paramter `sourmash_databases`, which takes a list of paths to sourmash database locations.
+
+To build your own sourmash databases, you'll need sourmash sketches for each genome. Sketch all your genomes with the following command:
+```
+sourmash sketch dna -p k=31,scaled=1000
+```
+
+If you've named your genomes so that the first sequence contains the identifier, you can add `--name-from-first` and then the signatures will be named the right thing for the next step.
+
+If not, you'll need to manually rename of the signatures produced by `sourmash sketch`. (You can do this with `sourmash sig rename`, but there's no simple way to do this in bulk.)
+
+Once you have all your genome signatures, you can create a sourmash database with
+```
+sourmash index output.sbt.zip *.sig
+```
+and then you can cherish and treasure your sourmash database forever!
+
+If you have lots of genomes (1000 or more?) we suggest using a workflow system to sketch and rename your genomes appropriately; please ask us for some examples over on [the sourmash issue tracker](https://github.com/dib-lab/sourmash/issues).
+
+We chose k=31 above (in the `sourmash sketch` command) because that matches our default parameters, and we have provided Genbank and GTDB databases for k=31 (as well as k=21 and k=51). But the only real requirement here is that all your databases support the same requested k-mer and scaled sizes.
+
+### Providing your local genomes to genome-grist
+
+You'll also need to provide your local genome files to genome-grist, along with their "display name", which will be used in reporting.  The information will be provided via the config parameter `local_databases_info`, which takes a list of paths to info file CSVs.
+
+**First**, genome-grist needs the genome sequences in their own individual files, in one or more directories. The files need to be named by their identifiers in the format `{ident}_genomic.fna.gz`, and must come with an "info file" that contains their identifier, a display name, and the location of the genome file (which _must_ be named as above).
+
+genome-grist has a utility to help set this all up! The script `genome_grist.copy_local_genomes` will take in a list of FASTA files containing genome(s), read the header of the first sequence to find the identifier for that genome, and then copy it into a directory for you. (see "Step 3", below, for execution instructions for this script). It will also output a provisional info file, which you can edit.
+
+Here's an example of the output of the info file produced by `copy_local_genomes`:
+```
+ident,display_name,genome_filename
+CP001472.1,"Acidobacterium capsulatum ATCC 51196, complete genome",databases/podar-ref.d/CP001472.1_genomic.fna.gz
+CP001941.1,"Aciduliprofundum boonei T469, complete genome",databases/podar-ref.d/CP001941.1_genomic.fna.gz
+CP001097.1,"Chlorobium limicola DSM 245, complete genome",databases/podar-ref.d/CP001097.1_genomic.fna.gz
+```
+
+**Second**, for each genome, genome-grist also needs a separate `{ident}.info.csv` file, containing just the identifier and the display name. This needs to be in the same directory as the genome itself.
+
+The utility script `genome_grist.make_info_file` will produce this for you, based on the whole-database info CSV file created above. (See "Step 4", below, for execution instructions for this script.)
+
+Here's an example of the output of `make_info_file:`; this is the file `CP001097.1.info.csv`:
+```
+ident,display_name
+CP001097.1,"Chlorobium limicola DSM 245, complete genome"
+```
+
+and the final contents of the `databases/podar-ref.d/` directory include:
+
+```
+CP001097.1.info.csv             CP001472.1_genomic.fna.gz
+CP001097.1_genomic.fna.gz       CP001941.1.info.csv
+CP001472.1.info.csv             CP001941.1_genomic.fna.gz
+```
+
+
+### Providing taxonomy information
+
+If you want to enable taxonomic summarization for your local genomes, you'll need a taxonomy file that can be read by the `sourmash tax` subcommands - see [the sourmash command-line docs](https://sourmash.readthedocs.io/en/latest/command-line.html) for details. This file contains at least 8 columns, with the headers `ident` and `superkingdom`, `phylum`,`class`,`order`,`family`,`genus`,`species`. You provide this file to genome-grist via the config parameter `taxonomies`, which takes a list of paths to sourmash taxonomy files.
+
+### Testing it all out
+
+We recommend trying this all out with a fake metagenome that's just two of your local genomes concatenated; you can set this up by making the FASTA file and then putting it in your output directory in the subdirectory `abundtrim/{sample}.abundtrim.fq.gz`, and configuring genome-grist to run `summarize_gather` on just that sample.
+
+So, for example, 
+
+* create a file `abundtrim/testme.abundtrim.fq.gz` containing a bunch of sequences (FASTA or FASTQ format, despite the filename :)
+* set `samples` in your config file `conf-test.yml` to `- testme`
+* run `genome-grist run conf-test.yml summarize_gather`
+
+and if it all works, then your local database configuration is good! (The output report will be in the `reports/report-gather-testme.html` subdirectory in your output directory.)
+
+You will need to run `summarize_tax` to test the taxonomy file; the associated output will be in `reports/report-taxonomy-testme.html`.
+
+If you run into any problems, please [file an issue!](https://github.com/dib-lab/genome-grist/issues)
+
+## An example for you to try: the `podar-ref` database
+
+[Comparative metagenomic and rRNA microbial diversity characterization using archaeal and bacterial synthetic communities, Shakya et al., 2014](https://pubmed.ncbi.nlm.nih.gov/23387867/) made a lovely mock metagenome containing approximately 65 different strains of microbes.
+
+[Evaluating Metagenome Assembly on a Simple Defined Community with Many Strain Variants, Awad et al., 2017](https://www.biorxiv.org/content/10.1101/155358v3) used sourmash to analyze this community, and produced an updated list of reference genomes that is available for  download.
+
+While this list of reference genomes is in fact in Genbank, they use non-Genbank identifiers, and so it's a good example data set for "private" genomes.
+
+So! Let's run through setting up these reference genomes as a local, non-Genbank database for genome-grist to use, and then test it out by applying genome-grist to the mock metagenome!
+
+It should take under 10 minutes total to run all the commands.
+
+Note: If you have a developer installation of `genome-grist`, you can run everything below with `make test-private` in the root `genome-grist/` directory.
+
+### Step 0: Install genome-grist and set up your directory
+
+Follow the installation instructions for genome-grist and make sure
+you're in a conda environment where genome-grist is installed.
+
+You will also need sourmash...
+```
+pip install sourmash
+```
+
+and now you should be good to go!
+
+### Step 1: Download and unpack the `podar` reference genomes
+
+First, we need to get our hands on the genome sequences themselves.
+
+The genomes from Awad et al., 2017, are available for download [from a project on the Open Science Framework](https://osf.io/vbhy5/). The following commands will download them and unpack them into the directory `databases/podar-ref/`
+
+```
+mkdir -p databases/podar-ref
+curl -L https://osf.io/vbhy5/download -o databases/podar-ref.tar.gz
+cd databases/podar-ref/ && tar xzf ../podar-ref.tar.gz
+cd ../../
+```
+
+### Step 2: Build sketches and construct a sourmash database
+
+genome-grist uses sourmash to generate a *minimum metagenome cover* containing the best matches to the metagenome, so we need to turn the downloaded genomes into a sourmash database.
+
+The following command will sketch all of the `.fa` files and save the resulting sourmash signatures into `databases/podar-ref.zip`:
+```shell
+sourmash sketch dna -p k=31,scaled=1000 --name-from-first \
+        databases/podar-ref/*.fa -o databases/podar-ref.zip
+```
+note the use of `--name-from-first`, which names the sketches after the first FASTA header in each file.
+
+If you look at the zip file with `sourmash sig describe databases/podar-ref.zip`, you'll see that all of the signature names start with their accessions, which is what we want.
+
+### Step 3: Copy the genomes in to a new location with new names
+
+Copy the local genomes to a new home that matches genome-grist requirements like so:
+
+```
+python -m genome_grist.copy_local_genomes databases/podar-ref/*.fa -o databases/podar-ref.info.csv -d databases/podar-ref.d
+```
+The subdirectory `databases/podar-ref.d/` should now contain 64 genome files, named by their identifiers. 
+
+There will also be an "information file", `databases/podar-ref.info.csv`, that contains three columns. These were auto-generated by the script from the FASTA files you gave it. You can edit the `display_name` column and change it to whatever you want; the other columns need to match with other information so please don't change those!
+
+Note that `display_name` is just for display purposes; this allows grist to translate identifiers to (for example) a species and strain name to put on generated graphs.
+
+### Step 4: Build genome "info files" for genome-grist
+
+Next, you'll need to create `{ident}.info.csv` files for each genome. Run:
+```
+python -m genome_grist.make_info_file databases/podar-ref.info.csv
+```
+to use the combined info CSV from the previous step to create the necessary info files.
+
+The subdirectory `databases/podar-ref.d/` should now contain 128 files - 64 genome files, and 64 '.info.csv' files, one for each genome.
+
+### Step 5: Download the taxonomy file
+
+Last but not least, you'll want a taxonomy file for these genomes, in a format that `sourmash taxonomy` can use.  For this data set, you can get it [from a project on the Open Science Framework](https://osf.io/4yhjw/).
+
+To download it, run:
+```
+curl -L https://osf.io/4yhjw/download -o databases/podar-ref.tax.csv
+```
+
+This will create a local CSV file with superkingdom, phylum, etc. entries for each of the reference genomes you've downloaded.
+
+### Step 6: Try it out on a (small) mock metagenome!
+
+While you can certainly run this on the entire metagenome from Shakya et al., 2014, that will take a while. So we've prepared a 1m read subset of the data for you to try out! Exciting!
+
+You can download this subsetted metagenome like so:
+```shell
+mkdir -p outputs.private/abundtrim
+curl -L https://osf.io/ckbq3/download -o outputs.private/abundtrim/podar.abundtrim.fq.gz
+```
+and then confirm that the config file `conf-private.yml` has the following content:
+
+```yaml
+sample:
+- podar
+
+outdir: outputs.private/
+
+private_databases:
+- databases/podar-ref.zip
+
+private_databases_info:
+- databases/podar-ref.info.csv
+
+taxonomies:
+- databases/podar-ref.tax.csv
+```
+
+Now run:
+
+```
+genome-grist run conf-private.yml summarize_gather summarize_mapping -j 4 -p
+```
+
+and (hopefully) it will all work!!
+
+Assuming there are no errors and everything is green, look at the HTML files in `outputs.private/reports/*.html`.
+
+## Reference: The complete set of config file options
+
+The options below can be set and/or overridden in a project specific config file that is passed into `genome-grist`.
+
+Config files can be either [YAML](https://en.wikipedia.org/wiki/YAML) or JSON. We suggest YAML since it's nicer to edit.
+
+Every genome-grist installation comes with two config files in the `conf/` subdirectory of the `genome_grist/` Python package, `defaults.conf` and `system.conf`.  They are read in the order `defaults.conf`, `system.conf`, and project-specific config. So, you can ignore the first two and just override options in the project-specific config file. But you can also change the install-wide default parameters in `system.conf` if you like.
+
+You can use `showconf` to show the current aggregate config like so: `genome-grist run conf.yml showconf`.
+
+### An annotated config file
+
+```yaml
+# NOTE: all paths are relative to the working directory.
+
+### PROJECT-SPECIFIC PARAMETERS YOU MUST SET FOR EACH PROJECT
+
+# samples: a list of metagenome names. REQUIRED.
+# - the sample names cannot contain periods
+# - you can use SRA accessions for automatic download, or provide the reads yourself
+samples:
+- metagenome_one
+- metagenome_two
+
+# outdir: a directory where all the output will be placed, e.g. outputs.myproject. REQUIRED.
+# this will be created if it doesn't exist.
+outdir: some_directory
+
+# metagenome_trim_memory: how much memory (RAM) to use when trimming reads with khmer's trim-low-abund.
+# set to 1e9 for very low diversity samples,
+# 10e9 for medium-diversity samples,
+# and 50e9 if you're foolishly working with soil :)
+# The default is set to 1e9, which is too low for your data.
+# WARNING: this much memory _will_ be allocated when running genome-grist!
+metagenome_trim_memory: 10e9
+
+### INSTALLATION INFORMATION YOU NEED TO SET AT LEAST ONCE
+#
+# These must be set after you install genome-grist and download the various databases.
+
+# sourmash_databases: a list of sourmash databases
+# you'll need to point this at a local download of 
+# databases from e.g. https://sourmash.readthedocs.io/en/latest/databases.html
+# cannot be empty!
+sourmash_databases:
+- /path/to/sourmash-db/database1
+- /path/to/sourmash-db/database2
+
+# taxonomies: a list of files to use for taxonomy information. See documentation for `sourmash taxonomy`.
+# can be empty list, [].
+taxonomies:
+- /path/to/taxonomy/files
+
+### INTERMEDIATE CONFIGURATION OPTIONS
+#
+# These are ways you can fine-tune genome-grist.
+# We suggest changing these only once you've successfully run genome-grist a few times!
+
+# local_databases_info: a list of database info files for genomes that are local and/or cannot be downloaded from Genbank.
+# can be empty list, [].
+# see documentation for more details.
+local_databases_info: 
+- /path/to/local-sourmash-db/database3.info.csv
+
+# picklist: a --picklist argument to use when searching the sourmash database, to limit which signatures to search.
+# see sourmash command line documentation for more details.
+# EXAMPLE:
+#     picklist: some_sig_list.csv:ident:ident
+picklist: ""
+
+# sourmash_database_ksize: k-mer size to use when searching sourmash databases.
+# DEFAULT: 31
+sourmash_database_ksize: 31
+
+# sourmash_compute_ksizes: a list of k-mer sizes
+# to use when creating sketches for samples. should include the database ksize.
+# DEFAULTS: 21, 31, 15
+sourmash_compute_ksizes:
+- 21
+- 31
+- 51
+
+# sourmash_compute_scaled: a scaled parameter to use when creating sketches for samples. See sourmash docs for details.
+# DEFAULT: 1000
+sourmash_compute_scaled: 1000
+
+# sourmash_sigtype: 'DNA' or 'protein' - the type of signature to compute for samples.
+# DEFAULT: DNA
+sourmash_sigtype: DNA
+
+### SYSTEM SPECIFIC PARAMETERS
+#
+# These are good defaults for small projects, but you may
+# want to change them if you're doing big things on a cluster, or something.
+
+# tempdir: a directory where SRA download temporary files will go, e.g. /tmp
+# new subdirs will be created, used, and then removed.
+tempdir: some_other_directory
+
+# genbank_cache: where genomes downloaded from genbank will be cached.
+# this needs to be writable by people executing genome-grist; if it's system-wide, suggest making a a+rwxt directory.
+# DEFAULT ./genbank_cache
+genbank_cache: ./genbank_cache
+
+### ADVANCED TECHNICAL PARAMETERS
+#
+# These probably don't need to be changed unless
+# you actually run into problems running genome-grist.
+
+# prefetch_memory: how much memory to allow for
+# sourmash prefetch when running genome-grist.
+# this memory may not actually be used, depending on sourmash databases used.
+# the default is set for the all-Genbank database.
+# DEFAULT: 100e9
+prefetch_memory: 100e9
+```
+
+## More advanced genome-grist usage
+
+### Where to insert your own files
+
+genome-grist is built on top of [the snakemake workflow](https://snakemake.readthedocs.io/en/stable/), which lets you substitute your own files in many places.
+
+For example,
+
+* you can put your own `{sample}_1.fastq.gz`, `{sample}_2.fastq.gz`, and `{sample}_unpaired.fastq.gz` files in `raw/` to have genome-grist process reads for you.
+* you can put your own interleaved reads file in `abundtrim/{sample}.abundtrim.fq.gz` to run genome-grist on an unpublished or already-preprocessed set of reads;
+* you can put your own sourmash signature (k=31, scaled=1000) in `sigs/{sample}.abundtrim.sig` if you want to have it do the database search for you;
+
+Please see [the genome-grist Snakefile](https://github.com/dib-lab/genome-grist/blob/latest/genome_grist/conf/Snakefile) for all the gory details.

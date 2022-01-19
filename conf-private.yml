@@ -1,0 +1,13 @@
+samples:
+- podar
+
+outdir: outputs.private/
+
+sourmash_databases:
+- databases/podar-ref.zip
+
+local_databases_info:
+- databases/podar-ref.info.csv
+
+taxonomies:
+- databases/podar-ref.tax.csv

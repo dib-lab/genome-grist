@@ -11,3 +11,8 @@ dist/
 genome_grist.egg-info/
 genome_grist/version.py
 outputs.*
+genbank_cache
+*.yml
+site
+.DS_Store
+bak

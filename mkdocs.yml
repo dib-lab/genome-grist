@@ -1,0 +1,7 @@
+site_name: genome-grist docs
+docs_dir: ./doc/
+nav:
+- Home: index.md
+- Quickstart: quickstart.md
+- Configuring: configuring.md
+
