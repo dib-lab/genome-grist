@@ -363,6 +363,16 @@ genbank_cache: ./genbank_cache
 # the default is set for the all-Genbank database.
 # DEFAULT: 100e9
 prefetch_memory: 100e9
+
+
+### OTHER PARAMETERS
+
+## Error trimming flags
+# fastp_correction: set to ON or 1 for base correction for PE data
+fastp_correction: OFF
+# fastp_low_complexity: set to ON or 1 for applying low complexity filter
+fastp_low_complexity: OFF
+
 ```
 
 ## More advanced genome-grist usage
