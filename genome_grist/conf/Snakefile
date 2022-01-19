@@ -39,7 +39,7 @@ if not base_tempdir:
     sys.exit(-1)
 
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
-
+ABUNDTRIM_CUTOFF = config.get("abundtrim_cutoff", '3')
 GENBANK_CACHE = config.get('genbank_cache', './genbank_cache/')
 GENBANK_CACHE = os.path.normpath(GENBANK_CACHE)
 
@@ -555,8 +555,9 @@ rule kmer_trim_reads_wc:
         mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
     params:
         mem = ABUNDTRIM_MEMORY,
+        cutoff = ABUNDTRIM_CUTOFF,
     shell: """
-            trim-low-abund.py -C 3 -Z 18 -M {params.mem} -V \
+            trim-low-abund.py -C {params.cutoff} -Z 18 -M {params.mem} -V \
             {input.interleaved} -o {output} --gzip
     """
 

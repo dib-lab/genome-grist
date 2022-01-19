@@ -373,6 +373,9 @@ fastp_correction: OFF
 # fastp_low_complexity: set to ON or 1 for applying low complexity filter
 fastp_low_complexity: OFF
 
+## k-mers abundance trimming
+# remove k-mers below this abundance
+abundtrim_cutoff: 3
 ```
 
 ## More advanced genome-grist usage
