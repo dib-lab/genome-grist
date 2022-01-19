@@ -92,14 +92,12 @@ def make_param_str(ksizes, scaled):
 
 # handle `fastp` params.
 def handle_fastp():
-    param_string = ""
-    # OFF/ON is processed as boolean by default.
     config_correction = config.get("fastp_correction", 'OFF')
     config_low_complexity = config.get("fastp_low_complexity", 'OFF')
-    correction_flag = "--correction" if config_correction else ''
-    low_complexity_flag = "--low_complexity_filter" if config_low_complexity else ''
+    correction_flag = "--correction" if config_correction in [True, '1'] else ''
+    low_complexity_flag = "--low_complexity_filter" if config_low_complexity in [True, '1'] else ''
     params_string = f"{correction_flag} {low_complexity_flag}"
-    return param_string
+    return params_string
 
 ###
 
