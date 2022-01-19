@@ -95,7 +95,7 @@ def handle_fastp():
     param_string = ""
     config_correction = config.get("fastp_correction", '')
     config_low_complexity = config.get("fastp_low_complexity", '')
-    correction_flag = "--correction" if correction in ["ON", '1'] else ''
+    correction_flag = "--correction" if config_correction in ["ON", '1'] else ''
     low_complexity_flag = "--low_complexity_filter" if config_low_complexity in ["ON", '1'] else ''
     params_string = f"{correction_flag} {low_complexity_flag}"
     return param_string
