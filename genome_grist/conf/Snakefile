@@ -516,15 +516,9 @@ rule trim_adapters_wc:
     shell: """
         fastp --in1 {input.r1} --in2 {input.r2} \
              --detect_adapter_for_pe  --qualified_quality_phred 4 \
-<<<<<<< Updated upstream
-             --length_required 25 --thread {threads} \
-             --json {output.json} --html {output.html} \
-             --stdout | gzip --fast > {output.interleaved}
-=======
              --length_required 25 {params.extra_params} --thread {threads} \
              --json {output.json} --html {output.html} \
              --stdout | gzip -9 > {output.interleaved}
->>>>>>> Stashed changes
     """
 
 # adapter trimming for the singleton reads
@@ -535,6 +529,8 @@ rule trim_unpaired_adapters_wc:
         unp = protected(outdir + '/trim/{sample}_unpaired.trim.fq.gz'),
         json = protected(outdir + '/trim/{sample}_unpaired.trim.json'),
         html = protected(outdir + '/trim/{sample}_unpaired.trim.html'),
+    params:
+        extra_params = handle_fastp()
     threads: 4
     resources:
         mem_mb=5000,
@@ -543,7 +539,7 @@ rule trim_unpaired_adapters_wc:
     conda: 'env/trim.yml'
     shell: """
         fastp --in1 {input.unp} --out1 {output.unp} \
-            --detect_adapter_for_se  --qualified_quality_phred 4 \
+            --detect_adapter_for_se {params.extra_params} --qualified_quality_phred 4 \
             --thread {threads} \
             --length_required 25 \
             --json {output.json} --html {output.html}
