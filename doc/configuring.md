@@ -374,7 +374,7 @@ fastp_correction: OFF
 fastp_low_complexity: OFF
 
 ## k-mers abundance trimming
-# remove k-mers below this abundance
+# remove k-mers below this abundance from high-abundance reads; does not affect low-abundance reads
 abundtrim_cutoff: 3
 ```
 
