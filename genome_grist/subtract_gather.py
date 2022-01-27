@@ -1,4 +1,9 @@
 #! /usr/bin/env python
+"""
+This script uses the minimum metagenome cover from sourmash gather to
+guide the iterative extraction / assignment of mapped reads to reference
+genomes.
+"""
 import screed
 import argparse
 import sys
