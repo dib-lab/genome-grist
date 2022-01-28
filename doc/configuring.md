@@ -228,10 +228,10 @@ sample:
 
 outdir: outputs.private/
 
-private_databases:
+sourmash_databases:
 - databases/podar-ref.zip
 
-private_databases_info:
+local_databases_info:
 - databases/podar-ref.info.csv
 
 taxonomies:
