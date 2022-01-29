@@ -42,7 +42,9 @@ def main():
             break
 
         record_name = record_name.split(' ', 1)
-        ident, remainder = record_name
+        ident, *remainder = record_name
+        if not remainder:
+            remainder = ident
 
         print(f"read identifer '{ident}' and name '{remainder}'")
 
