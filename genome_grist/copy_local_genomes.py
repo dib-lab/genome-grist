@@ -41,8 +41,11 @@ def main():
             record_name = record.name
             break
 
-        record_name = record_name.split(' ', 1)
-        ident, remainder = record_name
+        ident, *remainder = record_name.split(' ', 1)
+        if remainder:           # is list, needs to be string
+            remainder = remainder[0]
+        else:
+            remainder = ident
 
         print(f"read identifer '{ident}' and name '{remainder}'")
 
