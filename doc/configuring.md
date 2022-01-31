@@ -330,9 +330,9 @@ sourmash_compute_ksizes:
 - 31
 - 51
 
-# sourmash_compute_scaled: a scaled parameter to use when creating sketches for samples. See sourmash docs for details.
+# sourmash_scaled: a scaled parameter to use when creating sketches for samples. See sourmash docs for details.
 # DEFAULT: 1000
-sourmash_compute_scaled: 1000
+sourmash_scaled: 1000
 
 # sourmash_sigtype: 'DNA' or 'protein' - the type of signature to compute for samples.
 # DEFAULT: DNA
