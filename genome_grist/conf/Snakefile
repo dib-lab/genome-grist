@@ -208,7 +208,7 @@ class Checkpoint_GatherResults:
         with open(gather_csv, 'rt') as fp:
            r = csv.DictReader(fp)
            for row in r:
-               ident = row['name'].split(' ')[0]
+               ident = row['name'].split()[0]
                genome_idents.append(ident)
         print(f'loaded {len(genome_idents)} identifiers from {gather_csv}.',
               file=sys.stderr)
@@ -295,7 +295,7 @@ class ListGatherGenomes(Checkpoint_GatherResults):
         assert os.path.exists(gather_csv), f"gather output does not exist for {sample}!?"
 
         for row in load_csv(gather_csv):
-            ident = row['name'].split(' ')[0]
+            ident = row['name'].split()[0]
 
             # if in local information, use that as genome source.
             if ident in local_info:
