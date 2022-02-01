@@ -23,6 +23,10 @@ def main():
 
         data = pd.read_table(depth_txt, names=["contig", "pos", "coverage"])
 
+        if not len(data):
+            print("empty?")
+            continue
+
         filename = os.path.basename(depth_txt)
         sample_check, _, genome_id, *rest = filename.split(".")
 
