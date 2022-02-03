@@ -39,7 +39,7 @@ if not base_tempdir:
     sys.exit(-1)
 
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
-
+ABUNDTRIM_CUTOFF = config.get("abundtrim_cutoff", '3')
 GENBANK_CACHE = config.get('genbank_cache', './genbank_cache/')
 GENBANK_CACHE = os.path.normpath(GENBANK_CACHE)
 
@@ -87,6 +87,17 @@ def make_param_str(ksizes, scaled):
     ks = [ f'k={k}' for k in ksizes ]
     ks = ",".join(ks)
     return f"{ks},scaled={scaled},abund"
+
+###
+
+# handle `fastp` params.
+def handle_fastp():
+    config_correction = config.get("fastp_correction", 'OFF')
+    config_low_complexity = config.get("fastp_low_complexity", 'OFF')
+    correction_flag = "--correction" if config_correction in [True, '1'] else ''
+    low_complexity_flag = "--low_complexity_filter" if config_low_complexity in [True, '1'] else ''
+    params_string = f"{correction_flag} {low_complexity_flag}"
+    return params_string
 
 ###
 
@@ -493,6 +504,8 @@ rule trim_adapters_wc:
         interleaved = protected(outdir + '/trim/{sample}.trim.fq.gz'),
         json=outdir + "/trim/{sample}.trim.json",
         html=outdir + "/trim/{sample}.trim.html",
+    params:
+        extra_params = handle_fastp()
     conda: 'env/trim.yml'
     threads: 4
     resources:
@@ -502,9 +515,9 @@ rule trim_adapters_wc:
     shell: """
         fastp --in1 {input.r1} --in2 {input.r2} \
              --detect_adapter_for_pe  --qualified_quality_phred 4 \
-             --length_required 25 --correction --thread {threads} \
+             --length_required 25 {params.extra_params} --thread {threads} \
              --json {output.json} --html {output.html} \
-             --low_complexity_filter --stdout | gzip -9 > {output.interleaved}
+             --stdout | gzip -9 > {output.interleaved}
     """
 
 # adapter trimming for the singleton reads
@@ -515,6 +528,8 @@ rule trim_unpaired_adapters_wc:
         unp = protected(outdir + '/trim/{sample}_unpaired.trim.fq.gz'),
         json = protected(outdir + '/trim/{sample}_unpaired.trim.json'),
         html = protected(outdir + '/trim/{sample}_unpaired.trim.html'),
+    params:
+        extra_params = handle_fastp()
     threads: 4
     resources:
         mem_mb=5000,
@@ -523,9 +538,9 @@ rule trim_unpaired_adapters_wc:
     conda: 'env/trim.yml'
     shell: """
         fastp --in1 {input.unp} --out1 {output.unp} \
-            --detect_adapter_for_se  --qualified_quality_phred 4 \
-            --low_complexity_filter --thread {threads} \
-            --length_required 25 --correction \
+            --detect_adapter_for_se {params.extra_params} --qualified_quality_phred 4 \
+            --thread {threads} \
+            --length_required 25 \
             --json {output.json} --html {output.html}
     """
 
@@ -540,8 +555,9 @@ rule kmer_trim_reads_wc:
         mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
     params:
         mem = ABUNDTRIM_MEMORY,
+        cutoff = ABUNDTRIM_CUTOFF,
     shell: """
-            trim-low-abund.py -C 3 -Z 18 -M {params.mem} -V \
+            trim-low-abund.py -C {params.cutoff} -Z 18 -M {params.mem} -V \
             {input.interleaved} -o {output} --gzip
     """
 

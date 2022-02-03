@@ -363,6 +363,19 @@ genbank_cache: ./genbank_cache
 # the default is set for the all-Genbank database.
 # DEFAULT: 100e9
 prefetch_memory: 100e9
+
+
+### OTHER PARAMETERS
+
+## Error trimming flags
+# fastp_correction: set to ON or 1 for base correction when overlapping PE are present
+fastp_correction: OFF
+# fastp_low_complexity: set to ON or 1 for applying low complexity filter
+fastp_low_complexity: OFF
+
+## k-mers abundance trimming
+# remove k-mers below this abundance from high-abundance reads; does not affect low-abundance reads
+abundtrim_cutoff: 3
 ```
 
 ## More advanced genome-grist usage
