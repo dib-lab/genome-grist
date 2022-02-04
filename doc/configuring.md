@@ -312,6 +312,10 @@ taxonomies:
 local_databases_info: 
 - /path/to/local-sourmash-db/database3.info.csv
 
+# prevent_sra_download: turn off download of metagenomes from SRA by sample ID."
+# DEFAULT: false.
+prevent_sra_download: false
+
 # picklist: a --picklist argument to use when searching the sourmash database, to limit which signatures to search.
 # see sourmash command line documentation for more details.
 # EXAMPLE:
