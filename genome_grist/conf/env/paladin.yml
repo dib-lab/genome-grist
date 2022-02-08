@@ -1,0 +1,8 @@
+name: paladin
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - paladin=1.4.6
+  - samtools=1.14
