@@ -89,6 +89,37 @@ def make_param_str(ksizes, scaled):
     return f"{ks},scaled={scaled},abund"
 
 ###
+#
+# print out unknown config variables...
+#
+
+all_config_keys = set(config.keys())
+known_config_keys = { 'samples', 'outdir', 'tempdir',
+                      'metagenome_trim_memory',
+                      'genbank_cache',
+                      'sourmash_databases',
+                      'local_databases_info',
+                      'sourmash_database_ksize',
+                      'sourmash_compute_ksizes',
+                      'sourmash_scaled',
+                      'sourmash_sigtype',
+                      'prefetch_memory',
+                      'taxonomies',
+                      'picklist' }
+
+unknown_config_keys = all_config_keys - known_config_keys
+
+if unknown_config_keys:
+    print(f'**', file=sys.stderr)
+    print(f'** WARNING: {len(unknown_config_keys)} unknown parameters found in config.', file=sys.stderr)
+    print(f'** The following config parameters are being ignored:', file=sys.stderr)
+    print(f"**    {', '.join(unknown_config_keys)}", file=sys.stderr)
+    print(f'**', file=sys.stderr)
+    print(f'** Please see docs at https://dib-lab.github.io/genome-grist/configuring/',
+          file=sys.stderr)
+    print(f'**', file=sys.stderr)
+
+###
 
 # utility function
 def load_csv(filename):
