@@ -345,7 +345,7 @@ picklist: ""
 # size of sourmash prefetch and gather. Matches with smaller overlaps
 # than this will be excluded from consideration.
 # DEFAULT: 1e5
-sourmash_database_threshold_bp: 10000
+sourmash_database_threshold_bp: 100000
 
 # sourmash_database_ksize: k-mer size to use when searching sourmash databases.
 # DEFAULT: 31
