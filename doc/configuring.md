@@ -342,8 +342,8 @@ prevent_sra_download: false
 picklist: ""
 
 # sourmash_database_threshold_bp: sets the --threshold-bp minimum match
-# size of sourmash prefetch and gather. This will exclude matches with
-# smaller overlaps than this from being considered.
+# size of sourmash prefetch and gather. Matches with smaller overlaps
+# than this will be excluded from consideration.
 # DEFAULT: 1e5
 sourmash_database_threshold_bp: 10000
 
