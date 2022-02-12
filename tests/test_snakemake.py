@@ -240,9 +240,6 @@ def test_block_sra_downloads():
     # that it doesn't work.
     global _tempdir
 
-    abundtrim_dir = os.path.join(_tempdir, "abundtrim")
-    os.mkdir(abundtrim_dir)
-
     conf = utils.relative_file('tests/test-data/test-block-sra.conf')
 
     extra_args = ["smash_reads"]
