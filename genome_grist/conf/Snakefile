@@ -105,6 +105,7 @@ known_config_keys = { 'samples', 'outdir', 'tempdir',
                       'sourmash_sigtype',
                       'prefetch_memory',
                       'taxonomies',
+                      'prevent_sra_download',
                       'picklist' }
 
 unknown_config_keys = all_config_keys - known_config_keys
@@ -453,11 +454,21 @@ rule download_sra_wc:
         temp_r1 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_1.fastq",
         temp_r2 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_2.fastq",
         temp_unp = f"{base_tempdir}/{{sample}}.d/{{sample}}.fastq",
+    params:
+        do_not_run_me = 1 if config.get("prevent_sra_download", False) else 0,
+        outdir = outdir,
     threads: 6
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
     shell: '''
+        if [ "{params.do_not_run_me}" = 1 ]; then
+            echo "** genome-grist is trying to download from SRA for sample {wildcards.sample},"
+            echo "** but 'prevent_sra_download' is set to true in config."
+            echo "** Does '{params.outdir}/abundtrim/{wildcards.sample}.abundtrim.fq.gz' exist?"
+            exit -1
+        fi
+
         echo tmp directory: {output.temp_dir}
         echo running fasterq-dump for {wildcards.sample}
 
