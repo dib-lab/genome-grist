@@ -341,6 +341,12 @@ prevent_sra_download: false
 #     picklist: some_sig_list.csv:ident:ident
 picklist: ""
 
+# sourmash_database_threshold_bp: sets the --threshold-bp minimum match
+# size of sourmash prefetch and gather. This will exclude matches with
+# smaller overlaps than this from being considered.
+# DEFAULT: 1e5
+sourmash_database_threshold_bp: 10000
+
 # sourmash_database_ksize: k-mer size to use when searching sourmash databases.
 # DEFAULT: 31
 sourmash_database_ksize: 31
