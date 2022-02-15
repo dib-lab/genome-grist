@@ -1,11 +1,43 @@
 #! /usr/bin/env python
 """
 Summarize mapping depth information (produced by samtools depth -aa {bamfile}).
+Also summarize SNP counts from VCF file.
 """
 import argparse
 import sys
 import pandas as pd
 import os
+import gzip
+from collections import defaultdict
+
+
+def summarize_vcf(vcf_gz):
+    "Count number of distinct SNP locations"
+    by_pos = defaultdict(dict)
+    n_lines = 0
+    with gzip.open(vcf_gz, 'rt') as fp:
+        for line in fp:
+            # skip comments
+            if line.startswith('#'):
+                continue
+
+            n_lines += 1
+            chrom, pos, ident, ref, alt, qual, *rest = line.split('\t')
+
+            # skip indels for now
+            if len(ref) > 1 or len(alt) > 1:
+                continue
+
+            pos = int(pos)
+            by_pos[chrom][pos] = 1
+
+    n_chrom = len(by_pos)
+
+    n_snps = 0
+    for chrom in by_pos:
+        n_snps += len(chrom)
+
+    return n_lines, n_chrom, n_snps
 
 
 def main():
@@ -19,13 +51,15 @@ def main():
     sample = args.sample_name
     runs = {}
     for n, depth_txt in enumerate(args.depth_txts):
-        print(f'reading from {depth_txt}', file=sys.stderr)
+        assert depth_txt.endswith('.depth.txt')
+        vcf_gz = depth_txt[:-len('.depth.txt')] + '.vcf.gz'
+        assert os.path.exists(vcf_gz)
+        print(f"reading from '{vcf_gz}'", file=sys.stderr)
+        _, n_chrom, n_snps = summarize_vcf(vcf_gz)
+
+        print(f"reading from '{depth_txt}", file=sys.stderr)
 
         data = pd.read_table(depth_txt, names=["contig", "pos", "coverage"])
-
-        if not len(data):
-            print("empty?")
-            continue
 
         filename = os.path.basename(depth_txt)
         sample_check, _, genome_id, *rest = filename.split(".")
@@ -33,6 +67,9 @@ def main():
         assert sample_check == sample, (sample_check, sample)
 
         d = {}
+        d['n_chrom'] = n_chrom
+        d['n_snps'] = n_snps
+
         value_counts = data['coverage'].value_counts()
         d['genome bp'] = int(len(data))
         d['missed'] = int(value_counts.get(0, 0))
@@ -43,7 +80,8 @@ def main():
             d['unique_mapped_coverage'] = uniq_cov
         else:
             d['unique_mapped_coverage'] = d['coverage']
-        d['covered_bp'] = (1 - d['percent missed']/100.0) * d['genome bp']
+        covered_bp = (1 - d['percent missed']/100.0) * d['genome bp']
+        d['covered_bp'] = round(covered_bp + 0.5)
         d['genome_id'] = genome_id
         d['sample_id'] = sample
 
