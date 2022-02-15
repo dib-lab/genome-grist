@@ -55,7 +55,7 @@ def test_smash_sig():
     )
     assert status == 0
 
-    output_sig = f"{_tempdir}/sigs/SRR5950647_subset.abundtrim.sig"
+    output_sig = f"{_tempdir}/sigs/SRR5950647_subset.abundtrim.sig.gz"
     assert os.path.exists(output_sig)
     sigs = list(sourmash.load_file_as_signatures(output_sig))
     assert len(sigs) == 3
@@ -231,4 +231,22 @@ def test_bad_config_4():
     status = run_snakemake(conf, verbose=True, outdir=_tempdir,
                            extra_args=["check"])
 
+    assert status != 0
+
+
+@pytest.mark.dependency()
+def test_block_sra_downloads():
+    # run 'smash_reads' with a non-existent metagenome file & make sure
+    # that it doesn't work.
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/test-block-sra.conf')
+
+    extra_args = ["smash_reads"]
+    status = run_snakemake(
+        conf,
+        verbose=True,
+        outdir=_tempdir,
+        extra_args=extra_args,
+    )
     assert status != 0

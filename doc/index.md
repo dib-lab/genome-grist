@@ -29,6 +29,7 @@ genome-grist run <config file> <target> [ <target> ... ]
 ```
 
 The main three top-level targets are:
+
 * `summarize_gather` - summarize metagenome contents using sourmash & k-mers
 * `summarize_mapping` - summarize metagenome contents using mapping
 * `summarize_tax` - summarize metagenome contents using k-mer-based taxonomy
