@@ -35,7 +35,7 @@ def summarize_vcf(vcf_gz):
 
     n_snps = 0
     for chrom in by_pos:
-        n_snps += len(chrom)
+        n_snps += len(by_pos[chrom])
 
     return n_lines, n_chrom, n_snps
 
