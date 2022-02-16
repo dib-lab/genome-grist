@@ -38,6 +38,10 @@ if not base_tempdir:
     print("Please set 'tempdir' in the config.", file=sys.stderr)
     sys.exit(-1)
 
+# prefetch mapping analysis selection
+prefetch_select = config.get('prefetch_select', [])
+print('XXX', prefetch_select)
+
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
 GENBANK_CACHE = config.get('genbank_cache', './genbank_cache/')
@@ -208,6 +212,79 @@ rule summarize_sample_info:
     input:
         expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
 
+checkpoint prefetch_genbank_wc:
+    input:
+        prefetch_csv = f'{outdir}/gather/{{sample}}.x.prefetch.csv'
+    output:
+        touch(f"{outdir}/.prefetch.{{sample}}")   # checkpoints need an output ;)
+
+class Checkpoint_PrefetchResults:
+    def __init__(self, pattern, samples=None):
+        self.pattern = pattern
+        self.samples = samples
+
+    def get_genome_idents(self, sample):
+        prefetch_csv = f'{outdir}/gather/{sample}.prefetch.csv'
+        assert os.path.exists(prefetch_csv)
+
+        genome_idents = []
+        with open(prefetch_csv, 'rt') as fp:
+           r = csv.DictReader(fp)
+           n_nomatch = 0
+           for row in r:
+               name = row['match_name']
+
+               is_substr_match = False
+               for substr in prefetch_select:
+                   if substr in name:
+                       is_substr_match = True
+                       break
+
+               if is_substr_match:
+                   ident = name.split(' ')[0]
+                   genome_idents.append(ident)
+               else:
+                   n_nomatch += 1
+
+        print(f'prefetch: loaded {len(genome_idents)} identifiers from {prefetch_csv}.',
+              file=sys.stderr)
+        print(f"skipped {n_nomatch} because they did not match 'prefetch_select' configuration.",
+               file=sys.stderr)
+
+        return genome_idents
+
+    def __call__(self, w):
+        global checkpoints
+
+        if self.samples:
+            assert not hasattr(w, 'sample')
+
+            ret = []
+            for sample in self.samples:
+                d = dict(sample=sample)
+                w = snakemake.io.Wildcards(fromdict=d)
+
+                x = self.do_sample(w)
+                print('ZAZA', (x,))
+                ret.extend(x)
+
+            return ret
+        else:
+            x = self.do_sample(w)
+            print('ZIZA', (x,))
+            return x
+
+    def do_sample(self, w):
+        # wait for the results of 'prefetch_genbank_wc'; this will trigger
+        # exception until that rule has been run.
+        checkpoints.prefetch_genbank_wc.get(**w)
+
+        # parse hitlist_genomes,
+        genome_idents = self.get_genome_idents(w.sample)
+
+        p = expand(self.pattern, ident=genome_idents, **w)
+        return p
+
 @toplevel
 checkpoint gather_reads:
     input:
@@ -251,7 +328,10 @@ class Checkpoint_GatherResults:
     def __call__(self, w):
         # get 'sample' from wildcards?
         if self.samples is None:
-            return self.do_sample(w)
+            print('XYZ')
+            x = self.do_sample(w)
+            print(x)
+            return x
         else:
             assert not hasattr(w, 'sample'), "if 'samples' provided to constructor, cannot also be in rule inputs"
 
@@ -262,6 +342,7 @@ class Checkpoint_GatherResults:
 
                 x = self.do_sample(w)
                 ret.extend(x)
+                print('YYY', x)
 
             return ret
 
@@ -336,7 +417,7 @@ class ListGatherGenomes(Checkpoint_GatherResults):
                 genome_filenames.append(info['genome_filename'])
                 genome_filenames.append(info['info_filename'])
 
-            # genbank: point at genbank_genomes
+            # genbank: point at genbank_cache
             else:
                 genome_filenames.append(f'{GENBANK_CACHE}/{ident}_genomic.fna.gz')
                 genome_filenames.append(f'{GENBANK_CACHE}/{ident}.info.csv')
@@ -384,10 +465,24 @@ rule combine_genome_info:
                sample=SAMPLES)
 
 @toplevel
+rule download_prefetch_genomes_info:
+    input:
+        expand(f"{outdir}/gather/{{sample}}.genomes.prefetch.info.csv",
+               sample=SAMPLES)
+
+@toplevel
 rule download_genbank_genomes:
     input:
         Checkpoint_GatherResults(f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz",
                                  samples=SAMPLES)
+
+# @CTB switch to using /genomes/?
+@toplevel
+rule download_prefetch_genomes:
+    input:
+        Checkpoint_PrefetchResults(f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz",
+                                   SAMPLES),
+        Checkpoint_PrefetchResults(f"{GENBANK_CACHE}/{{ident}}.info.csv", SAMPLES)
 
 @toplevel
 rule retrieve_genomes:
@@ -399,6 +494,16 @@ rule map_reads:
     input:
         expand(f"{outdir}/mapping/{{sample}}.summary.csv", sample=SAMPLES),
         expand(f"{outdir}/leftover/{{sample}}.summary.csv", sample=SAMPLES)
+
+@toplevel
+rule map_prefetch:
+    input:
+        expand(f"{outdir}/prefetch/{{sample}}.summary2.csv", sample=SAMPLES),
+
+@toplevel
+rule prefetch_to_vcf:
+    input:
+        Checkpoint_PrefetchResults(outdir + f"/prefetch/{{sample}}.x.{{ident}}.vcf.gz", samples=SAMPLES)
 
 @toplevel
 rule build_consensus:
@@ -440,7 +545,8 @@ rule zip:
         rm -f transfer.zip
         zip -r transfer.zip {outdir}/leftover/*.summary.csv \
                 {outdir}/mapping/*.summary.csv {outdir}/*.yaml \
-                {outdir}/gather/*.csv {outdir}/reports/
+                {outdir}/gather/*.csv {outdir}/reports/ \
+                {outdir}/prefetch/*.summary2.csv
     """
 
 
@@ -637,6 +743,20 @@ rule minimap_wc:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
+# map abundtrim reads and produce a bam for prefetch results
+rule minimap_prefetch_wc:
+    input:
+        query = ancient(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
+        metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
+    output:
+        bam = outdir + "/prefetch/{sample}.x.{ident}.bam",
+    conda: "env/minimap2.yml"
+    threads: 4
+    shell: """
+        minimap2 -ax sr -t {threads} {input.query} {input.metagenome} | \
+            samtools view -b -F 4 - | samtools sort - > {output.bam}
+    """
+
 # extract FASTQ from BAM
 rule bam_to_fastq_wc:
     input:
@@ -719,6 +839,18 @@ rule summarize_samtools_depth_wc:
         vcf = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.vcf.gz")
     output:
         csv = f"{outdir}/{{dir}}/{{sample}}.summary.csv"
+    shell: """
+        python -m genome_grist.summarize_mapping {wildcards.sample} \
+             {input.depth} -o {output.csv}
+    """
+
+# summarize depth into a CSV for prefetch results
+rule summarize_samtools_depth_prefetch_wc:
+    input:
+        depth = Checkpoint_PrefetchResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.depth.txt"),
+        vcf = Checkpoint_PrefetchResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.vcf.gz")
+    output:
+        csv = f"{outdir}/{{dir}}/{{sample}}.summary2.csv"
     shell: """
         python -m genome_grist.summarize_mapping {wildcards.sample} \
              {input.depth} -o {output.csv}
@@ -960,7 +1092,7 @@ checkpoint copy_sample_genomes_to_output_wc:
     input:
         # note: a key thing here is that the filenames themselves are correct,
         # so we are simply copying from (multiple) directories into one.
-        # this is why the genome filenames need to be {acc}_genomic.fna.gz.
+        # this is why the genome filenames need to be {ident}_genomic.fna.gz.
         genomes = ListGatherGenomes(),
     output:
         touch(f"{outdir}/genomes/.genomes.{{sample}}")
@@ -976,9 +1108,21 @@ rule make_combined_info_csv_wc:
     output:
         genomes_info_csv = f"{outdir}/gather/{{sample}}.genomes.info.csv",
     shell: """
+        echo hello, world
+        echo FOO {input.csvs}
         python -Werror -m genome_grist.combine_csvs \
              --fields ident,display_name \
              {input.csvs} > {output}
+    """
+
+# combined info.csv for prefetch
+rule make_combined_prefetch_info_csv:
+    input:
+        Checkpoint_PrefetchResults(f'{outdir}/genomes/{{ident}}.info.csv')
+    output:
+        genomes_info_csv = f"{outdir}/gather/{{sample}}.genomes.prefetch.info.csv",
+    shell: """
+        python -Werror -m genome_grist.combine_csvs {input} > {output}
     """
 
 # download actual genomes from genbank!
