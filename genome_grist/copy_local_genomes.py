@@ -9,7 +9,8 @@ import screed
 import csv
 import os
 import shutil
-
+import gzip
+import contextlib
 
 def main():
     p = argparse.ArgumentParser()
@@ -50,8 +51,21 @@ def main():
         print(f"read identifer '{ident}' and name '{remainder}'")
 
         destfile = os.path.join(args.output_directory, f"{ident}_genomic.fna.gz")
-        print(f"copying '{filename}' to '{destfile}'")
-        shutil.copyfile(filename, destfile)
+
+        is_gzipped = False
+        with contextlib.suppress(OSError):
+            with gzip.open(filename) as fp:
+                fp.read(1)
+                is_gzipped = True
+
+        if is_gzipped:
+            print(f"copying '{filename}' to '{destfile}'")
+            shutil.copyfile(filename, destfile)
+        else:
+            print(f"compressing '{filename}' into '{destfile}'")
+            with open(filename, 'rb') as fp:
+                with gzip.open(destfile, 'w') as outfp:
+                    outfp.write(fp.read())
 
         w.writerow(dict(ident=ident, display_name=remainder,
                         genome_filename=destfile))
