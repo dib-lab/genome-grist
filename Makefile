@@ -38,11 +38,12 @@ databases/podar-ref/:
 	mkdir -p databases/podar-ref
 	curl -L https://osf.io/vbhy5/download -o databases/podar-ref.tar.gz
 	cd databases/podar-ref/ && tar xzf ../podar-ref.tar.gz
+	parallel -j 4 gzip {} ::: $$(ls databases/podar-ref/*.fa)
 
 # sketch the ref genomes
 databases/podar-ref.zip: databases/podar-ref/
 	sourmash sketch dna -p k=31,scaled=1000 --name-from-first \
-	    databases/podar-ref/*.fa -o databases/podar-ref.zip
+	    databases/podar-ref/*.fa.gz -o databases/podar-ref.zip
 
 # download taxonomy
 databases/podar-ref.tax.csv:
@@ -50,5 +51,5 @@ databases/podar-ref.tax.csv:
 
 # create info file and genomes directory:
 databases/podar-ref.info.csv:
-	python -m genome_grist.copy_local_genomes databases/podar-ref/*.fa -o databases/podar-ref.info.csv -d databases/podar-ref.d
+	python -m genome_grist.copy_local_genomes databases/podar-ref/*.fa.gz -o databases/podar-ref.info.csv -d databases/podar-ref.d
 	python -m genome_grist.make_info_file databases/podar-ref.info.csv
