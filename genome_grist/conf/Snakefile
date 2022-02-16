@@ -715,12 +715,13 @@ rule build_new_consensus_wc:
 # summarize depth into a CSV
 rule summarize_samtools_depth_wc:
     input:
-        Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.depth.txt")
+        depth = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.depth.txt"),
+        vcf = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.vcf.gz")
     output:
         csv = f"{outdir}/{{dir}}/{{sample}}.summary.csv"
     shell: """
         python -m genome_grist.summarize_mapping {wildcards.sample} \
-             {input} -o {output.csv}
+             {input.depth} -o {output.csv}
     """
 
 # compute sourmash signature from abundtrim reads
