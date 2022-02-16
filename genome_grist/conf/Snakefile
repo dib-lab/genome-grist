@@ -913,7 +913,7 @@ rule sourmash_gather_wc:
        Run gather for {wildcards.sample}
     """
     input:
-        known = outdir + "/gather/{sample}.known.sig.gz",
+        sig = outdir + "/sigs/{sample}.abundtrim.sig.gz",
         picklist = outdir + "/gather/{sample}.prefetch.csv",
         db = SOURMASH_DB_LIST,
     output:
@@ -924,7 +924,7 @@ rule sourmash_gather_wc:
     params:
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
-        sourmash gather {input.known} {input.db} -o {output.csv} \
+        sourmash gather {input.sig} {input.db} -o {output.csv} \
           --threshold-bp {params.threshold_bp} \
           --picklist {input.picklist}::prefetch \
           --save-matches {output.matches} > {output.out}
