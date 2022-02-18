@@ -27,11 +27,14 @@ def main():
     ksize = args.ksize
     moltype = args.moltype
 
-    query_sig = sourmash.load_one_signature(args.query_sig,
-                                            ksize=ksize,
-                                            select_moltype=moltype)
-    known_sig = sourmash.load_one_signature(args.known_sig)
-    unknown_sig = sourmash.load_one_signature(args.unknown_sig)
+    query_sig = sourmash.load_file_as_signatures(args.query_sig,
+                                                 ksize=ksize,
+                                                 select_moltype=moltype)
+    query_sig = list(query_sig)[0]
+    known_sig = sourmash.load_file_as_signatures(args.known_sig)
+    known_sig = list(known_sig)[0]
+    unknown_sig = sourmash.load_file_as_signatures(args.unknown_sig)
+    unknown_sig = list(unknown_sig)[0]
 
     query_mh = query_sig.minhash
     known_mh = known_sig.minhash
