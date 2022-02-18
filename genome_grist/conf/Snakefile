@@ -171,7 +171,7 @@ rule download_reads:
     input:
         expand(f"{outdir}/raw/{{sample}}_1.fastq.gz", sample=SAMPLES),
         expand(f"{outdir}/raw/{{sample}}_2.fastq.gz", sample=SAMPLES),
-        expand(f"{outdir}/raw/{{sample}}.raw.sig.gz", sample=SAMPLES),
+        expand(f"{outdir}/raw/{{sample}}.raw.sig.zip", sample=SAMPLES),
 
 @toplevel
 rule trim_reads:
@@ -194,7 +194,7 @@ rule count_trimmed_reads:
 @toplevel
 rule smash_reads:
     input:
-        url_file = expand(f"{outdir}/sigs/{{sample}}.abundtrim.sig.gz",
+        url_file = expand(f"{outdir}/sigs/{{sample}}.abundtrim.sig.zip",
                           sample=SAMPLES)
 
 @toplevel
@@ -415,6 +415,19 @@ rule summarize_mapping:
                sample=SAMPLES)
 
 @toplevel
+rule summarize:
+    input:
+        expand(f'{outdir}/reports/report-mapping-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/reports/report-gather-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/reports/report-taxonomy-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv',
+               sample=SAMPLES),
+        expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
+
+@toplevel
 rule make_sgc_conf:
     input:
         expand(f"{outdir}/sgc/{{sample}}.conf", sample=SAMPLES)
@@ -516,7 +529,7 @@ rule smash_raw_reads_wc:
         r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
         unp = ancient(outdir + "/raw/{sample}_unpaired.fastq.gz"),
     output:
-        sig = outdir + "/raw/{sample}.raw.sig.gz"
+        sig = outdir + "/raw/{sample}.raw.sig.zip"
     conda: "env/sourmash.yml"
     params:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
@@ -729,7 +742,7 @@ rule smash_abundtrim_wc:
     input:
         metagenome = ancient(outdir + "/abundtrim/{sample}.abundtrim.fq.gz"),
     output:
-        sig = outdir + "/sigs/{sample}.abundtrim.sig.gz"
+        sig = outdir + "/sigs/{sample}.abundtrim.sig.zip"
     conda: "env/sourmash.yml"
     params:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
@@ -863,12 +876,12 @@ rule sourmash_prefetch_wc:
        Find all potentially relevant database matches for {wildcards.sample}
     """
     input:
-        sig = outdir + "/sigs/{sample}.abundtrim.sig.gz",
+        sig = outdir + "/sigs/{sample}.abundtrim.sig.zip",
         db = SOURMASH_DB_LIST,
     output:
         csv = outdir + "/gather/{sample}.prefetch.csv",
-        known = outdir + "/gather/{sample}.known.sig.gz",
-        unknown = outdir + "/gather/{sample}.unknown.sig.gz",
+        known = outdir + "/gather/{sample}.known.sig.zip",
+        unknown = outdir + "/gather/{sample}.unknown.sig.zip",
     resources:
         mem_mb=int(PREFETCH_MEMORY / 1e3)
     conda: "env/sourmash.yml"
@@ -892,9 +905,9 @@ rule report_query_known_unknown_wc:
        Report on "known" and "unknown" hashes for {wildcards.sample}
     """
     input:
-        query = outdir + "/sigs/{sample}.abundtrim.sig.gz",
-        known = outdir + "/gather/{sample}.known.sig.gz",
-        unknown = outdir + "/gather/{sample}.unknown.sig.gz",
+        query = outdir + "/sigs/{sample}.abundtrim.sig.zip",
+        known = outdir + "/gather/{sample}.known.sig.zip",
+        unknown = outdir + "/gather/{sample}.unknown.sig.zip",
     output:
         report = outdir + "/gather/{sample}.prefetch.report.txt",
     conda: "env/sourmash.yml"
@@ -913,12 +926,12 @@ rule sourmash_gather_wc:
        Run gather for {wildcards.sample}
     """
     input:
-        sig = outdir + "/sigs/{sample}.abundtrim.sig.gz",
+        sig = outdir + "/sigs/{sample}.abundtrim.sig.zip",
         picklist = outdir + "/gather/{sample}.prefetch.csv",
         db = SOURMASH_DB_LIST,
     output:
         csv = outdir + "/gather/{sample}.gather.csv",
-        matches = outdir + "/gather/{sample}.matches.sig.gz",
+        matches = outdir + "/gather/{sample}.matches.sig.zip",
         out = outdir + "/gather/{sample}.gather.out",
     conda: "env/sourmash.yml"
     params:
