@@ -922,11 +922,14 @@ rule sourmash_gather_wc:
         out = outdir + "/gather/{sample}.gather.out",
     conda: "env/sourmash.yml"
     params:
+        ksize = SOURMASH_DB_KSIZE,
+        moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
         sourmash gather {input.sig} {input.db} -o {output.csv} \
           --threshold-bp {params.threshold_bp} \
           --picklist {input.picklist}::prefetch \
+          -k {params.ksize} {params.moltype} \
           --save-matches {output.matches} > {output.out}
     """
 
