@@ -415,6 +415,19 @@ rule summarize_mapping:
                sample=SAMPLES)
 
 @toplevel
+rule summarize:
+    input:
+        expand(f'{outdir}/reports/report-mapping-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/reports/report-gather-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/reports/report-taxonomy-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv',
+               sample=SAMPLES),
+        expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
+
+@toplevel
 rule make_sgc_conf:
     input:
         expand(f"{outdir}/sgc/{{sample}}.conf", sample=SAMPLES)
