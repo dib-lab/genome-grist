@@ -55,7 +55,7 @@ def test_smash_sig():
     )
     assert status == 0
 
-    output_sig = f"{_tempdir}/sigs/SRR5950647_subset.abundtrim.sig.gz"
+    output_sig = f"{_tempdir}/sigs/SRR5950647_subset.abundtrim.sig.zip"
     assert os.path.exists(output_sig)
     sigs = list(sourmash.load_file_as_signatures(output_sig))
     assert len(sigs) == 3
