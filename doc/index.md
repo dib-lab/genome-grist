@@ -28,11 +28,12 @@ You can run genome-grist on a config file like so:
 genome-grist run <config file> <target> [ <target> ... ]
 ```
 
-The main three top-level targets are:
+The four top-level targets are:
 
 * `summarize_gather` - summarize metagenome contents using sourmash & k-mers
 * `summarize_mapping` - summarize metagenome contents using mapping
 * `summarize_tax` - summarize metagenome contents using k-mer-based taxonomy
+* `summarize` - run `summarize_gather`, `summarize_mapping`, and `summarize_tax`
 
 These all produce reports in the `reports/` subdir of the configured output dir.
 
