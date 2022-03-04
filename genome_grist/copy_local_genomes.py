@@ -65,6 +65,11 @@ def main():
 
         destfile = os.path.join(args.output_directory, f"{ident}_genomic.fna.gz")
         
+        
+        if args.sym and not is_gzipped:
+            print(f"--sym option requires the Fasta files to be gzipped first.", file= sys.stderr)
+            sys.exit(1)
+        
         if args.sym and is_gzipped:
             print(f"symbolic linking '{filename}' to '{destfile}'")
             _src = os.path.abspath(filename)
