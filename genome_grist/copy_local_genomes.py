@@ -11,7 +11,6 @@ import os
 import shutil
 import gzip
 import contextlib
-from pathlib import Path
 
 def main():
     p = argparse.ArgumentParser()
