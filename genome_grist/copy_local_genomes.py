@@ -63,10 +63,9 @@ def main():
                 fp.read(1)
                 is_gzipped = True
 
-        destfile = os.path.join(args.output_directory, f"{ident}_genomic.fna")
-        destfile = f"{destfile}.gz" if is_gzipped else destfile
+        destfile = os.path.join(args.output_directory, f"{ident}_genomic.fna.gz")
         
-        if args.sym:
+        if args.sym and is_gzipped:
             print(f"symbolic linking '{filename}' to '{destfile}'")
             _src = os.path.abspath(filename)
             _dst = os.path.abspath(destfile)
