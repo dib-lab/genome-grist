@@ -242,7 +242,7 @@ curl -L https://osf.io/ckbq3/download -o outputs.private/abundtrim/podar.abundtr
 and then confirm that the config file `conf-private.yml` has the following content:
 
 ```yaml
-sample:
+samples:
 - podar
 
 outdir: outputs.private/
