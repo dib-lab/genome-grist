@@ -68,7 +68,7 @@ def main():
         
         if args.sym and not is_gzipped:
             print("--sym option requires the FASTA files to be already gzipped.", file=sys.stderr)
-            sys.exit(1)
+            sys.exit(-1)
         
         if args.sym and is_gzipped:
             print(f"symbolic linking '{filename}' to '{destfile}'")
