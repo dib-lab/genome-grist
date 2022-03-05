@@ -75,7 +75,7 @@ def main():
             _src = os.path.abspath(filename)
             _dst = os.path.abspath(destfile)
             if os.path.islink(_dst):
-                print(f"symlink {_dst} already exist, consider removing it first.", file= sys.stderr)
+                print(f"symlink {_dst} already exists, consider removing it first.", file=sys.stderr)
                 sys.exit(1)
             os.symlink(_src, _dst)
         elif is_gzipped:
