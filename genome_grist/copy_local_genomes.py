@@ -67,7 +67,7 @@ def main():
         
         
         if args.sym and not is_gzipped:
-            print(f"--sym option requires the Fasta files to be gzipped first.", file= sys.stderr)
+            print("--sym option requires the FASTA files to be already gzipped.", file=sys.stderr)
             sys.exit(1)
         
         if args.sym and is_gzipped:
