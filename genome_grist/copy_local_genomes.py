@@ -20,7 +20,7 @@ def main():
     p.add_argument('--sym', required=False, action= 'store_true')
     args = p.parse_args()
     
-    # Create directories if not exist
+    # Create directory if does not exist
     try:
         os.makedirs(args.output_directory)
     except FileExistsError:
