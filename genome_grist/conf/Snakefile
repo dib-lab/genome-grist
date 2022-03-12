@@ -795,22 +795,12 @@ rule make_gather_notebook_wc:
 # from being run over and over!
 rule make_taxonomy_notebook_wc:
     input:
-        nb = srcdir('../notebooks/report-taxonomy.ipynb'),
         taxcsv = ancient(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv'),
-        kernel_set = rules.set_kernel.output,
     output:
-        nb = outdir + f'/reports/report-taxonomy-{{sample}}.ipynb',
         html = outdir + f'/reports/report-taxonomy-{{sample}}.html',
-    params:
-        cwd = outdir + '/reports/',
-        outdir = outdir,
-    conda: 'env/papermill.yml'
+    conda: 'env/plotly.yml'
     shell: """
-        papermill {input.nb} {output.nb} -k genome_grist \
-              -p sample_id {wildcards.sample:q} -p render '' -p outdir {outdir:q}\
-              --cwd {params.cwd}
-        python -m nbconvert {output.nb} --to html --stdout --no-input \
-             --ExecutePreprocessor.kernel_name=genome_grist > {output.html}
+        python ../report-taxonomy.py {input.taxcsv} {output.html}
     """
 
 # papermill -> reporting notebook + html
