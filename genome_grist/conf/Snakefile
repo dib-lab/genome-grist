@@ -200,20 +200,20 @@ class Checkpoint_GatherResults:
         self.pattern = pattern
         self.samples = samples
 
-    def get_genome_idents(self, sample):
+    def get_reference_idents(self, sample):
         gather_csv = f'{outdir}/gather/{sample}.gather.csv'
         assert os.path.exists(gather_csv), "gather output does not exist!?"
 
-        genome_idents = []
+        reference_idents = []
         with open(gather_csv, 'rt') as fp:
            r = csv.DictReader(fp)
            for row in r:
                ident = row['name'].split()[0]
-               genome_idents.append(ident)
-        print(f'loaded {len(genome_idents)} identifiers from {gather_csv}.',
+               reference_idents.append(ident)
+        print(f'loaded {len(reference_idents)} identifiers from {gather_csv}.',
               file=sys.stderr)
 
-        return genome_idents
+        return reference_idents
 
     def __call__(self, w):
         # get 'sample' from wildcards?
@@ -238,9 +238,9 @@ class Checkpoint_GatherResults:
         checkpoints.gather_reads_wc.get(**w)
 
         # parse hitlist_genomes,
-        genome_idents = self.get_genome_idents(w.sample)
+        reference_idents = self.get_reference_idents(w.sample)
 
-        p = expand(self.pattern, ident=genome_idents, **w)
+        p = expand(self.pattern, ident=reference_idents, **w)
 
         return p
 
@@ -262,14 +262,21 @@ class ListGatherGenomes(Checkpoint_GatherResults):
     def _load_local_database_info(self):
         # get list of local genomes first...
         local_info = {}
+        if SOURMASH_COMPUTE_TYPE == "DNA":
+            filename_col = "genome_filename"
+            reftype = "genome"
+        elif SOURMASH_COMPUTE_TYPE == "protein":
+            filename_col = "protein_filename"
+            reftype = "proteome"
         for filename in local_databases_info:
+            
             for row in load_csv(filename):
                 ident = row['ident']
 
-                genome_dir = os.path.dirname(row['genome_filename'])
-                row['genome_filename'] = os.path.normpath(row['genome_filename'])
+                ref_dir = os.path.dirname(row[filename_col])
+                row[filename_col] = os.path.normpath(row[filename_col])
 
-                genome_dir = os.path.dirname(row['genome_filename'])
+                genome_dir = os.path.dirname(row[filename_col])
                 info_filename = f'{ident}.info.csv'
                 info_filename = os.path.join(genome_dir, info_filename)
                 
@@ -278,7 +285,7 @@ class ListGatherGenomes(Checkpoint_GatherResults):
                 local_info[ident] = row
 
         if local_info:
-            print(f"Loaded info on {len(local_info)} local genomes.")
+            print(f"Loaded info on {len(local_info)} local {reftype}s.")
         return local_info
 
     def do_sample(self, w):
@@ -289,10 +296,17 @@ class ListGatherGenomes(Checkpoint_GatherResults):
         sample = w.sample
 
         local_info = self._load_local_database_info()
-        genome_filenames = []
+        ref_filenames = []
 
         gather_csv = f'{outdir}/gather/{sample}.gather.csv'
         assert os.path.exists(gather_csv), f"gather output does not exist for {sample}!?"
+
+        if SOURMASH_COMPUTE_TYPE == "DNA":
+            filename_col = "genome_filename"
+            file_ext = "genomic.fna.gz"
+        elif SOURMASH_COMPUTE_TYPE == "protein":
+            filename_col = "protein_filename"
+            file_ext = "protein.faa.gz"
 
         for row in load_csv(gather_csv):
             ident = row['name'].split()[0]
@@ -300,22 +314,22 @@ class ListGatherGenomes(Checkpoint_GatherResults):
             # if in local information, use that as genome source.
             if ident in local_info:
                 info = local_info[ident]
-                genome_filenames.append(info['genome_filename'])
-                genome_filenames.append(info['info_filename'])
+                ref_filenames.append(info[filename_col])
+                ref_filenames.append(info['info_filename'])
 
             # genbank: point at genbank_genomes
             else:
-                genome_filenames.append(f'{GENBANK_CACHE}/{ident}_genomic.fna.gz')
-                genome_filenames.append(f'{GENBANK_CACHE}/{ident}.info.csv')
+                ref_filenames.append(f'{GENBANK_CACHE}/{ident}_{file_ext}')
+                ref_filenames.append(f'{GENBANK_CACHE}/{ident}.info.csv')
 
-        return genome_filenames
+        return ref_filenames
 
 class Checkpoint_GenomeFiles(Checkpoint_GatherResults):
     def do_sample(self, w):
         checkpoints.copy_sample_genomes_to_output_wc.get(**w)
 
         # parse hitlist_genomes,
-        genome_idents = self.get_genome_idents(w.sample)
+        genome_idents = self.get_reference_idents(w.sample)
 
         if 'ident' in dict(w):
             p = expand(self.pattern, **w)
@@ -329,12 +343,12 @@ class Checkpoint_ProteomeFiles(Checkpoint_GatherResults):
         checkpoints.copy_sample_proteomes_to_output_wc.get(**w)
 
         # parse hitlist_genomes,
-        genome_idents = self.get_genome_idents(w.sample)
+        proteome_idents = self.get_reference_idents(w.sample)
 
         if 'ident' in dict(w):
             p = expand(self.pattern, **w)
         else:
-            p = expand(self.pattern, ident=genome_idents, **w)
+            p = expand(self.pattern, ident=proteome_idents, **w)
 
         return p
 
