@@ -233,20 +233,20 @@ class Checkpoint_GatherResults:
         self.pattern = pattern
         self.samples = samples
 
-    def get_genome_idents(self, sample):
+    def get_reference_idents(self, sample):
         gather_csv = f'{outdir}/gather/{sample}.gather.csv'
         assert os.path.exists(gather_csv), "gather output does not exist!?"
 
-        genome_idents = []
+        reference_idents = []
         with open(gather_csv, 'rt') as fp:
            r = csv.DictReader(fp)
            for row in r:
                ident = row['name'].split()[0]
-               genome_idents.append(ident)
-        print(f'loaded {len(genome_idents)} identifiers from {gather_csv}.',
+               reference_idents.append(ident)
+        print(f'loaded {len(reference_idents)} identifiers from {gather_csv}.',
               file=sys.stderr)
 
-        return genome_idents
+        return reference_idents
 
     def __call__(self, w):
         # get 'sample' from wildcards?
@@ -271,9 +271,9 @@ class Checkpoint_GatherResults:
         checkpoints.gather_reads_wc.get(**w)
 
         # parse hitlist_genomes,
-        genome_idents = self.get_genome_idents(w.sample)
+        reference_idents = self.get_reference_idents(w.sample)
 
-        p = expand(self.pattern, ident=genome_idents, **w)
+        p = expand(self.pattern, ident=reference_idents, **w)
 
         return p
 
@@ -295,14 +295,21 @@ class ListGatherGenomes(Checkpoint_GatherResults):
     def _load_local_database_info(self):
         # get list of local genomes first...
         local_info = {}
+        if SOURMASH_COMPUTE_TYPE == "DNA":
+            filename_col = "genome_filename"
+            reftype = "genome"
+        elif SOURMASH_COMPUTE_TYPE == "protein":
+            filename_col = "protein_filename"
+            reftype = "proteome"
         for filename in local_databases_info:
+            
             for row in load_csv(filename):
                 ident = row['ident']
 
-                genome_dir = os.path.dirname(row['genome_filename'])
-                row['genome_filename'] = os.path.normpath(row['genome_filename'])
+                ref_dir = os.path.dirname(row[filename_col])
+                row[filename_col] = os.path.normpath(row[filename_col])
 
-                genome_dir = os.path.dirname(row['genome_filename'])
+                genome_dir = os.path.dirname(row[filename_col])
                 info_filename = f'{ident}.info.csv'
                 info_filename = os.path.join(genome_dir, info_filename)
                 
@@ -311,7 +318,7 @@ class ListGatherGenomes(Checkpoint_GatherResults):
                 local_info[ident] = row
 
         if local_info:
-            print(f"Loaded info on {len(local_info)} local genomes.")
+            print(f"Loaded info on {len(local_info)} local {reftype}s.")
         return local_info
 
     def do_sample(self, w):
@@ -322,10 +329,17 @@ class ListGatherGenomes(Checkpoint_GatherResults):
         sample = w.sample
 
         local_info = self._load_local_database_info()
-        genome_filenames = []
+        ref_filenames = []
 
         gather_csv = f'{outdir}/gather/{sample}.gather.csv'
         assert os.path.exists(gather_csv), f"gather output does not exist for {sample}!?"
+
+        if SOURMASH_COMPUTE_TYPE == "DNA":
+            filename_col = "genome_filename"
+            file_ext = "genomic.fna.gz"
+        elif SOURMASH_COMPUTE_TYPE == "protein":
+            filename_col = "protein_filename"
+            file_ext = "protein.faa.gz"
 
         for row in load_csv(gather_csv):
             ident = row['name'].split()[0]
@@ -333,27 +347,41 @@ class ListGatherGenomes(Checkpoint_GatherResults):
             # if in local information, use that as genome source.
             if ident in local_info:
                 info = local_info[ident]
-                genome_filenames.append(info['genome_filename'])
-                genome_filenames.append(info['info_filename'])
+                ref_filenames.append(info[filename_col])
+                ref_filenames.append(info['info_filename'])
 
             # genbank: point at genbank_genomes
             else:
-                genome_filenames.append(f'{GENBANK_CACHE}/{ident}_genomic.fna.gz')
-                genome_filenames.append(f'{GENBANK_CACHE}/{ident}.info.csv')
+                ref_filenames.append(f'{GENBANK_CACHE}/{ident}_{file_ext}')
+                ref_filenames.append(f'{GENBANK_CACHE}/{ident}.info.csv')
 
-        return genome_filenames
+        return ref_filenames
 
 class Checkpoint_GenomeFiles(Checkpoint_GatherResults):
     def do_sample(self, w):
         checkpoints.copy_sample_genomes_to_output_wc.get(**w)
 
         # parse hitlist_genomes,
-        genome_idents = self.get_genome_idents(w.sample)
+        genome_idents = self.get_reference_idents(w.sample)
 
         if 'ident' in dict(w):
             p = expand(self.pattern, **w)
         else:
             p = expand(self.pattern, ident=genome_idents, **w)
+
+        return p
+
+class Checkpoint_ProteomeFiles(Checkpoint_GatherResults):
+    def do_sample(self, w):
+        checkpoints.copy_sample_proteomes_to_output_wc.get(**w)
+
+        # parse hitlist_genomes,
+        proteome_idents = self.get_reference_idents(w.sample)
+
+        if 'ident' in dict(w):
+            p = expand(self.pattern, **w)
+        else:
+            p = expand(self.pattern, ident=proteome_idents, **w)
 
         return p
 
@@ -1077,3 +1105,138 @@ radius: 1
 search:
 - {query_list}
 """, file=fp)
+
+# download proteomes from genbank if they exist
+## NEEDS CORRESPONDING CHECKPOINT
+rule download_matching_proteome_wc:
+    input:
+        csvfile = ancient(f'{GENBANK_CACHE}/{{ident}}.info.csv')
+    output:
+        proteome = f"{GENBANK_CACHE}/proteomes/{{ident}}_protein.faa.gz"
+    run:
+        with open(input.csvfile, 'rt') as infp:
+            r = csv.DictReader(infp)
+            rows = list(r)
+            assert len(rows) == 1
+            row = rows[0]
+            ident = row['ident']
+            assert wildcards.ident.startswith(ident)
+            url = row['protein_url']
+            url = row['genome_url']
+            name = row['display_name']
+
+            print(f"downloading proteome for ident {ident}/{name} from NCBI...",
+                file=sys.stderr)
+            with open(output.proteome, 'wb') as outfp:
+                try:
+                    with urllib.request.urlopen(url) as response:
+                        content = response.read()
+                        outfp.write(content)
+                        print(f"...wrote {len(content)} bytes to {output.proteome}",
+                              file=sys.stderr)
+                except:
+                    shell('touch {output}')
+
+# copy genbank + local genomes for this sample into output dir
+checkpoint copy_sample_proteomes_to_output_wc:
+    input:
+        # note: a key thing here is that the filenames themselves are correct,
+        # so we are simply copying from (multiple) directories into one.
+        # this is why the genome filenames need to be {acc}_genomic.fna.gz.
+        genomes = ListGatherGenomes(),
+    output:
+        touch(f"{outdir}/proteomes/.proteomes.{{sample}}")
+    shell: """
+        mkdir -p {outdir}/proteomes/
+        cp {input} {outdir}/proteomes/
+    """
+
+# paladin genomes if proteome can't be downloaded
+rule unzip_genome_for_prodigal_wc:
+    input:
+        fasta="genbank/genomes/{acc}_genomic.fna.gz",
+        checkpt=f"genbank/.{basename}.check_proteins",
+    output:
+        unzipped=temp("genbank/genomes/{acc}_genomic.fna"),
+    log: os.path.join(logs_dir, "gzip", "{acc}.genome_unzip.log")
+    benchmark: os.path.join(logs_dir, "gzip", "{acc}.genome_unzip.benchmark")
+    shell:
+        """
+        gunzip -c {input.fasta} > {output.unzipped} 2> {log}
+        """
+
+rule prodigal_genomes_for_failed_protein_downloads_wc:
+    input:
+        fasta="genbank/genomes/{acc}_genomic.fna",
+        checkpt=f"genbank/.{basename}.check_proteins",
+    output:
+        proteins=f"{prodigal_dir}/{{acc}}_protein.faa",
+        genes=f"{prodigal_dir}/{{acc}}_genes.fna"
+    conda: "conf/envs/prodigal-env.yml"
+    log: os.path.join(logs_dir, "prodigal", "{acc}.prodigal.log")
+    benchmark: os.path.join(logs_dir, "prodigal", "{acc}.prodigal.benchmark")
+    shell:
+        """
+         prodigal -i {input.fasta} -a {output.proteins} -o {output.genes} 2> {log}
+        """
+
+rule gzip_prodigal_proteins_wc:
+    input:
+        proteins=f"{prodigal_dir}/{{acc}}_protein.faa",
+    output:
+        f"{prodigal_dir}/{{acc}}_protein.faa.gz"
+    log: os.path.join(logs_dir, 'gzip_prodigal', '{acc}.gzip.log')
+    shell:
+        """
+        gzip -c {input} > {output} 2> {log}
+        """
+
+# bbmerge reads for use with prodigal protein mapper
+# does this work with gzipped reads?
+rule bbmerge_paired_reads_wc:
+    input:
+        interleaved = ancient(outdir + '/trim/{sample}.trim.fq.gz'),
+    output:
+        merged = protected(outdir + '/merge_reads/{sample}.merged.fq.gz'),
+        unmerged = protected(outdir + '/merge_reads/{sample}.unmerged.fq.gz'),
+        insert_size_hist = protected(outdir + '/merge_reads/{sample}.insert-size-histogram.txt'),
+    conda: 'env/bbmap.yml'
+    threads: 6
+    resources:
+        mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
+    params:
+        mem = ABUNDTRIM_MEMORY,
+    shell: """
+            bbmerge.sh -t {threads} -Xmx {params.mem} in={input} \
+            out={output.merged} outu={output.unmerged} \
+            ihist={output.ihist}
+    """
+
+rule paladin_index_wc:
+    input:
+        proteome = Checkpoint_ProteomeFiles(f"{outdir}/proteomes/{{ident}}_protein.faa.gz"),
+    output:
+        idx = outdir + "/proteomes/{ident}_protein.faa.bwt",
+    conda: 'env/paladin.yml'
+    shell:
+        """
+        paladin index -r3 {input.proteome}
+        """
+
+rule paladin_align_wc:
+    input:
+#        reads='{sample}.assembled.fastq',
+        merged_reads= outdir + '/merge_reads/{sample}.merged.fq.gz',
+        index= outdir + "/proteomes/{ident}_protein.faa.bwt",
+    output:
+        bam = outdir + "/protein_mapping/{sample}.x.{ident}.bam",
+    params:
+        index_base=lambda w: f"{outdir}/proteomes/{w.ident}_protein.faa"
+#    log:
+#        "logs/{sample}.paladin-align.log"
+#    threads: 4
+    conda: "paladin.yml"
+    shell:
+        """
+        paladin align -t {threads} -T 20 {params.index_base} {input.reads} | samtools view -Sb - > {output}
+        """

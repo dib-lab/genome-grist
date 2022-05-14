@@ -45,6 +45,7 @@ def url_for_accession(accession):
         url = "htt" + url[3:]
         return (
             f"{url}/{full_name}/{full_name}_genomic.fna.gz",
+            f"{url}/{full_name}/{full_name}_protein.faa.gz",
             f"{url}/{full_name}/{full_name}_assembly_report.txt",
         )
 
@@ -90,14 +91,8 @@ def get_tax_name_for_taxid(taxid):
     return notags
 
 
-def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("accession")
-    p.add_argument("-o", "--output")
-    args = p.parse_args()
-
-    fieldnames = ["ident", "genome_url", "assembly_report_url", "display_name"]
-    fp = None
+def main(args):
+    fieldnames = ["ident", "genome_url", "protein_url", "assembly_report_url", "display_name", "ncbi_taxid"]
     if args.output:
         fp = open(args.output, "wt")
         w = csv.DictWriter(fp, fieldnames=fieldnames)
@@ -107,25 +102,34 @@ def main():
 
     ident = args.accession
 
-    genome_url, assembly_report_url = url_for_accession(ident)
+    genome_url, protein_url, assembly_report_url = url_for_accession(ident)
     taxid = get_taxid_from_assembly_report(assembly_report_url)
     tax_name = get_tax_name_for_taxid(taxid)
 
     d = dict(
         ident=ident,
         genome_url=genome_url,
+        protein_url=protein_url,
         assembly_report_url=assembly_report_url,
         display_name=tax_name,
+        ncbi_taxid=taxid,
     )
 
     w.writerow(d)
     print(f"retrieved for {ident} - {tax_name}", file=sys.stderr)
-
     if fp:
         fp.close()
 
     return 0
 
+def cmdline(sys_args):
+    "Command line entry point w/argparse action."
+    p = argparse.ArgumentParser()
+    p.add_argument("accession")
+    p.add_argument("-o", "--output")
+    args = p.parse_args()
+    return main(args)
 
-if __name__ == "__main__":
-    sys.exit(main())
+if __name__ == '__main__':
+    returncode = cmdline(sys.argv[1:])
+    sys.exit(returncode)
