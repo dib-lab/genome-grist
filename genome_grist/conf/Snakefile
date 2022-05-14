@@ -89,6 +89,39 @@ def make_param_str(ksizes, scaled):
     return f"{ks},scaled={scaled},abund"
 
 ###
+#
+# print out unknown config variables...
+#
+
+all_config_keys = set(config.keys())
+known_config_keys = { 'samples', 'outdir', 'tempdir',
+                      'metagenome_trim_memory',
+                      'genbank_cache',
+                      'sourmash_databases',
+                      'local_databases_info',
+                      'sourmash_database_threshold_bp',
+                      'sourmash_database_ksize',
+                      'sourmash_compute_ksizes',
+                      'sourmash_scaled',
+                      'sourmash_sigtype',
+                      'prefetch_memory',
+                      'taxonomies',
+                      'prevent_sra_download',
+                      'picklist' }
+
+unknown_config_keys = all_config_keys - known_config_keys
+
+if unknown_config_keys:
+    print(f'**', file=sys.stderr)
+    print(f'** WARNING: {len(unknown_config_keys)} unknown parameters found in config.', file=sys.stderr)
+    print(f'** The following config parameters are being ignored:', file=sys.stderr)
+    print(f"**    {', '.join(unknown_config_keys)}", file=sys.stderr)
+    print(f'**', file=sys.stderr)
+    print(f'** Please see docs at https://dib-lab.github.io/genome-grist/configuring/',
+          file=sys.stderr)
+    print(f'**', file=sys.stderr)
+
+###
 
 # utility function
 def load_csv(filename):
@@ -138,7 +171,7 @@ rule download_reads:
     input:
         expand(f"{outdir}/raw/{{sample}}_1.fastq.gz", sample=SAMPLES),
         expand(f"{outdir}/raw/{{sample}}_2.fastq.gz", sample=SAMPLES),
-        expand(f"{outdir}/raw/{{sample}}.raw.sig", sample=SAMPLES),
+        expand(f"{outdir}/raw/{{sample}}.raw.sig.zip", sample=SAMPLES),
 
 @toplevel
 rule trim_reads:
@@ -161,7 +194,7 @@ rule count_trimmed_reads:
 @toplevel
 rule smash_reads:
     input:
-        url_file = expand(f"{outdir}/sigs/{{sample}}.abundtrim.sig",
+        url_file = expand(f"{outdir}/sigs/{{sample}}.abundtrim.sig.zip",
                           sample=SAMPLES)
 
 @toplevel
@@ -410,6 +443,19 @@ rule summarize_mapping:
                sample=SAMPLES)
 
 @toplevel
+rule summarize:
+    input:
+        expand(f'{outdir}/reports/report-mapping-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/reports/report-gather-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/reports/report-taxonomy-{{sample}}.html',
+               sample=SAMPLES),
+        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv',
+               sample=SAMPLES),
+        expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
+
+@toplevel
 rule make_sgc_conf:
     input:
         expand(f"{outdir}/sgc/{{sample}}.conf", sample=SAMPLES)
@@ -450,11 +496,21 @@ rule download_sra_wc:
         temp_r1 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_1.fastq",
         temp_r2 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_2.fastq",
         temp_unp = f"{base_tempdir}/{{sample}}.d/{{sample}}.fastq",
+    params:
+        do_not_run_me = 1 if config.get("prevent_sra_download", False) else 0,
+        outdir = outdir,
     threads: 6
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
     shell: '''
+        if [ "{params.do_not_run_me}" = 1 ]; then
+            echo "** genome-grist is trying to download from SRA for sample {wildcards.sample},"
+            echo "** but 'prevent_sra_download' is set to true in config."
+            echo "** Does '{params.outdir}/abundtrim/{wildcards.sample}.abundtrim.fq.gz' exist?"
+            exit -1
+        fi
+
         echo tmp directory: {output.temp_dir}
         echo running fasterq-dump for {wildcards.sample}
 
@@ -501,7 +557,7 @@ rule smash_raw_reads_wc:
         r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
         unp = ancient(outdir + "/raw/{sample}_unpaired.fastq.gz"),
     output:
-        sig = outdir + "/raw/{sample}.raw.sig"
+        sig = outdir + "/raw/{sample}.raw.sig.zip"
     conda: "env/sourmash.yml"
     params:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
@@ -700,12 +756,13 @@ rule build_new_consensus_wc:
 # summarize depth into a CSV
 rule summarize_samtools_depth_wc:
     input:
-        Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.depth.txt")
+        depth = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.depth.txt"),
+        vcf = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.vcf.gz")
     output:
         csv = f"{outdir}/{{dir}}/{{sample}}.summary.csv"
     shell: """
         python -m genome_grist.summarize_mapping {wildcards.sample} \
-             {input} -o {output.csv}
+             {input.depth} -o {output.csv}
     """
 
 # compute sourmash signature from abundtrim reads
@@ -713,7 +770,7 @@ rule smash_abundtrim_wc:
     input:
         metagenome = ancient(outdir + "/abundtrim/{sample}.abundtrim.fq.gz"),
     output:
-        sig = outdir + "/sigs/{sample}.abundtrim.sig"
+        sig = outdir + "/sigs/{sample}.abundtrim.sig.zip"
     conda: "env/sourmash.yml"
     params:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
@@ -847,12 +904,12 @@ rule sourmash_prefetch_wc:
        Find all potentially relevant database matches for {wildcards.sample}
     """
     input:
-        sig = outdir + "/sigs/{sample}.abundtrim.sig",
+        sig = outdir + "/sigs/{sample}.abundtrim.sig.zip",
         db = SOURMASH_DB_LIST,
     output:
         csv = outdir + "/gather/{sample}.prefetch.csv",
-        known = outdir + "/gather/{sample}.known.sig",
-        unknown = outdir + "/gather/{sample}.unknown.sig",
+        known = outdir + "/gather/{sample}.known.sig.zip",
+        unknown = outdir + "/gather/{sample}.unknown.sig.zip",
     resources:
         mem_mb=int(PREFETCH_MEMORY / 1e3)
     conda: "env/sourmash.yml"
@@ -876,9 +933,9 @@ rule report_query_known_unknown_wc:
        Report on "known" and "unknown" hashes for {wildcards.sample}
     """
     input:
-        query = outdir + "/sigs/{sample}.abundtrim.sig",
-        known = outdir + "/gather/{sample}.known.sig",
-        unknown = outdir + "/gather/{sample}.unknown.sig",
+        query = outdir + "/sigs/{sample}.abundtrim.sig.zip",
+        known = outdir + "/gather/{sample}.known.sig.zip",
+        unknown = outdir + "/gather/{sample}.unknown.sig.zip",
     output:
         report = outdir + "/gather/{sample}.prefetch.report.txt",
     conda: "env/sourmash.yml"
@@ -897,20 +954,23 @@ rule sourmash_gather_wc:
        Run gather for {wildcards.sample}
     """
     input:
-        known = outdir + "/gather/{sample}.known.sig",
+        sig = outdir + "/sigs/{sample}.abundtrim.sig.zip",
         picklist = outdir + "/gather/{sample}.prefetch.csv",
         db = SOURMASH_DB_LIST,
     output:
         csv = outdir + "/gather/{sample}.gather.csv",
-        matches = outdir + "/gather/{sample}.matches.sig",
+        matches = outdir + "/gather/{sample}.matches.sig.zip",
         out = outdir + "/gather/{sample}.gather.out",
     conda: "env/sourmash.yml"
     params:
+        ksize = SOURMASH_DB_KSIZE,
+        moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
-        sourmash gather {input.known} {input.db} -o {output.csv} \
+        sourmash gather {input.sig} {input.db} -o {output.csv} \
           --threshold-bp {params.threshold_bp} \
           --picklist {input.picklist}::prefetch \
+          -k {params.ksize} {params.moltype} \
           --save-matches {output.matches} > {output.out}
     """
 
