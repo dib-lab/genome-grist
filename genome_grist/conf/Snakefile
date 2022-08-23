@@ -940,9 +940,9 @@ rule sourmash_gather_wc:
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
         if [ ! -s {input.picklist} ]; then
-            echo "** ERROR: prefetch didn't find anything for sample '{wildcards.sample}'"
-            echo "** That means there are no matches to anything in the database for that sample!"
-            echo "** You'll need to change either your database or remove your sample :("
+            echo "** ERROR: prefetch didn't find anything for sample '{wildcards.sample}'."
+            echo "** That means there are no matches in the database for this sample!"
+            echo "** You'll need to change either your database or remove this sample from the config. :("
             exit 1
         fi
         sourmash gather {input.sig} {input.db} -o {output.csv} \
