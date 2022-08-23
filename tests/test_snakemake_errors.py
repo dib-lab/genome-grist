@@ -48,13 +48,13 @@ def test_smash_sig():
     shutil.copy(src, abundtrim_dir)
 
     extra_args = ["smash_reads"]
-    status = run_snakemake(
+    pinfo = run_snakemake(
         conf,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
     )
-    assert status == 0
+    assert pinfo.returncode == 0
 
     output_sig = f"{_tempdir}/sigs/SRR5950647_subset.abundtrim.sig.zip"
     assert os.path.exists(output_sig)
@@ -87,3 +87,4 @@ def test_gather_reads_nomatches():
 
     #assert "DB is tests/test-data/SRR5950647-genomes/acidulo.zip" in err_log
     #assert "** ERROR: prefetch didn't find anything for sample 'SRR5950647_subset'." in err_log
+    # @CTB: maybe modify snakefile to do a nicer job of reporting error?

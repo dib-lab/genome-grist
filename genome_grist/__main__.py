@@ -84,13 +84,7 @@ def run_snakemake(
         print("final command:", cmd)
 
     # runme
-    try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError as e:
-        print(f"Error in snakemake invocation: {e}", file=sys.stderr)
-        return e.returncode
-
-    return 0
+    return subprocess.run(cmd)
 
 
 #
