@@ -72,19 +72,18 @@ def test_gather_reads_nomatches():
     conf = utils.relative_file('tests/test-data/SRR5950647_subset-nomatches.conf')
     extra_args = ["gather_reads"]
 
-    with contextlib.redirect_stdout(io.StringIO()) as err_log_fp:
-        status = run_snakemake(
-            conf,
-            verbose=True,
-            outdir=_tempdir,
-            extra_args=extra_args,
-        )
+    pinfo = run_snakemake(
+        conf,
+        verbose=True,
+        outdir=_tempdir,
+        extra_args=extra_args,
+        subprocess_args=dict(text=True, capture_output=True)
+    )
 
-    assert status != 0
+    assert pinfo.returncode != 0
 
-    #err_log = err_log_fp.getvalue()
-    #print('XXX', (err_log,), 'XYZ')
+    print('STDOUT:', pinfo.stdout)
+    print('STDERR:', pinfo.stderr)
 
-    #assert "DB is tests/test-data/SRR5950647-genomes/acidulo.zip" in err_log
-    #assert "** ERROR: prefetch didn't find anything for sample 'SRR5950647_subset'." in err_log
-    # @CTB: maybe modify snakefile to do a nicer job of reporting error?
+    assert "DB is tests/test-data/SRR5950647-genomes/acidulo.zip" in pinfo.stdout
+    assert "** ERROR: prefetch didn't find anything for sample 'SRR5950647_subset'." in pinfo.stdout
