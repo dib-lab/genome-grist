@@ -27,6 +27,7 @@ def run_snakemake(
     outdir=None,
     config_params=[],
     extra_args=[],
+    subprocess_args=None
 ):
     # find the Snakefile relative to package path
     snakefile = get_snakefile_path(snakefile_name)
@@ -84,13 +85,9 @@ def run_snakemake(
         print("final command:", cmd)
 
     # runme
-    try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError as e:
-        print(f"Error in snakemake invocation: {e}", file=sys.stderr)
-        return e.returncode
-
-    return 0
+    if subprocess_args is None:
+        subprocess_args = {}
+    return subprocess.run(cmd, **subprocess_args)
 
 
 #
