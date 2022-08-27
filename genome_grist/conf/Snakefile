@@ -585,21 +585,34 @@ rule trim_unpaired_adapters_wc:
             --json {output.json} --html {output.html}
     """
 
-# k-mer abundance trimming
-rule kmer_trim_reads_wc:
-    input: 
-        interleaved = ancient(outdir + '/trim/{sample}.trim.fq.gz'),
-    output:
-        protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
-    conda: 'env/trim.yml'
-    resources:
-        mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
-    params:
-        mem = ABUNDTRIM_MEMORY,
-    shell: """
+# k-mer abundance trimming - make optional
+if True:
+    rule kmer_trim_reads_wc:
+        input: 
+            interleaved = ancient(outdir + '/trim/{sample}.trim.fq.gz'),
+        output:
+            protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
+        conda: 'env/trim.yml'
+        resources:
+            mem_mb = 0
+        shell: """
+            ln {input} {output}
+        """
+else:
+    rule kmer_trim_reads_wc:
+        input: 
+            interleaved = ancient(outdir + '/trim/{sample}.trim.fq.gz'),
+        output:
+            protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
+        conda: 'env/trim.yml'
+        resources:
+            mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
+        params:
+            mem = ABUNDTRIM_MEMORY,
+        shell: """
             trim-low-abund.py -C 3 -Z 18 -M {params.mem} -V \
-            {input.interleaved} -o {output} --gzip
-    """
+                {input.interleaved} -o {output} --gzip
+        """
 
 # count k-mers
 rule estimate_distinct_kmers_wc:
