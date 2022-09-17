@@ -47,13 +47,13 @@ def test_smash_sig():
     shutil.copy(src, abundtrim_dir)
 
     extra_args = ["smash_reads"]
-    status = run_snakemake(
+    pinfo = run_snakemake(
         conf,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
     )
-    assert status == 0
+    assert pinfo.returncode == 0
 
     output_sig = f"{_tempdir}/sigs/SRR5950647_subset.abundtrim.sig.zip"
     assert os.path.exists(output_sig)
@@ -72,13 +72,13 @@ def test_summarize_sample_info():
     test_data = utils.relative_file("tests/test-data")
 
     extra_args = ["summarize_sample_info"]
-    status = run_snakemake(
+    pinfo = run_snakemake(
         conf,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
     )
-    assert status == 0
+    assert pinfo.returncode == 0
 
     info_file = f"{_tempdir}/SRR5950647_subset.info.yaml"
     assert os.path.exists(info_file)
@@ -109,13 +109,13 @@ def test_map_reads():
     os.mkdir(genomes_dir)
 
     extra_args = ["map_reads", "-j", "4"]
-    status = run_snakemake(
+    pinfo = run_snakemake(
         conf,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
     )
-    assert status == 0
+    assert pinfo.returncode == 0
 
 
 @pytest.mark.dependency(depends=["test_map_reads"])
@@ -127,13 +127,13 @@ def test_gather_to_tax():
     test_data = utils.relative_file("tests/test-data")
 
     extra_args = ["gather_to_tax"]
-    status = run_snakemake(
+    pinfo = run_snakemake(
         conf,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
     )
-    assert status == 0
+    assert pinfo.returncode == 0
     
     tax_output = f"{_tempdir}/gather/SRR5950647_subset.gather.with-lineages.csv"
     assert os.path.exists(tax_output)
@@ -161,13 +161,13 @@ def test_gather_reads_with_picklist():
         os.unlink(gather_output)
 
     extra_args = ["gather_reads"]
-    status = run_snakemake(
+    pinfo = run_snakemake(
         conf,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
     )
-    assert status == 0
+    assert pinfo.returncode == 0
     
     assert os.path.exists(gather_output)
 
@@ -190,10 +190,10 @@ def test_bad_config_1():
 
     conf = utils.relative_file('tests/test-data/bad-1.conf')
 
-    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+    pinfo = run_snakemake(conf, verbose=True, outdir=_tempdir,
                            extra_args=["check"])
 
-    assert status != 0
+    assert pinfo.returncode != 0
 
 
 def test_bad_config_2():
@@ -202,10 +202,10 @@ def test_bad_config_2():
 
     conf = utils.relative_file('tests/test-data/bad-2.conf')
 
-    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+    pinfo = run_snakemake(conf, verbose=True, outdir=_tempdir,
                            extra_args=["check"])
 
-    assert status != 0
+    assert pinfo.returncode != 0
 
 
 def test_bad_config_3():
@@ -215,10 +215,10 @@ def test_bad_config_3():
 
     conf = utils.relative_file('tests/test-data/bad-3.conf')
 
-    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+    pinfo = run_snakemake(conf, verbose=True, outdir=_tempdir,
                            extra_args=["check"])
 
-    assert status != 0
+    assert pinfo.returncode != 0
 
 
 def test_bad_config_4():
@@ -228,10 +228,10 @@ def test_bad_config_4():
 
     conf = utils.relative_file('tests/test-data/bad-4.conf')
 
-    status = run_snakemake(conf, verbose=True, outdir=_tempdir,
+    pinfo = run_snakemake(conf, verbose=True, outdir=_tempdir,
                            extra_args=["check"])
 
-    assert status != 0
+    assert pinfo.returncode != 0
 
 
 @pytest.mark.dependency()
@@ -243,10 +243,10 @@ def test_block_sra_downloads():
     conf = utils.relative_file('tests/test-data/test-block-sra.conf')
 
     extra_args = ["smash_reads"]
-    status = run_snakemake(
+    pinfo = run_snakemake(
         conf,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
     )
-    assert status != 0
+    assert pinfo.returncode != 0
