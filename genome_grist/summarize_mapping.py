@@ -88,25 +88,37 @@ def main():
         d['n_snps'] = n_snps
 
         value_counts = data['coverage'].value_counts()
-        d['genome bp'] = int(len(data))
-        d['missed'] = int(value_counts.get(0, 0))
-        d['percent missed'] = 100 * d['missed'] / d['genome bp']
-        d['coverage'] = data['coverage'].sum() / len(data)
-        if d['missed'] != 0:
-            uniq_cov = d['coverage'] / (1 - d['missed'] / d['genome bp'])
-            d['unique_mapped_coverage'] = uniq_cov
-        else:
-            d['unique_mapped_coverage'] = d['coverage']
-        covered_bp = (1 - d['percent missed']/100.0) * d['genome bp']
-        d['covered_bp'] = round(covered_bp + 0.5)
+        d['n_genome_bp'] = int(len(data))
+        d['n_missed_bp'] = int(value_counts.get(0, 0))
+        d['f_missed_bp'] = 100 * d['n_missed_bp'] / d['n_genome_bp']
+
+        covered_bp = d['n_genome_bp'] - d['n_missed_bp']
+        d['n_covered_bp'] = covered_bp
+
+        # average over all (incl uncovered) bases:
+        sum_coverage = data['coverage'].sum()
+        d['avg_coverage'] = sum_coverage / len(data)
+
+        # only average over covered bases
+        d['avg_unique_mapped_coverage'] = sum_coverage / covered_bp
+
+        # store identifier info etc.
         d['genome_id'] = genome_id
         d['sample_id'] = sample
+
+        # track num mapped_reads
         d['n_mapped_reads'] = n_mapped_reads
 
+        # common sense checks, b/c math is hard
+        assert d['n_missed_bp'] + d['n_covered_bp'] == d['n_genome_bp']
+        if d['n_missed_bp'] == 0:
+            assert d['avg_unique_mapped_coverage'] == d['avg_coverage']
+
+        # store for output.
         runs[genome_id] = d
 
     # convert dictionary into CSV via a pandas DataFrame.
-    pd.DataFrame(runs).T.to_csv(args.output, index_label=False)
+    pd.DataFrame(runs).T.to_csv(args.output, index_label="index")
     print(f"Wrote CSV to {args.output}", file=sys.stderr)
 
     return 0
