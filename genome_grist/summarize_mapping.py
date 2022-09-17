@@ -90,10 +90,11 @@ def main():
         value_counts = data['coverage'].value_counts()
         d['n_genome_bp'] = int(len(data))
         d['n_missed_bp'] = int(value_counts.get(0, 0))
-        d['f_missed_bp'] = 100 * d['n_missed_bp'] / d['n_genome_bp']
+        d['f_missed_bp'] = d['n_missed_bp'] / d['n_genome_bp']
 
         covered_bp = d['n_genome_bp'] - d['n_missed_bp']
         d['n_covered_bp'] = covered_bp
+        d['f_covered_bp'] = covered_bp / d['n_genome_bp']
 
         # average over all (incl uncovered) bases:
         sum_coverage = data['coverage'].sum()
@@ -111,6 +112,7 @@ def main():
 
         # common sense checks, b/c math is hard
         assert d['n_missed_bp'] + d['n_covered_bp'] == d['n_genome_bp']
+        assert round(d['f_covered_bp'] + d['f_missed_bp'], 3) == 1
         if d['n_missed_bp'] == 0:
             assert d['avg_unique_mapped_coverage'] == d['avg_coverage']
 
