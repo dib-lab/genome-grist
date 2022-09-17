@@ -685,7 +685,7 @@ rule bam_covered_regions_wc:
     """
 
 # calculating SNPs/etc.
-rule mpileup_wc:
+rule samtools_mpileup_wc:
     input:
         query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
         bam = outdir + "/{dir}/{sample}.x.{ident}.bam",
@@ -701,6 +701,18 @@ rule mpileup_wc:
         rm $genomefile
         bcftools view {output.bcf} | bgzip > {output.vcf}
         bcftools index {output.vcf}
+    """
+
+# calculating mapped reads
+rule samtools_count_wc:
+    input:
+        query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
+        bam = outdir + "/{dir}/{sample}.x.{ident}.bam",
+    output:
+        mapcount = outdir + "/{dir}/{sample}.x.{ident}.count_mapped_reads.txt",
+    conda: "env/bcftools.yml"
+    shell: """
+        samtools view -c -F 260 {input.bam} > {output.mapcount}
     """
 
 # build new consensus
@@ -729,7 +741,8 @@ rule build_new_consensus_wc:
 rule summarize_samtools_depth_wc:
     input:
         depth = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.depth.txt"),
-        vcf = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.vcf.gz")
+        vcf = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.vcf.gz"),
+        mapcount = Checkpoint_GatherResults(outdir + f"/{{dir}}/{{sample}}.x.{{ident}}.count_mapped_reads.txt")
     output:
         csv = f"{outdir}/{{dir}}/{{sample}}.summary.csv"
     shell: """
