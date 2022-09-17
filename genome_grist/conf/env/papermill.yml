@@ -10,5 +10,5 @@ dependencies:
     - matplotlib>=3.4.3,<4
     - numpy>=1.21.3,<2
     - pandas>=1.3.4,<2
-    - sourmash>=4.2.4,<5
+    - sourmash>=4.5.0,<5
     - python>=3.7,<3.10
