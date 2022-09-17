@@ -43,6 +43,11 @@ def summarize_vcf(vcf_gz):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('sample_name')
+
+    # take in multiple depth.txt files and then below we figure out
+    # the names of the vcf.gz and count_mapped_reads.txt files.
+    # this is a little clunky but seems to be the simplest way to
+    # avoid complicated argument passing.
     p.add_argument('depth_txts', nargs='+',
                    help='output of samtools depth -aa {bamfile}')
     p.add_argument('-o', '--output', required=True, help='output CSV file')
@@ -51,11 +56,23 @@ def main():
     sample = args.sample_name
     runs = {}
     for n, depth_txt in enumerate(args.depth_txts):
+        # figure out the names/paths of the other required files -
         assert depth_txt.endswith('.depth.txt')
-        vcf_gz = depth_txt[:-len('.depth.txt')] + '.vcf.gz'
+        prefix = depth_txt[:-len('.depth.txt')]
+        vcf_gz = prefix + '.vcf.gz'
         assert os.path.exists(vcf_gz)
+        mapcount = prefix + '.count_mapped_reads.txt'
+        assert os.path.exists(mapcount)
+
         print(f"reading from '{vcf_gz}'", file=sys.stderr)
         _, n_chrom, n_snps = summarize_vcf(vcf_gz)
+
+        print(f"reading from '{mapcount}", file=sys.stderr)
+        with open(mapcount, 'rt') as fp:
+            lines = fp.readlines()
+            assert len(lines) == 1
+            line = lines[0].strip()
+            n_mapped_reads = int(line)
 
         print(f"reading from '{depth_txt}", file=sys.stderr)
 
@@ -84,10 +101,12 @@ def main():
         d['covered_bp'] = round(covered_bp + 0.5)
         d['genome_id'] = genome_id
         d['sample_id'] = sample
+        d['n_mapped_reads'] = n_mapped_reads
 
         runs[genome_id] = d
 
-    pd.DataFrame(runs).T.to_csv(args.output)
+    # convert dictionary into CSV via a pandas DataFrame.
+    pd.DataFrame(runs).T.to_csv(args.output, index_label=False)
     print(f"Wrote CSV to {args.output}", file=sys.stderr)
 
     return 0
