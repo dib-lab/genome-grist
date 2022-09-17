@@ -4,4 +4,4 @@ nav:
 - Home: index.md
 - Quickstart: quickstart.md
 - Configuring: configuring.md
-
+- Output files: output-guide.md

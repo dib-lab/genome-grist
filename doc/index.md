@@ -16,7 +16,7 @@ relevant genomes were downloaded and processed automatically.
 
 ![an example image made with genome-grist](gather-vs-mapping.png)
 
-## Configuring genome-grist
+## [Configuring genome-grist](configuring.md)
 
 Please see [Configuring a genome-grist project](configuring.md).
 
@@ -46,6 +46,12 @@ genome-grist has many undocumented intermediate targets. You can print them all 
 ```
 genome-grist run <config file> print_rules
 ```
+
+### Output files
+
+genome-grist produces many different output files with lots of useful
+information - please see
+[A guide to genome-grist output files](output-guide.md)!
 
 ## Additional information
 
