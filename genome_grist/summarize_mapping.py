@@ -93,7 +93,7 @@ def main():
         d['f_missed_bp'] = 100 * d['n_missed_bp'] / d['n_genome_bp']
 
         covered_bp = d['n_genome_bp'] - d['n_missed_bp']
-        d['n_covered_bp'] = round(covered_bp + 0.5)
+        d['n_covered_bp'] = covered_bp
 
         # average over all (incl uncovered) bases:
         sum_coverage = data['coverage'].sum()
@@ -109,7 +109,8 @@ def main():
         # track num mapped_reads
         d['n_mapped_reads'] = n_mapped_reads
 
-        # a common sense check!
+        # common sense checks, b/c math is hard
+        assert d['n_missed_bp'] + d['n_covered_bp'] == d['n_genome_bp']
         if d['n_missed_bp'] == 0:
             assert d['avg_unique_mapped_coverage'] == d['avg_coverage']
 
