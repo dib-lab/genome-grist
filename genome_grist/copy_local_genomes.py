@@ -17,7 +17,14 @@ def main():
     p.add_argument('genome_files', nargs='+')
     p.add_argument('-o', '--output-csv', required=True)
     p.add_argument('-d', '--output-directory', required=True)
+    p.add_argument('--sym', required=False, action= 'store_true')
     args = p.parse_args()
+    
+    # Create directory if does not exist
+    try:
+        os.makedirs(args.output_directory)
+    except FileExistsError:
+        pass
 
     output_fp = open(args.output_csv, 'wt')
     w = csv.DictWriter(output_fp, fieldnames=['ident',
@@ -50,15 +57,28 @@ def main():
 
         print(f"read identifer '{ident}' and name '{remainder}'")
 
-        destfile = os.path.join(args.output_directory, f"{ident}_genomic.fna.gz")
-
         is_gzipped = False
         with contextlib.suppress(OSError):
             with gzip.open(filename) as fp:
                 fp.read(1)
                 is_gzipped = True
 
-        if is_gzipped:
+        destfile = os.path.join(args.output_directory, f"{ident}_genomic.fna.gz")
+        
+        
+        if args.sym and not is_gzipped:
+            print("--sym option requires the FASTA files to be already gzipped.", file=sys.stderr)
+            sys.exit(-1)
+        
+        if args.sym and is_gzipped:
+            print(f"symbolic linking '{filename}' to '{destfile}'")
+            _src = os.path.abspath(filename)
+            _dst = os.path.abspath(destfile)
+            if os.path.islink(_dst):
+                print(f"symlink {_dst} already exists, consider removing it first.", file=sys.stderr)
+                sys.exit(1)
+            os.symlink(_src, _dst)
+        elif is_gzipped:
             print(f"copying '{filename}' to '{destfile}'")
             shutil.copyfile(filename, destfile)
         else:
