@@ -1,6 +1,33 @@
 # A guide to genome-grist output files
 
-[toc]
+genome-grist runs many steps and because of that it creates _a lot_ of
+output files. In brief, genome-grist can do some or all of the following
+steps:
+
+* downloads and trims metagenomes from the SRA;
+* runs `sourmash gather` on Genbank or GTDB databases to find genomes;
+* downloads matching genomes from Genbank;
+* maps metagenome reads to the downloaded genomes;
+* does a
+  [second round of mapping](#second-pass-mapping-the-files-in-leftover)
+  that ensures reads are not double-counted;
+* produces summary reports of metagenome composition, taxonomy, and mapping;
+
+and each of these steps has its own set of outputs.
+
+Below is a guide to the various outputs! We welcome questions and
+comments; please ask questions in
+[the genome-grist issue tracker](https://github.com/dib-lab/genome-grist/issues)
+as you have them!
+
+## Configuring your output directory
+
+genome-grist places all files in the `{outdir}` folder, which must be
+set in the config file; for example, if your config file contains
+```
+outdir: outputs.metag
+```
+then all of the directories below will be created under `outputs.metag/`.
 
 ## Files and subdirectories within {outdir}
 
@@ -8,9 +35,9 @@ Below, we use "sample" and "metagenome" interchangeably.
 
 ### Metagenome reads
 
-* `{outdir}/raw/` - untrimmed reads, usually from the SRA.
+* `{outdir}/raw/` - untrimmed reads, from the SRA or private seuqencing.
 * `{outdir}/trim/` - adapter and quality-trimmed reads, starting from `raw/`.
-* `{outdir}/abundtrim/` - final inputs into downstream steps.
+* `{outdir}/abundtrim/` - inputs into downstream steps.
 
 ### sourmash output
 
@@ -102,9 +129,9 @@ these files are produced by `genome_grist/summarize_mapping.py` and contains one
 * `n_snps` - number of SNPs in the genome relative to the metagenome reads (as called by `samtools call`).
 * `n_genome_bp` - size of genome in bp.
 * `n_missed_bp` - the number of positions in the genome with 0 coverage.
-* `f_missed_bp` - the fraction of the genome that has no matches: `missed` / `genome_bp` .
+* `f_missed_bp` - the fraction of the genome that has no matches: `missed` / `genome_bp`.
 * `avg_coverage` - average coverage of genome; includes bases with 0 coverage.
-* `avg_unique_mapped_coverage` - sum of depth divided by number of covered bases; does not include bases with 0 coverage (**renamed** from `unique_mapped_coverage`).
+* `avg_unique_mapped_coverage` - sum of depth divided by number of covered bases; does not include bases with 0 coverage.
 * `n_covered_bp` - the number of bp covered by at least one read.
 * `f_covered_bp` - fraction of bp covered by at least one read, aka read-mapping-based "detection".
 * `n_mapped_reads` - total count of primary mapped reads.
