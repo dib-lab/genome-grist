@@ -976,12 +976,15 @@ rule summarize_tax_wc:
         tax_csv = TAXONOMY_DB,
     output:
         f"{outdir}/gather/{{sample}}.gather.with-lineages.csv.gz",
+        gather_csv_ungz = f"{outdir}/gather/{{sample}}.gather.csv",
     conda: "env/sourmash.yml"
     params:
         o_param = f"{outdir}/gather/"
     shell: """
-        sourmash tax annotate -g {input.gather_csv} -t {input.tax_csv} \
+        gunzip -k {input.gather_csv}
+        sourmash tax annotate -g {output.gather_csv_ungz} -t {input.tax_csv} \
             -o {params.o_param} --fail-on-missing-taxonomy
+        gzip {outdir}/gather/{wildcards.sample}.gather.with-lineages.csv
     """
 
 
