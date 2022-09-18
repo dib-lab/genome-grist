@@ -35,7 +35,7 @@ Below, we use "sample" and "metagenome" interchangeably.
 
 ### Metagenome reads
 
-* `{outdir}/raw/` - untrimmed reads, from the SRA or private seuqencing.
+* `{outdir}/raw/` - untrimmed reads, from the SRA or private sequencing.
 * `{outdir}/trim/` - adapter and quality-trimmed reads, starting from `raw/`.
 * `{outdir}/abundtrim/` - inputs into downstream steps.
 
