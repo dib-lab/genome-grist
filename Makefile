@@ -10,8 +10,8 @@ clean-test:
 	rm -fr outputs.test/
 
 test:
-	genome-grist run tests/test-data/SRR5950647.conf summarize_mapping summarize_tax make_sgc_conf -j 8 -p
-	genome-grist run tests/test-data/SRR5950647.conf summarize_mapping summarize_tax make_sgc_conf -j 8 -p
+	genome-grist run tests/test-data/SRR5950647.conf summarize_mapping summarize_tax make_sgc_conf -j 8 -p -k
+	genome-grist run tests/test-data/SRR5950647.conf summarize_mapping summarize_tax make_sgc_conf -j 8 -p -k
 
 	# try various targets to make sure they work
 	genome-grist run tests/test-data/SRR5950647.conf download_genbank_genomes -j 8 -p
