@@ -126,7 +126,10 @@ if unknown_config_keys:
 
 # utility function
 def load_csv(filename):
-    with gzip.open(filename, "rt") as fp:
+    xopen = open
+    if filename.endswith('.gz'):
+        xopen = gzip.open
+    with xopen(filename, "rt") as fp:
         r = csv.DictReader(fp)
         for row in r:
             yield row
