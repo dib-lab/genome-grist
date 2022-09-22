@@ -959,7 +959,8 @@ rule sourmash_gather_wc:
         moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
-        if [ ! -s {input.picklist} ]; then
+        filesize=$(wc -c <{input.picklist})
+        if [ $filesize -lt 100 ]; then
             echo "** ERROR: prefetch didn't find anything for sample '{wildcards.sample}'."
             echo "** That means there are no matches in the database for this sample!"
             echo "** You'll need to change either your database or remove this sample from the config. :("
