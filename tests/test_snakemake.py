@@ -135,7 +135,7 @@ def test_gather_to_tax():
     )
     assert pinfo.returncode == 0
     
-    tax_output = f"{_tempdir}/gather/SRR5950647_subset.gather.with-lineages.csv"
+    tax_output = f"{_tempdir}/gather/SRR5950647_subset.gather.with-lineages.csv.gz"
     assert os.path.exists(tax_output)
 
     tax_results = list(utils.load_csv(tax_output))
@@ -152,11 +152,11 @@ def test_gather_reads_with_picklist():
 
     # note: the prefetch command & CSV are what are actually limited by the
     # passed in picklist.
-    prefetch_output = f"{_tempdir}/gather/SRR5950647_subset.prefetch.csv"
+    prefetch_output = f"{_tempdir}/gather/SRR5950647_subset.prefetch.csv.gz"
     if os.path.exists(prefetch_output):
         os.unlink(prefetch_output)
 
-    gather_output = f"{_tempdir}/gather/SRR5950647_subset.gather.csv"
+    gather_output = f"{_tempdir}/gather/SRR5950647_subset.gather.csv.gz"
     if os.path.exists(gather_output):
         os.unlink(gather_output)
 

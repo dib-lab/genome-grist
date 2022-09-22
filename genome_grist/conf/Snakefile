@@ -1,6 +1,7 @@
 # see README or genome_grist/__main__.py for top-level targets.
 import snakemake
-import os, csv, tempfile, shutil, sys
+import os, csv, tempfile, shutil, sys, gzip
+from functools import cache
 
 if config.get('sample'):
     print(f"ERROR: this is an old config file. Please use 'samples' instead of 'sample'.",
@@ -125,10 +126,20 @@ if unknown_config_keys:
 
 # utility function
 def load_csv(filename):
-    with open(filename, "r", newline="") as fp:
+    xopen = open
+    if filename.endswith('.gz'):
+        xopen = gzip.open
+    with xopen(filename, "rt") as fp:
         r = csv.DictReader(fp)
         for row in r:
             yield row
+
+@cache
+def load_gather_csv(filename):
+    rows = list(load_csv(filename))
+    print(f"Loaded {len(rows)} identifiers from '{filename}'",
+          file=sys.stderr)
+    return rows
 
 ###
 
@@ -200,7 +211,7 @@ rule smash_reads:
 @toplevel
 rule prefetch_reads:
     input:
-        expand(outdir + "/gather/{sample}.prefetch.csv",
+        expand(outdir + "/gather/{sample}.prefetch.csv.gz",
                sample=SAMPLES)
 
 @toplevel
@@ -211,12 +222,12 @@ rule summarize_sample_info:
 @toplevel
 checkpoint gather_reads:
     input:
-        expand(f'{outdir}/gather/{{sample}}.gather.csv',
+        expand(f'{outdir}/gather/{{sample}}.gather.csv.gz',
                sample=SAMPLES)
 
 checkpoint gather_reads_wc:
     input:
-        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv'
+        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv.gz'
     output:
         touch(f"{outdir}/gather/.gather.{{sample}}")   # checkpoints need an output ;)
 
@@ -234,17 +245,13 @@ class Checkpoint_GatherResults:
         self.samples = samples
 
     def get_genome_idents(self, sample):
-        gather_csv = f'{outdir}/gather/{sample}.gather.csv'
+        gather_csv = f'{outdir}/gather/{sample}.gather.csv.gz'
         assert os.path.exists(gather_csv), "gather output does not exist!?"
 
         genome_idents = []
-        with open(gather_csv, 'rt') as fp:
-           r = csv.DictReader(fp)
-           for row in r:
-               ident = row['name'].split()[0]
-               genome_idents.append(ident)
-        print(f'loaded {len(genome_idents)} identifiers from {gather_csv}.',
-              file=sys.stderr)
+        for row in load_gather_csv(gather_csv):
+            ident = row['name'].split()[0]
+            genome_idents.append(ident)
 
         return genome_idents
 
@@ -324,7 +331,7 @@ class ListGatherGenomes(Checkpoint_GatherResults):
         local_info = self._load_local_database_info()
         genome_filenames = []
 
-        gather_csv = f'{outdir}/gather/{sample}.gather.csv'
+        gather_csv = f'{outdir}/gather/{sample}.gather.csv.gz'
         assert os.path.exists(gather_csv), f"gather output does not exist for {sample}!?"
 
         for row in load_csv(gather_csv):
@@ -361,7 +368,7 @@ class Checkpoint_GenomeFiles(Checkpoint_GatherResults):
 @toplevel
 rule gather_to_tax:
     input:
-        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv',
+        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv.gz',
                sample=SAMPLES)
 @toplevel
 rule summarize_gather:
@@ -374,7 +381,7 @@ rule summarize_tax:
     input:
         expand(f'{outdir}/reports/report-taxonomy-{{sample}}.html',
                sample=SAMPLES),
-        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv',
+        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv.gz',
                sample=SAMPLES)
 
 @toplevel
@@ -423,7 +430,7 @@ rule summarize:
                sample=SAMPLES),
         expand(f'{outdir}/reports/report-taxonomy-{{sample}}.html',
                sample=SAMPLES),
-        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv',
+        expand(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv.gz',
                sample=SAMPLES),
         expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
 
@@ -453,7 +460,7 @@ rule zip:
         rm -f transfer.zip
         zip -r transfer.zip {outdir}/leftover/*.summary.csv \
                 {outdir}/mapping/*.summary.csv {outdir}/*.yaml \
-                {outdir}/gather/*.csv {outdir}/reports/
+                {outdir}/gather/*.csv.gz {outdir}/reports/
     """
 
 
@@ -785,7 +792,7 @@ rule set_kernel:
 rule make_gather_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-gather.ipynb'),
-        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv',
+        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv.gz',
         genomes_info_csv = ancient(f"{outdir}/gather/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
     output:
@@ -809,7 +816,7 @@ rule make_gather_notebook_wc:
 rule make_taxonomy_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-taxonomy.ipynb'),
-        taxcsv = ancient(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv'),
+        taxcsv = ancient(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv.gz'),
         kernel_set = rules.set_kernel.output,
     output:
         nb = outdir + f'/reports/report-taxonomy-{{sample}}.ipynb',
@@ -834,7 +841,7 @@ rule make_mapping_notebook_wc:
         nb = srcdir('../notebooks/report-mapping.ipynb'),
         all_csv = ancient(f"{outdir}/mapping/{{sample}}.summary.csv"),
         depth_csv = ancient(f"{outdir}/leftover/{{sample}}.summary.csv"),
-        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv',
+        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv.gz',
         genomes_info_csv = ancient(f"{outdir}/gather/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
     output:
@@ -855,7 +862,7 @@ rule make_mapping_notebook_wc:
 # convert mapped reads to leftover reads
 rule extract_leftover_reads_wc:
     input:
-        csv = f'{outdir}/gather/{{sample}}.gather.csv',
+        csv = f'{outdir}/gather/{{sample}}.gather.csv.gz',
         mapped = Checkpoint_GatherResults(f"{outdir}/mapping/{{sample}}.x.{{ident}}.mapped.fq.gz"),
     output:
         touch(f"{outdir}/leftover/.leftover.{{sample}}")
@@ -892,7 +899,7 @@ rule sourmash_prefetch_wc:
         sig = outdir + "/sigs/{sample}.abundtrim.sig.zip",
         db = SOURMASH_DB_LIST,
     output:
-        csv = touch(outdir + "/gather/{sample}.prefetch.csv"),
+        csv = touch(outdir + "/gather/{sample}.prefetch.csv.gz"),
         known = touch(outdir + "/gather/{sample}.known.sig.zip"),
         unknown = touch(outdir + "/gather/{sample}.unknown.sig.zip"),
     resources:
@@ -940,10 +947,10 @@ rule sourmash_gather_wc:
     """
     input:
         sig = outdir + "/sigs/{sample}.abundtrim.sig.zip",
-        picklist = outdir + "/gather/{sample}.prefetch.csv",
+        picklist = outdir + "/gather/{sample}.prefetch.csv.gz",
         db = SOURMASH_DB_LIST,
     output:
-        csv = outdir + "/gather/{sample}.gather.csv",
+        csv = outdir + "/gather/{sample}.gather.csv.gz",
         matches = outdir + "/gather/{sample}.matches.sig.zip",
         out = outdir + "/gather/{sample}.gather.out",
     conda: "env/sourmash.yml"
@@ -952,7 +959,8 @@ rule sourmash_gather_wc:
         moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
-        if [ ! -s {input.picklist} ]; then
+        filesize=$(wc -c <{input.picklist})
+        if [ $filesize -lt 100 ]; then
             echo "** ERROR: prefetch didn't find anything for sample '{wildcards.sample}'."
             echo "** That means there are no matches in the database for this sample!"
             echo "** You'll need to change either your database or remove this sample from the config. :("
@@ -968,16 +976,19 @@ rule sourmash_gather_wc:
 # run sourmash tax annotate on the gather results
 rule summarize_tax_wc:
     input:
-        gather_csv = f"{outdir}/gather/{{sample}}.gather.csv",
+        gather_csv = f"{outdir}/gather/{{sample}}.gather.csv.gz",
         tax_csv = TAXONOMY_DB,
     output:
-        f"{outdir}/gather/{{sample}}.gather.with-lineages.csv",
+        f"{outdir}/gather/{{sample}}.gather.with-lineages.csv.gz",
+        gather_csv_ungz = f"{outdir}/gather/{{sample}}.gather.csv",
     conda: "env/sourmash.yml"
     params:
         o_param = f"{outdir}/gather/"
     shell: """
-        sourmash tax annotate -g {input.gather_csv} -t {input.tax_csv} \
+        gunzip -k {input.gather_csv}
+        sourmash tax annotate -g {output.gather_csv_ungz} -t {input.tax_csv} \
             -o {params.o_param} --fail-on-missing-taxonomy
+        gzip {outdir}/gather/{wildcards.sample}.gather.with-lineages.csv
     """
 
 
@@ -1023,7 +1034,7 @@ rule download_matching_genome_wc:
     output:
         genome = f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz"
     run:
-        with open(input.csvfile, 'rt') as infp:
+        with gzip.open(input.csvfile, 'rt') as infp:
             r = csv.DictReader(infp)
             rows = list(r)
             assert len(rows) == 1
@@ -1080,7 +1091,7 @@ rule summarize_reads_info_wc:
 # create a spacegraphcats config file
 rule create_sgc_conf_wc:
     input:
-        csv = outdir + "/gather/{sample}.gather.csv",
+        csv = outdir + "/gather/{sample}.gather.csv.gz",
         queries = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz")
     output:
         conf = outdir + "/sgc/{sample}.conf"
