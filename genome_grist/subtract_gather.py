@@ -26,7 +26,7 @@ def main():
 
     print(f"reading gather results from {args.gather_csv}")
     rows = []
-    with open(args.gather_csv, "rt") as fp:
+    with gzip.open(args.gather_csv, "rt") as fp:
         r = csv.DictReader(fp)
         for row in r:
             rows.append(row)

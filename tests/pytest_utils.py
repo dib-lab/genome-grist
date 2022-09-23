@@ -1,5 +1,10 @@
+"""
+Utility functions for tests.
+"""
+
 import os.path
 import csv
+import gzip
 
 
 def relative_file(filename):
@@ -11,7 +16,10 @@ def relative_file(filename):
 
 
 def load_csv(filename):
-    with open(filename, "r", newline="") as fp:
+    xopen = open
+    if filename.endswith('.gz'):
+        xopen = gzip.open
+    with xopen(filename, "rt") as fp:
         r = csv.DictReader(fp)
         for row in r:
             yield row
