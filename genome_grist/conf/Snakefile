@@ -18,6 +18,10 @@ for sample in SAMPLES:
         print(f"sample name '{sample}' contains a period; please remove",
               file=sys.stderr)
         fail = True
+    if '/' in sample:
+        print(f"sample name '{sample}' contains a forward slash ('/'); please remove",
+              file=sys.stderr)
+        fail = True
 
 if fail:
     sys.exit(-1)
@@ -158,7 +162,7 @@ onerror:
 
 wildcard_constraints:
     size="\d+",
-    sample='[a-zA-Z0-9._]+'                   # should be everything but /
+    sample='[^./]+'                   # should be everything but /.
 
 @toplevel
 rule print_rules:

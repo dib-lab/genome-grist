@@ -234,6 +234,22 @@ def test_bad_config_4():
     assert pinfo.returncode != 0
 
 
+def test_bad_config_5():
+    # check for a period or forward slash in sample names
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/bad-5.conf')
+
+    pinfo = run_snakemake(conf, verbose=True, outdir=_tempdir,
+                          extra_args=["check"],
+                          subprocess_args=dict(text=True, capture_output=True)
+                          )
+
+    assert pinfo.returncode != 0
+    assert "sample name 'foo.bar' contains a period; please remove" in pinfo.stderr
+    assert "sample name 'fiz/bif' contains a forward slash ('/'); please remove" in pinfo.stderr
+
+
 @pytest.mark.dependency()
 def test_block_sra_downloads():
     # run 'smash_reads' with a non-existent metagenome file & make sure
