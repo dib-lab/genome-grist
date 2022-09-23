@@ -135,7 +135,7 @@ def test_gather_to_tax():
     )
     assert pinfo.returncode == 0
     
-    tax_output = f"{_tempdir}/gather/SRR5950647_subset.gather.with-lineages.csv"
+    tax_output = f"{_tempdir}/gather/SRR5950647_subset.gather.with-lineages.csv.gz"
     assert os.path.exists(tax_output)
 
     tax_results = list(utils.load_csv(tax_output))
@@ -152,11 +152,11 @@ def test_gather_reads_with_picklist():
 
     # note: the prefetch command & CSV are what are actually limited by the
     # passed in picklist.
-    prefetch_output = f"{_tempdir}/gather/SRR5950647_subset.prefetch.csv"
+    prefetch_output = f"{_tempdir}/gather/SRR5950647_subset.prefetch.csv.gz"
     if os.path.exists(prefetch_output):
         os.unlink(prefetch_output)
 
-    gather_output = f"{_tempdir}/gather/SRR5950647_subset.gather.csv"
+    gather_output = f"{_tempdir}/gather/SRR5950647_subset.gather.csv.gz"
     if os.path.exists(gather_output):
         os.unlink(gather_output)
 
@@ -232,6 +232,22 @@ def test_bad_config_4():
                            extra_args=["check"])
 
     assert pinfo.returncode != 0
+
+
+def test_bad_config_5():
+    # check for a period or forward slash in sample names
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/bad-5.conf')
+
+    pinfo = run_snakemake(conf, verbose=True, outdir=_tempdir,
+                          extra_args=["check"],
+                          subprocess_args=dict(text=True, capture_output=True)
+                          )
+
+    assert pinfo.returncode != 0
+    assert "sample name 'foo.bar' contains a period; please remove" in pinfo.stderr
+    assert "sample name 'fiz/bif' contains a forward slash ('/'); please remove" in pinfo.stderr
 
 
 @pytest.mark.dependency()

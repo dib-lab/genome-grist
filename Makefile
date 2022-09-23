@@ -10,16 +10,12 @@ clean-test:
 	rm -fr outputs.test/
 
 test:
-	genome-grist run tests/test-data/SRR5950647.conf summarize_mapping summarize_tax make_sgc_conf -j 8 -p
-	genome-grist run tests/test-data/SRR5950647.conf summarize_mapping summarize_tax make_sgc_conf -j 8 -p
+	genome-grist run tests/test-data/SRR5950647.conf summarize_mapping summarize_tax make_sgc_conf -j 8 -p -k
 
 	# try various targets to make sure they work
-	genome-grist run tests/test-data/SRR5950647.conf download_genbank_genomes -j 8 -p
-	genome-grist run tests/test-data/SRR5950647.conf combine_genome_info -j 8 -p
-	genome-grist run tests/test-data/SRR5950647.conf retrieve_genomes -j 8 -p
-	genome-grist run tests/test-data/SRR5950647.conf estimate_distinct_kmers -j 8 -p
-	genome-grist run tests/test-data/SRR5950647.conf count_trimmed_reads -j 8 -p
-	genome-grist run tests/test-data/SRR5950647.conf summarize_sample_info -j 8 -p
+	genome-grist run tests/test-data/SRR5950647.conf download_genbank_genomes \
+	    combine_genome_info retrieve_genomes estimate_distinct_kmers \
+	    count_trimmed_reads summarize_sample_info -j 8 -p
 
 ### private/local genomes test stuff
 

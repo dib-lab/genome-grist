@@ -155,7 +155,7 @@ Please post questions at https://github.com/dib-lab/genome-grist/issues!
         extra_args=snakemake_args,
         outdir=outdir,
     )
-    sys.exit(ret)
+    sys.exit(ret.returncode)
 
 
 # 'check' command
@@ -163,7 +163,7 @@ Please post questions at https://github.com/dib-lab/genome-grist/issues!
 @click.argument("configfile")
 def check(configfile):
     "check configuration"
-    sys.exit(run_snakemake(configfile, extra_args=["check"]))
+    sys.exit(run_snakemake(configfile, extra_args=["check"]).returncode)
 
 
 # 'showconf' command
@@ -171,7 +171,7 @@ def check(configfile):
 @click.argument("configfile")
 def showconf(configfile):
     "show full configuration"
-    sys.exit(run_snakemake(configfile, extra_args=["showconf"]))
+    sys.exit(run_snakemake(configfile, extra_args=["showconf"]).returncode)
 
 
 # 'info' command
