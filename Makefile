@@ -9,6 +9,9 @@ black:
 clean-test:
 	rm -fr outputs.test/
 
+clean-gather:
+	genome-grist run tests/test-data/SRR5950647.conf clean_gather
+
 test:
 	genome-grist run tests/test-data/SRR5950647.conf summarize_mapping summarize_tax make_sgc_conf -j 8 -p -k
 

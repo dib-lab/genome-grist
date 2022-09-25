@@ -1,7 +1,7 @@
 kmers: 7489752
 known_hashes: 808
-n_bases: 36257775
-n_reads: 409279
+n_bases: 36257897
+n_reads: 409280
 sample: SRR5950647
 total_hashes: 7584
 unknown_hashes: 6776
