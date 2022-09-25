@@ -131,7 +131,7 @@ these files are produced by `genome_grist/summarize_mapping.py` and contains one
 * `n_missed_bp` - the number of positions in the genome with 0 coverage.
 * `f_missed_bp` - the fraction of the genome that has no matches: `missed` / `genome_bp`.
 * `avg_coverage` - average coverage of genome; includes bases with 0 coverage.
-* `avg_unique_mapped_coverage` - sum of depth divided by number of covered bases; does not include bases with 0 coverage.
+* `effective_coverage` - sum of depth divided by number of covered bases; does not include bases with 0 coverage.
 * `n_covered_bp` - the number of bp covered by at least one read.
 * `f_covered_bp` - fraction of bp covered by at least one read, aka read-mapping-based "detection".
 * `n_mapped_reads` - total count of primary mapped reads.
