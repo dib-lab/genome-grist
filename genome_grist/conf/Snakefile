@@ -607,8 +607,9 @@ rule kmer_trim_reads_wc:
         mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
     params:
         mem = ABUNDTRIM_MEMORY,
+        ksize = SOURMASH_DB_KSIZE,
     shell: """
-            trim-low-abund.py -C 3 -Z 18 -M {params.mem} -V \
+        trim-low-abund.py -C 3 -Z 18 -M {params.mem} -k {params.ksize} -V \
             {input.interleaved} -o {output} --gzip
     """
 
