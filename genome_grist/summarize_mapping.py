@@ -101,7 +101,7 @@ def main():
         d['avg_coverage'] = sum_coverage / len(data)
 
         # only average over covered bases
-        d['avg_unique_mapped_coverage'] = sum_coverage / covered_bp
+        d['effective_coverage'] = sum_coverage / covered_bp
 
         # store identifier info etc.
         d['genome_id'] = genome_id
@@ -114,7 +114,7 @@ def main():
         assert d['n_missed_bp'] + d['n_covered_bp'] == d['n_genome_bp']
         assert round(d['f_covered_bp'] + d['f_missed_bp'], 3) == 1
         if d['n_missed_bp'] == 0:
-            assert d['avg_unique_mapped_coverage'] == d['avg_coverage']
+            assert d['effective_coverage'] == d['avg_coverage']
 
         # store for output.
         runs[genome_id] = d
