@@ -22,15 +22,15 @@ test:
 
 ### private/local genomes test stuff
 
-test-private: outputs.private/abundtrim/podar.abundtrim.fq.gz \
+test-private: outputs.private/trim/podar.trim.fq.gz \
 		databases/podar-ref.zip  databases/podar-ref.info.csv \
 		databases/podar-ref.tax.csv
 	genome-grist run conf-private.yml summarize_gather summarize_mapping summarize_tax -j 4 -p
 
 # download the (subsampled) reads for SRR606249
-outputs.private/abundtrim/podar.abundtrim.fq.gz:
-	mkdir -p outputs.private/abundtrim
-	curl -L https://osf.io/ckbq3/download -o outputs.private/abundtrim/podar.abundtrim.fq.gz
+outputs.private/trim/podar.trim.fq.gz:
+	mkdir -p outputs.private/trim
+	curl -L https://osf.io/ckbq3/download -o outputs.private/trim/podar.trim.fq.gz
 
 # download the ref genomes
 databases/podar-ref/: 

@@ -36,12 +36,12 @@ Below, we use "sample" and "metagenome" interchangeably.
 ### Metagenome reads
 
 * `{outdir}/raw/` - untrimmed reads, from the SRA or private sequencing.
-* `{outdir}/trim/` - adapter and quality-trimmed reads, starting from `raw/`.
-* `{outdir}/abundtrim/` - inputs into downstream steps.
+* `{outdir}/trim/` - adapter and quality-trimmed reads, starting from `raw/`; inputs into downstream steps.
+* `{outdir}/abundtrim/` - optional output of variable-coverage k-mer trimming; not used in genome-grist.
 
 ### sourmash output
 
-* `{outdir}/sigs/` - sourmash sketches calculated from abundtrim reads.
+* `{outdir}/sigs/` - sourmash sketches calculated from trimmed reads in `{outdir}/trim/`.
 * `{outdir}/gather/` - sourmash outputs; see details below.
 
 ### Genomes and mapping information

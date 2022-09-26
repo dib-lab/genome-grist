@@ -44,7 +44,6 @@ Put the following in a config file named `conf-tutorial.yml`:
 samples:
 - SRR5950647
 outdir: outputs.tutorial/
-metagenome_trim_memory: 1e9
 
 sourmash_databases:
 - gtdb-rs202.genomic-reps.k31.sbt.zip
@@ -72,14 +71,16 @@ You can put one or more targets on the command line as above with `summarize_gat
 
 ## Output files
 
-The key output files under the outputs directory are:
+Some key output files under the outputs directory are:
 
-* `gather/{sample}.x.genbank.gather.out` - human-readable output from [sourmash gather](https://sourmash.readthedocs.io/en/latest/classifying-signatures.html).
-* `gather/{sample}.x.genbank.gather.csv` - [sourmash gather CSV output](https://sourmash.readthedocs.io/en/latest/classifying-signatures.html).
+* `gather/{sample}.gather.out` - human-readable output from [sourmash gather](https://sourmash.readthedocs.io/en/latest/classifying-signatures.html).
+* `gather/{sample}.gather.csv` - [sourmash gather CSV output](https://sourmash.readthedocs.io/en/latest/classifying-signatures.html).
 * `gather/{sample}.genomes.info.csv` - information about the matching genomes from genbank.
+* `mapping/{sample}.summary.csv` - summary information about mapped reads
 * `reports/report-{sample}.html` - a summary report.
-* `abundtrim/{sample}.abundtrim.fq.gz` - trimmed and preprocessed reads.
-* `sigs/{sample}.abundtrim.sig` - sourmash signature for the preprocessed reads.
+* `trim/{sample}.trim.fq.gz` - trimmed and preprocessed reads.
+* `sigs/{sample}.trim.sig.zip` - sourmash signature for the preprocessed reads.
 
 Note that `genome-grist run <config.yml> zip` will create a file named `transfer.zip` with the above files in it.
 
+Please see [the guide to genome-grist output files](output-guide.md) for more information!
