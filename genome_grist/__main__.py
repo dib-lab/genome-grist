@@ -139,6 +139,7 @@ Additional intermediate targets:
  * gather_reads - run 'sourmash gather' on metagenomes against Genbank
  * download_genbank_genomes - download all matching Genbank genomes
  * map_reads - map all metagenome reads to Genbank genomes
+ * abundtrim_reads - do variable-coverage trimming on data sets; see docs
  * make_sgc_conf - make a spacegraphcats config file
 
 Please see https://github.com/dib-lab/genome-grist for quickstart docs.
