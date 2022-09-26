@@ -14,13 +14,20 @@ conda activate grist
 python -m pip install genome-grist
 ```
 
-Note: genome-grist should run in Python 3.7 onwards; we haven't tested it extensively in Python 3.10 yet (as of Jan 2022).
+Note: genome-grist should run in Python 3.8 onwards (as of Sep 2022).
 
 ## Running genome-grist
 
-We currently recommend running genome-grist in its own directory, for several reasons; in particular, genome-grist uses snakemake and conda to install software under the working directory, and it's nice to have all the outputs be isolated.
+We currently recommend running genome-grist in its own directory, for
+several reasons; in particular, genome-grist uses snakemake and conda
+to install software under the working directory, and it's nice to have
+all of files be shared.
 
-Within the current working directory, genome-grist will create a `genbank_cache/` subdir, and any `outputs.NAME` subdirectories requested by the configuration.  We recommend always running genome-grist in this directory and naming the output directories after the different projects using genome-grist.
+Within the current working directory, genome-grist will create a
+`genbank_cache/` subdir, and any `outputs.NAME/` subdirectories
+requested by the configuration.  We recommend always running
+genome-grist in this directory and naming the output directories after
+the different projects using genome-grist.
 
 So, create a subdirectory and change into it:
 ```shell
@@ -31,11 +38,15 @@ Note, genome-grist works entirely within the current working directory and temp 
 
 ### Download a small example database
 
-Download the GTDB r06 rs202 set of ~48,000 guide genomes, in a pre-prepared sourmash database format:
+Download the GTDB r06 rs202 set of ~48,000 guide genomes, in a
+pre-prepared sourmash database format:
 ```
 curl -L https://osf.io/w4bcm/download -o gtdb-rs202.genomic-reps.k31.sbt.zip
 ```
-(You can use any sourmash database that uses Genbank identifiers here; see [available databases](https://sourmash.readthedocs.io/en/latest/databases.html) for more info.)
+You can use any sourmash database with Genbank identifiers; see
+[available databases](https://sourmash.readthedocs.io/en/latest/databases.html)
+for more info. You can also use private databases; see the
+configuration docs for more info.
 
 ### Make a configuration file
 
@@ -60,7 +71,7 @@ genome-grist run conf-tutorial.yml summarize_gather summarize_mapping
 This will perform the following steps:
 
 * download the [SRR5950647 metagenome](https://www.ncbi.nlm.nih.gov/sra/?term=SRR5950647) from the Sequence Read Archive (target `download_reads`).
-* preprocess it to remove adapters and low-abundance k-mers (target `trim_reads`).
+* preprocess it to remove adapters and low-quality reads (target `trim_reads`).
 * build a sourmash signature from the preprocess reads. (target `smash_reads`).
 * perform a `sourmash gather` against the specified database (target `gather_reads`).
 * download the matching genomes from GenBank into `genbank_cache/` (target `download_matching_genomes`).
@@ -75,6 +86,7 @@ Some key output files under the outputs directory are:
 
 * `gather/{sample}.gather.out` - human-readable output from [sourmash gather](https://sourmash.readthedocs.io/en/latest/classifying-signatures.html).
 * `gather/{sample}.gather.csv` - [sourmash gather CSV output](https://sourmash.readthedocs.io/en/latest/classifying-signatures.html).
+* `gather/genomes/` - all of the genomes found across all of the samples.
 * `gather/{sample}.genomes.info.csv` - information about the matching genomes from genbank.
 * `mapping/{sample}.summary.csv` - summary information about mapped reads
 * `reports/report-{sample}.html` - a summary report.

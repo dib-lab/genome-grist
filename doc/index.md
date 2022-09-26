@@ -14,11 +14,13 @@ You can use genome-grist to:
 
 * find out what genomes are in a metagenome!
 
-* map reads to those genomes!
+* estimate how much of the metagenome will map to reference genomes!
+
+* map reads to each genome and summarize the results across genomes!
 
 * summarize the taxonomic composition of a metagenome!
 
-genome-grist automates download of public data, and will automatically
+genome-grist automates the analysis of public data, and will automatically
 access metagenomes from the SRA and genomes from Genbank.
 genome-grist supports both the NCBI and GTDB taxonomies. You can also
 use your own metagenomes and genomes.
@@ -89,9 +91,9 @@ For now, Irber et al., 2022 is the primary citation for genome-grist. Any use of
 
 ### Resource requirements
 
-**Disk space:** genome-grist makes about 4-5 copies of each SRA metagenome.
+**Disk space:** genome-grist makes about 3-4 copies of each SRA metagenome analyzed.
 
-**Memory:** the genbank search step on all of genbank takes ~120 GB of RAM. On GTDB, it's much, much less. Other than that, the other steps are all under 10 GB of RAM (unless you adjust `metagenome_trim_memory` upwards, which may be needed for complex metagenomes).
+**Memory:** the genbank search step on all of genbank takes ~120 GB of RAM. On GTDB, it's much, much less. Other than that, the other steps are all under 10 GB of RAM.
 
 **Time:** This is largely dependent on the size of the metagenome; 100m reads takes a few hours. The processing of multiple data sets can be done in parallel with `-j`, as well, although you probably want to specify resource limits. For example, here is the command that we use on our HPC:
 ```
@@ -143,7 +145,7 @@ and [matplotlib](https://matplotlib.org/).
 The default search databases used for genome-grist are based on
 sequences from [Genbank](https://www.ncbi.nlm.nih.gov/genbank/) and
 taxonomies from Genbank and [GTDB](https://gtdb.ecogenomic.org/). The
-database are provided by
+databases are provided by
 [the sourmash project](https://sourmash.readthedocs.io/en/latest/databases.html).
 
 We develop genome-grist at

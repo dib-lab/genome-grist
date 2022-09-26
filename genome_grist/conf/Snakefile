@@ -1,7 +1,7 @@
 # see README or genome_grist/__main__.py for top-level targets.
 import snakemake
 import os, csv, tempfile, shutil, sys, gzip
-from functools import cache
+from functools import lru_cache
 
 if config.get('sample'):
     print(f"ERROR: this is an old config file. Please use 'samples' instead of 'sample'.",
@@ -138,7 +138,7 @@ def load_csv(filename):
         for row in r:
             yield row
 
-@cache
+@lru_cache(maxsize=None)
 def load_gather_csv(filename):
     rows = list(load_csv(filename))
     print(f"Loaded {len(rows)} identifiers from '{filename}'",
