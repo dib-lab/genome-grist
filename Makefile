@@ -18,7 +18,7 @@ test:
 	# try various targets to make sure they work
 	genome-grist run tests/test-data/SRR5950647.conf download_genbank_genomes \
 	    combine_genome_info retrieve_genomes estimate_distinct_kmers \
-	    count_trimmed_reads summarize_sample_info -j 8 -p
+	    count_trimmed_reads summarize_sample_info abundtrim_reads -j 8 -p
 
 ### private/local genomes test stuff
 
