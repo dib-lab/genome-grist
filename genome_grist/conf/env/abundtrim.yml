@@ -3,5 +3,4 @@ channels:
  - bioconda
  - defaults
 dependencies:
- - fastp=0.20.1
- - seqtk=1.3
+ - khmer=3.0.0a

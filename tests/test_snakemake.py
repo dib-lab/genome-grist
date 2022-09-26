@@ -39,12 +39,12 @@ def test_smash_sig():
     # run 'smash_reads'
     global _tempdir
 
-    abundtrim_dir = os.path.join(_tempdir, "abundtrim")
-    os.mkdir(abundtrim_dir)
+    trim_dir = os.path.join(_tempdir, "trim")
+    os.mkdir(trim_dir)
 
     conf = utils.relative_file('tests/test-data/SRR5950647_subset.conf')
-    src = utils.relative_file("tests/test-data/SRR5950647_subset.abundtrim.fq.gz")
-    shutil.copy(src, abundtrim_dir)
+    src = utils.relative_file("tests/test-data/SRR5950647_subset.trim.fq.gz")
+    shutil.copy(src, trim_dir)
 
     extra_args = ["smash_reads"]
     pinfo = run_snakemake(
@@ -55,7 +55,7 @@ def test_smash_sig():
     )
     assert pinfo.returncode == 0
 
-    output_sig = f"{_tempdir}/sigs/SRR5950647_subset.abundtrim.sig.zip"
+    output_sig = f"{_tempdir}/sigs/SRR5950647_subset.trim.sig.zip"
     assert os.path.exists(output_sig)
     sigs = list(sourmash.load_file_as_signatures(output_sig))
     assert len(sigs) == 3

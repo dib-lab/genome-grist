@@ -1,7 +1,7 @@
 # see README or genome_grist/__main__.py for top-level targets.
 import snakemake
 import os, csv, tempfile, shutil, sys, gzip
-from functools import cache
+from functools import lru_cache
 
 if config.get('sample'):
     print(f"ERROR: this is an old config file. Please use 'samples' instead of 'sample'.",
@@ -138,7 +138,7 @@ def load_csv(filename):
         for row in r:
             yield row
 
-@cache
+@lru_cache(maxsize=None)
 def load_gather_csv(filename):
     rows = list(load_csv(filename))
     print(f"Loaded {len(rows)} identifiers from '{filename}'",
@@ -191,25 +191,25 @@ rule download_reads:
 @toplevel
 rule trim_reads:
     input:
-        url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz",
+        url_file = expand(f"{outdir}/trim/{{sample}}.trim.fq.gz",
                           sample=SAMPLES)
 
 @toplevel
 rule estimate_distinct_kmers:
     input:
-        url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz.kmer-report.txt",
+        url_file = expand(f"{outdir}/trim/{{sample}}.trim.fq.gz.kmer-report.txt",
                           sample=SAMPLES)
 
 @toplevel
 rule count_trimmed_reads:
     input:
-        url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz.reads-report.txt",
+        url_file = expand(f"{outdir}/trim/{{sample}}.trim.fq.gz.reads-report.txt",
                           sample=SAMPLES)
 
 @toplevel
 rule smash_reads:
     input:
-        url_file = expand(f"{outdir}/sigs/{{sample}}.abundtrim.sig.zip",
+        url_file = expand(f"{outdir}/sigs/{{sample}}.trim.sig.zip",
                           sample=SAMPLES)
 
 @toplevel
@@ -222,6 +222,12 @@ rule prefetch_reads:
 rule summarize_sample_info:
     input:
         expand(outdir + '/{sample}.info.yaml', sample=SAMPLES)
+
+@toplevel
+rule abundtrim_reads:
+    input:
+        url_file = expand(f"{outdir}/abundtrim/{{sample}}.abundtrim.fq.gz",
+                          sample=SAMPLES)
 
 @toplevel
 checkpoint gather_reads:
@@ -490,7 +496,7 @@ rule download_sra_wc:
         if [ "{params.do_not_run_me}" = 1 ]; then
             echo "** genome-grist is trying to download from SRA for sample {wildcards.sample},"
             echo "** but 'prevent_sra_download' is set to true in config."
-            echo "** Does '{params.outdir}/abundtrim/{wildcards.sample}.abundtrim.fq.gz' exist?"
+            echo "** Does '{params.outdir}/trim/{wildcards.sample}.trim.fq.gz' exist?"
             exit -1
         fi
 
@@ -596,13 +602,13 @@ rule trim_unpaired_adapters_wc:
             --json {output.json} --html {output.html}
     """
 
-# k-mer abundance trimming
+# k-mer abundance trimming - optional
 rule kmer_trim_reads_wc:
     input: 
         interleaved = ancient(outdir + '/trim/{sample}.trim.fq.gz'),
     output:
         protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
-    conda: 'env/trim.yml'
+    conda: 'env/abundtrim.yml'
     resources:
         mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
     params:
@@ -618,11 +624,11 @@ rule estimate_distinct_kmers_wc:
     message: """
         Count distinct k-mers for {wildcards.sample} using 'unique-kmers.py' from the khmer package.
     """
-    conda: 'env/trim.yml'
+    conda: 'env/abundtrim.yml'  # needs khmer package
     input:
-        outdir + "/abundtrim/{sample}.abundtrim.fq.gz"
+        outdir + "/trim/{sample}.trim.fq.gz"
     output:
-        report = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.kmer-report.txt",
+        report = outdir + "/trim/{sample}.trim.fq.gz.kmer-report.txt",
     params:
         ksize = SOURMASH_DB_KSIZE,
     shell: """
@@ -635,9 +641,9 @@ rule count_trimmed_reads_wc:
         Count reads & bp in trimmed file for {wildcards.sample}.
     """
     input:
-        outdir + "/abundtrim/{sample}.abundtrim.fq.gz"
+        outdir + "/trim/{sample}.trim.fq.gz"
     output:
-        report = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.reads-report.txt",
+        report = outdir + "/trim/{sample}.trim.fq.gz.reads-report.txt",
     # from Matt Bashton, in https://bioinformatics.stackexchange.com/questions/935/fast-way-to-count-number-of-reads-and-number-of-bases-in-a-fastq-file
     shell: """
         gzip -dc {input} |
@@ -648,11 +654,11 @@ rule count_trimmed_reads_wc:
                       }}' > {output.report}
     """
 
-# map abundtrim reads and produce a bam
+# map trimmed reads and produce a bam
 rule minimap_wc:
     input:
         query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
-        metagenome = outdir + "/abundtrim/{sample}.abundtrim.fq.gz",
+        metagenome = outdir + "/trim/{sample}.trim.fq.gz",
     output:
         bam = outdir + "/mapping/{sample}.x.{ident}.bam",
     conda: "env/minimap2.yml"
@@ -762,12 +768,12 @@ rule summarize_samtools_depth_wc:
              {input.depth} -o {output.csv}
     """
 
-# compute sourmash signature from abundtrim reads
-rule smash_abundtrim_wc:
+# compute sourmash signature from trim reads
+rule smash_trim_wc:
     input:
-        metagenome = ancient(outdir + "/abundtrim/{sample}.abundtrim.fq.gz"),
+        metagenome = ancient(outdir + "/trim/{sample}.trim.fq.gz"),
     output:
-        sig = outdir + "/sigs/{sample}.abundtrim.sig.zip"
+        sig = outdir + "/sigs/{sample}.trim.sig.zip"
     conda: "env/sourmash.yml"
     params:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
@@ -901,7 +907,7 @@ rule sourmash_prefetch_wc:
        Find all potentially relevant database matches for {wildcards.sample}
     """
     input:
-        sig = outdir + "/sigs/{sample}.abundtrim.sig.zip",
+        sig = outdir + "/sigs/{sample}.trim.sig.zip",
         db = SOURMASH_DB_LIST,
     output:
         csv = touch(outdir + "/gather/{sample}.prefetch.csv.gz"),
@@ -930,7 +936,7 @@ rule report_query_known_unknown_wc:
        Report on "known" and "unknown" hashes for {wildcards.sample}
     """
     input:
-        query = outdir + "/sigs/{sample}.abundtrim.sig.zip",
+        query = outdir + "/sigs/{sample}.trim.sig.zip",
         known = outdir + "/gather/{sample}.known.sig.zip",
         unknown = outdir + "/gather/{sample}.unknown.sig.zip",
     output:
@@ -951,7 +957,7 @@ rule sourmash_gather_wc:
        Run gather for {wildcards.sample}
     """
     input:
-        sig = outdir + "/sigs/{sample}.abundtrim.sig.zip",
+        sig = outdir + "/sigs/{sample}.trim.sig.zip",
         picklist = outdir + "/gather/{sample}.prefetch.csv.gz",
         db = SOURMASH_DB_LIST,
     output:
@@ -1061,8 +1067,8 @@ rule download_matching_genome_wc:
 # summarize_reads_info
 rule summarize_reads_info_wc:
     input:
-        kmers = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.kmer-report.txt",
-        reads = outdir + "/abundtrim/{sample}.abundtrim.fq.gz.reads-report.txt",
+        kmers = outdir + "/trim/{sample}.trim.fq.gz.kmer-report.txt",
+        reads = outdir + "/trim/{sample}.trim.fq.gz.reads-report.txt",
         gather_report = outdir + "/gather/{sample}.prefetch.report.txt",
     output:
         outdir + '/{sample}.info.yaml',
@@ -1106,7 +1112,7 @@ rule create_sgc_conf_wc:
            print(f"""\
 catlas_base: {wildcards.sample}
 input_sequences:
-- {outdir}/abundtrim/{wildcards.sample}.abundtrim.fq.gz
+- {outdir}/trim/{wildcards.sample}.trim.fq.gz
 ksize: 31
 radius: 1
 search:
