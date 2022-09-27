@@ -42,6 +42,7 @@ if not base_tempdir:
     print(f"Could not create a temporary directory in any of {try_temp_locations}", file=sys.stderr)
     print("Please set 'tempdir' in the config.", file=sys.stderr)
     sys.exit(-1)
+print(f'base_tempdir: {base_tempdir}', file=sys.stderr)
 
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
@@ -914,7 +915,7 @@ rule sourmash_prefetch_wc:
         known = touch(outdir + "/gather/{sample}.known.sig.zip"),
         unknown = touch(outdir + "/gather/{sample}.unknown.sig.zip"),
     resources:
-        mem_mb=int(PREFETCH_MEMORY / 1e3)
+        mem_mb=int(PREFETCH_MEMORY / 1e6)
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
