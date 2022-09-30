@@ -468,10 +468,13 @@ rule check:
 @toplevel
 rule zip:
     shell: """
-        rm -f transfer.zip
-        zip -r transfer.zip {outdir}/leftover/*.summary.csv \
+        ZIPFILE=$(basename "{outdir}").zip
+        rm -f $ZIPFILE
+        zip -r $ZIPFILE {outdir}/leftover/*.summary.csv \
                 {outdir}/mapping/*.summary.csv {outdir}/*.yaml \
-                {outdir}/gather/*.csv.gz {outdir}/reports/
+                {outdir}/gather/*.csv.gz {outdir}/gather/*.out \
+                {outdir}/reports/
+        echo "Created $ZIPFILE"
     """
 
 
