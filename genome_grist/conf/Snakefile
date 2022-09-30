@@ -1046,24 +1046,22 @@ rule download_matching_genome_wc:
     output:
         genome = f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz"
     run:
-        with gzip.open(input.csvfile, 'rt') as infp:
-            r = csv.DictReader(infp)
-            rows = list(r)
-            assert len(rows) == 1
-            row = rows[0]
-            ident = row['ident']
-            assert wildcards.ident.startswith(ident)
-            url = row['genome_url']
-            name = row['display_name']
+        rows = list(load_csv(input.csvfile))
+        assert len(rows) == 1
+        row = rows[0]
+        ident = row['ident']
+        assert wildcards.ident.startswith(ident)
+        url = row['genome_url']
+        name = row['display_name']
 
-            print(f"downloading genome for ident {ident}/{name} from NCBI...",
-                file=sys.stderr)
-            with open(output.genome, 'wb') as outfp:
-                with urllib.request.urlopen(url) as response:
-                    content = response.read()
-                    outfp.write(content)
-                    print(f"...wrote {len(content)} bytes to {output.genome}",
-                        file=sys.stderr)
+        print(f"downloading genome for ident {ident}/{name} from NCBI...",
+              file=sys.stderr)
+        with open(output.genome, 'wb') as outfp:
+            with urllib.request.urlopen(url) as response:
+                content = response.read()
+                outfp.write(content)
+                print(f"...wrote {len(content)} bytes to {output.genome}",
+                      file=sys.stderr)
 
 # summarize_reads_info
 rule summarize_reads_info_wc:
