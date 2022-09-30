@@ -93,6 +93,6 @@ Some key output files under the outputs directory are:
 * `trim/{sample}.trim.fq.gz` - trimmed and preprocessed reads.
 * `sigs/{sample}.trim.sig.zip` - sourmash signature for the preprocessed reads.
 
-Note that `genome-grist run <config.yml> zip` will create a file named `transfer.zip` with the above files in it.
+Note that `genome-grist run <config.yml> zip` will create a file named `<output_dir>.zip` with the above files in it.
 
 Please see [the guide to genome-grist output files](output-guide.md) for more information!
