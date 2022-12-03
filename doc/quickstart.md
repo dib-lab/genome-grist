@@ -38,12 +38,12 @@ Note, genome-grist works entirely within the current working directory and temp 
 
 ### Download a small example database
 
-Download the GTDB r06 rs202 set of ~48,000 guide genomes, in a
+Download the GTDB R07 rs207 set of ~48,000 guide genomes, in a
 pre-prepared sourmash database format:
 ```
-curl -L https://osf.io/w4bcm/download -o gtdb-rs202.genomic-reps.k31.sbt.zip
+curl -LO https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db/gtdb-rs207/gtdb-rs207.genomic-reps.dna.k31.zip
 ```
-You can use any sourmash database with Genbank identifiers; see
+You can use any sourmash database with Genbank identifiers with genome-grist; see
 [available databases](https://sourmash.readthedocs.io/en/latest/databases.html)
 for more info. You can also use private databases; see the
 configuration docs for more info.
@@ -57,7 +57,7 @@ samples:
 outdir: outputs.tutorial/
 
 sourmash_databases:
-- gtdb-rs202.genomic-reps.k31.sbt.zip
+- gtdb-rs207.genomic-reps.dna.k31.zip
 ```
 
 ### Do your first real run!
