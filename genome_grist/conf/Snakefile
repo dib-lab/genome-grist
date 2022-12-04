@@ -52,7 +52,7 @@ GENBANK_CACHE = os.path.normpath(GENBANK_CACHE)
 ### collect databases
 
 if config.get('sourmash_database_glob_pattern'):
-    print(f"ERROR: this is an old config file. Please provide a list of 'genbank_databases' instead of a 'sourmash_database_glob_pattern'",
+    print(f"ERROR: this is an old config file. Please provide a list of 'sourmash_databases' instead of a 'sourmash_database_glob_pattern'",
           file=sys.stderr)
     sys.exit(-1)
 

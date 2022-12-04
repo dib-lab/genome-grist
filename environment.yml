@@ -5,8 +5,8 @@ channels:
  - defaults
 dependencies:
  - mamba
- - snakemake-minimal==6.12.3
- - click>=7,<8
- - lxml==4.6.4
+ - snakemake-minimal==7.18.2
+ - click>=7,<9
+ - lxml==4.9.1
  - pandas>1,<2
  - python>=3.7,<3.10
