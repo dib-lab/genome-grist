@@ -94,6 +94,8 @@ def make_param_str(ksizes, scaled):
     ks = ",".join(ks)
     return f"{ks},scaled={scaled},abund"
 
+IGNORE_IDENTS = config.get('skip_genomes', [])
+
 ###
 #
 # print out unknown config variables...
@@ -262,6 +264,8 @@ class Checkpoint_GatherResults:
         genome_idents = []
         for row in load_gather_csv(gather_csv):
             ident = row['name'].split()[0]
+            if ident in IGNORE_IDENTS:
+                continue
             genome_idents.append(ident)
 
         return genome_idents
