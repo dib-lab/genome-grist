@@ -46,6 +46,7 @@ jobs:
       - name: Install grist test deps
         run: pip install -e .[test]
 
+      - run: pip check
       - run: pytest tests
 
 #      - run: pytest tests --cov=.
