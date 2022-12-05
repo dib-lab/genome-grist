@@ -115,6 +115,7 @@ known_config_keys = { 'samples', 'outdir', 'tempdir',
                       'prefetch_memory',
                       'taxonomies',
                       'prevent_sra_download',
+                      'skip_genomes',
                       'picklist' }
 
 unknown_config_keys = all_config_keys - known_config_keys
