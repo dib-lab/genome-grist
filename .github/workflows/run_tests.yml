@@ -50,7 +50,7 @@ jobs:
           CACHE_NUMBER: 0
           id: cache
 
-       - name: Update environment
+      - name: Update environment
          run:
             mamba env update -n anaconda-client-env -f environment.yml
          if: steps.cache.outputs.cache-hit != 'true'
