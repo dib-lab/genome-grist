@@ -87,3 +87,33 @@ def test_gather_reads_nomatches():
 
     assert "DB is tests/test-data/SRR5950647-genomes/acidulo.zip" in pinfo.stdout
     assert "** ERROR: prefetch didn't find anything for sample 'SRR5950647_subset'." in pinfo.stdout
+
+
+def test_missing_genbank_genome():
+    # run download_genbank_genomes for a genome that is no longer there
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/conf-missing.yml')
+    extra_args = ["download_genbank_genomes"]
+
+    sigs_dir = os.path.join(_tempdir, "sigs")
+    os.mkdir(sigs_dir)
+
+    src = utils.relative_file("tests/test-data//GCF_000020205-is-missing.trim.sig.zip")
+    shutil.copy(src, sigs_dir)
+
+    pinfo = run_snakemake(
+        conf,
+        verbose=True,
+        outdir=_tempdir,
+        extra_args=extra_args,
+        subprocess_args=dict(text=True, capture_output=True)
+    )
+    assert pinfo.returncode == 0
+
+    print('STDOUT')
+    print(pinfo.stdout)
+    print('STDERR')
+    print(pinfo.stderr)
+
+    assert 0
