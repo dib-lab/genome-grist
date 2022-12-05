@@ -19,8 +19,10 @@ jobs:
     name: Python on ${{ matrix.python }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: checkout
+        uses: actions/checkout@v3
 
+      # per https://github.com/conda-incubator/setup-miniconda#caching-environments
       - name: Setup Mambaforge
         uses: conda-incubator/setup-miniconda@v2
         with:
