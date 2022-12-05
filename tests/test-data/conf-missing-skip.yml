@@ -6,4 +6,5 @@ sourmash_databases:
 
 prevent_sra_download: true
 
-skip_genomes: []
+skip_genomes:
+- GCF_000020205.1

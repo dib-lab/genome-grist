@@ -1051,7 +1051,8 @@ rule download_matching_genome_wc:
     input:
         csvfile = ancient(f'{GENBANK_CACHE}/{{ident}}.info.csv')
     output:
-        genome = f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz"
+        genome = f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz",
+    retries: 2
     run:
         rows = list(load_csv(input.csvfile))
         assert len(rows) == 1
@@ -1064,11 +1065,15 @@ rule download_matching_genome_wc:
         print(f"downloading genome for ident {ident}/{name} from NCBI...",
               file=sys.stderr)
         with open(output.genome, 'wb') as outfp:
-            with urllib.request.urlopen(url) as response:
-                content = response.read()
-                outfp.write(content)
-                print(f"...wrote {len(content)} bytes to {output.genome}",
-                      file=sys.stderr)
+            try:
+                with urllib.request.urlopen(url) as response:
+                    content = response.read()
+                    outfp.write(content)
+                    print(f"...wrote {len(content)} bytes to {output.genome}",
+                          file=sys.stderr)
+            except urllib.request.HTTPError:
+                print(f"Cannot download genome from URL:\n  {url}\nIs it missing? If so, consider adding '{ident}' to 'skip_genomes' list in config file.", file=sys.stderr)
+                raise Exception("Genbank genome not found")
 
 # summarize_reads_info
 rule summarize_reads_info_wc:
