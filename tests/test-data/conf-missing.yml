@@ -1,0 +1,9 @@
+samples:
+- GCF_000020205-is-missing
+outdir: outputs.missing
+sourmash_databases:
+- tests/test-data/GCF_000020205.1.sig.zip
+
+prevent_sra_download: true
+
+skip_genomes: []

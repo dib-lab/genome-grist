@@ -87,3 +87,73 @@ def test_gather_reads_nomatches():
 
     assert "DB is tests/test-data/SRR5950647-genomes/acidulo.zip" in pinfo.stdout
     assert "** ERROR: prefetch didn't find anything for sample 'SRR5950647_subset'." in pinfo.stdout
+
+
+def test_missing_genbank_genome_fail():
+    # run download_genbank_genomes for a genome that is no longer there; fail.
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/conf-missing.yml')
+    extra_args = ["download_genbank_genomes"]
+
+    sigs_dir = os.path.join(_tempdir, "sigs")
+    try:
+        os.mkdir(sigs_dir)
+    except FileExistsError:
+        pass
+
+    src = utils.relative_file("tests/test-data/GCF_000020205-is-missing.trim.sig.zip")
+    shutil.copy(src, sigs_dir)
+
+    pinfo = run_snakemake(
+        conf,
+        no_use_conda=True,
+        verbose=True,
+        outdir=_tempdir,
+        extra_args=extra_args,
+        subprocess_args=dict(text=True, capture_output=True)
+    )
+    print('STDOUT')
+    print(pinfo.stdout)
+    print('STDERR')
+    print(pinfo.stderr)
+
+    assert "Cannot download genome from URL:" in pinfo.stderr
+    assert "Is it missing? If so, consider adding 'GCF_000020205.1' to 'skip_genomes' list in config file." in pinfo.stderr
+
+    assert pinfo.returncode != 0
+
+
+def test_missing_genbank_genome_skip():
+    # run download_genbank_genomes for a genome that is no longer there; skip.
+    global _tempdir
+
+    conf = utils.relative_file('tests/test-data/conf-missing-skip.yml')
+    extra_args = ["download_genbank_genomes"]
+
+    sigs_dir = os.path.join(_tempdir, "sigs")
+    try:
+        os.mkdir(sigs_dir)
+    except FileExistsError:
+        pass
+
+    src = utils.relative_file("tests/test-data/GCF_000020205-is-missing.trim.sig.zip")
+    shutil.copy(src, sigs_dir)
+
+    pinfo = run_snakemake(
+        conf,
+        no_use_conda=True,
+        verbose=True,
+        outdir=_tempdir,
+        extra_args=extra_args,
+        subprocess_args=dict(text=True, capture_output=True)
+    )
+    print('STDOUT')
+    print(pinfo.stdout)
+    print('STDERR')
+    print(pinfo.stderr)
+
+    assert "Cannot download genome from URL:" not in pinfo.stderr
+    assert "Is it missing? If so, consider adding 'GCF_000020205.1' to 'skip_genomes' list in config file." not in pinfo.stderr
+
+    assert pinfo.returncode == 0

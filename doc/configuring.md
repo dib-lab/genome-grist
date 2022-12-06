@@ -346,6 +346,16 @@ prevent_sra_download: false
 #     picklist: some_sig_list.csv:ident:ident
 picklist: ""
 
+# skip_genomes: identifiers to ignore when they show up in gather output.
+# This is useful when the sourmash database contains genomes that are no
+# longer present in GenBank because they have been deprecated or suppressed.
+#
+# Note, in such cases you should try to find a new genome to include in
+# a local database!
+#
+# DEFAULT: []
+skip_genomes: []
+
 # sourmash_database_threshold_bp: sets the --threshold-bp minimum match
 # size of sourmash prefetch and gather. Matches with smaller overlaps
 # than this will be excluded from consideration.
