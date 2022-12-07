@@ -268,6 +268,7 @@ class Checkpoint_GatherResults:
 
             # skip identifiers we've been asked to ignore in 'skip_genomes'
             if ident in IGNORE_IDENTS:
+                print(f"Skipping identifier '{ident}' because it is in 'skip_genomes'")
                 continue
             genome_idents.append(ident)
 
@@ -356,7 +357,8 @@ class ListGatherGenomes(Checkpoint_GatherResults):
             ident = row['name'].split()[0]
 
             # skip identifiers we've been asked to ignore in 'skip_genomes'
-            if ident in IGNORE_IDENT:
+            if ident in IGNORE_IDENTS:
+                print(f"Skipping identifier '{ident}' because it is in 'skip_genomes'")
                 continue
 
             # if in local information, use that as genome source.
