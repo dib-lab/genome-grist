@@ -265,6 +265,8 @@ class Checkpoint_GatherResults:
         genome_idents = []
         for row in load_gather_csv(gather_csv):
             ident = row['name'].split()[0]
+
+            # skip identifiers we've been asked to ignore in 'skip_genomes'
             if ident in IGNORE_IDENTS:
                 continue
             genome_idents.append(ident)
@@ -352,6 +354,10 @@ class ListGatherGenomes(Checkpoint_GatherResults):
 
         for row in load_csv(gather_csv):
             ident = row['name'].split()[0]
+
+            # skip identifiers we've been asked to ignore in 'skip_genomes'
+            if ident in IGNORE_IDENT:
+                continue
 
             # if in local information, use that as genome source.
             if ident in local_info:
