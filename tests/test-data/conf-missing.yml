@@ -3,6 +3,7 @@ samples:
 outdir: outputs.missing
 sourmash_databases:
 - tests/test-data/GCF_000020205.1.sig.zip
+- tests/test-data/SRR5950647.x.gtdb-rs202.matches.zip
 
 prevent_sra_download: true
 

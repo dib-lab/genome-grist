@@ -129,7 +129,7 @@ def test_missing_genbank_genome_skip():
     global _tempdir
 
     conf = utils.relative_file('tests/test-data/conf-missing-skip.yml')
-    extra_args = ["download_genbank_genomes"]
+    extra_args = ["download_genbank_genomes", "retrieve_genomes"]
 
     sigs_dir = os.path.join(_tempdir, "sigs")
     try:
