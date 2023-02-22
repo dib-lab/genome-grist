@@ -898,7 +898,7 @@ rule extract_leftover_reads_wc:
     params:
         outdir = outdir,
     shell: """
-        python -Werror -m genome_grist.subtract_gather \
+        python -Werror -Wignore::DeprecationWarning -m genome_grist.subtract_gather \
             {wildcards.sample:q} {input.csv} --outdir={params.outdir:q}
     """
 
@@ -963,7 +963,7 @@ rule report_query_known_unknown_wc:
         ksize = SOURMASH_DB_KSIZE,
         moltype = SOURMASH_COMPUTE_TYPE,
     shell: """
-         python -W error -m genome_grist.summarize_gather_hashes \
+         python -Werror -Wignore::DeprecationWarning -m genome_grist.summarize_gather_hashes \
           {input.query} {input.known} {input.unknown}  \
           -k {params.ksize} --moltype {params.moltype} --report {output.report}
     """
@@ -1025,7 +1025,7 @@ rule make_genbank_info_csv:
     output:
         csvfile = f'{GENBANK_CACHE}/{{ident}}.info.csv'
     shell: """
-        python -Werror -m genome_grist.genbank_genomes {wildcards.ident} \
+        python -Werror -Wignore::DeprecationWarning -m genome_grist.genbank_genomes {wildcards.ident} \
             --output {output.csvfile}
     """
 
@@ -1050,7 +1050,7 @@ rule make_combined_info_csv_wc:
     output:
         genomes_info_csv = f"{outdir}/gather/{{sample}}.genomes.info.csv",
     shell: """
-        python -Werror -m genome_grist.combine_csvs \
+        python -Werror -Wignore::DeprecationWarning -m genome_grist.combine_csvs \
              --fields ident,display_name \
              {input.csvs} > {output}
     """
