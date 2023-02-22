@@ -963,7 +963,7 @@ rule report_query_known_unknown_wc:
         ksize = SOURMASH_DB_KSIZE,
         moltype = SOURMASH_COMPUTE_TYPE,
     shell: """
-         python -W error -m genome_grist.summarize_gather_hashes \
+         python -Werror -Wignore::DeprecationWarning -m genome_grist.summarize_gather_hashes \
           {input.query} {input.known} {input.unknown}  \
           -k {params.ksize} --moltype {params.moltype} --report {output.report}
     """
