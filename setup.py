@@ -41,7 +41,7 @@ setup(
     ],
     tests_require=["pytest", "pytest-dependency==0.5.1"],
     use_scm_version={"write_to": "genome_grist/version.py"},
-    install_requires=["snakemake==7.25.0", "click>=7,<9", "lxml==4.9.2",
+    install_requires=["snakemake==7.28.3", "click>=7,<9", "lxml==4.9.2",
                       "pandas>1,<3"],
     long_description=long_description,
     long_description_content_type="text/markdown",
