@@ -76,6 +76,7 @@ In effect, what this means is that if there's a region shared between multiple g
 Reads that did map to such a shared region but were claimed by an earlier genome are saved for each genome to a file with the extension `overlap.fq.gz` within the `mapping/` directory; reads that will be mapped to a particular genome are saved in a file `leftover.fq.gz`, also within the `mapping/` directory.
 
 To summarize: under the `mapping/` directory,
+
 * the `mapped.fq.gz` files contain all the reads that map to the genomes;
 * the `leftover.fq.gz` files contain the subset of mapped reads that will be mapped to that genome in the second round;
 * the `overlap.fq.gz` files contain the subset of mapped reads that were removed from consideration due to overlap with an earlier rank genome;
