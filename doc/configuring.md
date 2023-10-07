@@ -75,9 +75,11 @@ For now, we suggest naming the first sequence in each FASTA file with the genome
 
 You can mix local databases with genbank databases without fear! You'll need to provide one or more sourmash databases for any local collections, and you do this as usual via the config parameter `sourmash_databases`, which takes a list of paths to sourmash database locations.
 
-To build your own sourmash databases, you'll need sourmash sketches for each genome. Sketch all your genomes with the following command:
+To build your own sourmash databases, you'll need sourmash sketches
+for each genome. Sketch all your genomes (in `fna.gz` or `.fa.gz`
+files) with the following command:
 ```
-sourmash sketch dna -p k=31,scaled=1000
+sourmash sketch dna -p k=31,scaled=1000 *.gz
 ```
 
 If you've named your genomes so that the first sequence contains the identifier, you can add `--name-from-first` and then the signatures will be named the right thing for the next step.
