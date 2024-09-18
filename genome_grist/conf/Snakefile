@@ -2,7 +2,7 @@
 import snakemake
 srcdir = workflow.source_path
 
-
+import urllib
 import os, csv, tempfile, shutil, sys, gzip
 from functools import lru_cache
 
