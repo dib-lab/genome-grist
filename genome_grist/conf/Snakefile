@@ -1,5 +1,8 @@
 # see README or genome_grist/__main__.py for top-level targets.
 import snakemake
+srcdir = workflow.source_path
+
+
 import os, csv, tempfile, shutil, sys, gzip
 from functools import lru_cache
 
@@ -165,7 +168,7 @@ onerror:
     shutil.rmtree(base_tempdir, ignore_errors=True)
 
 wildcard_constraints:
-    size="\d+",
+    size="\\d+",
     sample='[^./]+'                   # should be everything but /.
 
 @toplevel
@@ -525,12 +528,12 @@ rule download_sra_wc:
         ls -h {output.temp_dir}
 
         # make unpaired file if needed
-        if [ -f {output.temp_r1} -a -f {output.temp_r2} -a \! -f {output.temp_unp} ];
+        if [ -f {output.temp_r1} -a -f {output.temp_r2} -a \\! -f {output.temp_unp} ];
           then
             echo "no unpaired; creating empty unpaired file {output.unp} for simplicity"
             touch {output.temp_unp}
           # make r1, r2 files if needed
-        elif [ -f {output.temp_unp} -a \! -f {output.temp_r1} -a \! -f {output.temp_r2} ];
+        elif [ -f {output.temp_unp} -a \\! -f {output.temp_r1} -a \\! -f {output.temp_r2} ];
           then
             echo "unpaired file found; creating empty r1 ({output.temp_r1}) and r2 ({output.temp_r2}) files for simplicity"
             touch {output.temp_r1}
@@ -540,17 +543,17 @@ rule download_sra_wc:
         # now process the files and move to a permanent location
         echo processing R1...
         seqtk seq -C {output.temp_r1} | \
-            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+            perl -ne 's/\\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.r1} &
 
         echo processing R2...
         seqtk seq -C {output.temp_r2} | \
-            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+            perl -ne 's/\\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.r2} &
 
         echo processing unpaired...
         seqtk seq -C {output.temp_unp} | \
-            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+            perl -ne 's/\\.([12])$/\/$1/; print $_' | \
             gzip -c > {output.unp} &
         wait
         echo finished downloading raw reads

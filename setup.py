@@ -15,9 +15,7 @@ CLASSIFIERS = [
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
@@ -41,7 +39,7 @@ setup(
     ],
     tests_require=["pytest", "pytest-dependency==0.5.1"],
     use_scm_version={"write_to": "genome_grist/version.py"},
-    install_requires=["snakemake==7.25.0", "click>=7,<9", "lxml==4.9.3",
+    install_requires=["snakemake", "click>=7,<9", "lxml==4.9.3",
                       "pandas>1,<3"],
     long_description=long_description,
     long_description_content_type="text/markdown",
