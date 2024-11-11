@@ -922,6 +922,25 @@ rule map_leftover_reads_wc:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
+# build a combined manifest CSV of sourmash databases
+rule sourmash_collect_wc:
+    input:
+        db = SOURMASH_DB_LIST,
+    output:
+        mf_csv = outdir + "/gather/db.mf.csv",
+    conda: "env/sourmash.yml"
+    params:
+        ksize = SOURMASH_DB_KSIZE,
+        moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
+        threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
+        picklist = f"--picklist {PICKLIST}" if PICKLIST else ""
+    shell: """
+        sourmash sig collect -F csv -k {params.ksize} {params.moltype} \
+           {params.picklist} {input.db} -o {output.mf_csv} --abspath
+    """
+        
+        
+
 # run sourmash search x genbank and find anything matching.
 rule sourmash_prefetch_wc:
     message: """
@@ -929,7 +948,7 @@ rule sourmash_prefetch_wc:
     """
     input:
         sig = outdir + "/sigs/{sample}.trim.sig.zip",
-        db = SOURMASH_DB_LIST,
+        db = outdir + "/gather/db.mf.csv"
     output:
         csv = touch(outdir + "/gather/{sample}.prefetch.csv.gz"),
         known = touch(outdir + "/gather/{sample}.known.sig.zip"),
@@ -980,7 +999,7 @@ rule sourmash_gather_wc:
     input:
         sig = outdir + "/sigs/{sample}.trim.sig.zip",
         picklist = outdir + "/gather/{sample}.prefetch.csv.gz",
-        db = SOURMASH_DB_LIST,
+        db = outdir + "/gather/db.mf.csv",
     output:
         csv = outdir + "/gather/{sample}.gather.csv.gz",
         matches = outdir + "/gather/{sample}.matches.sig.zip",
@@ -988,7 +1007,6 @@ rule sourmash_gather_wc:
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
-        moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
     shell: """
         filesize=$(wc -c <{input.picklist})
@@ -998,11 +1016,11 @@ rule sourmash_gather_wc:
             echo "** You'll need to change either your database or remove this sample from the config. :("
             exit 1
         fi
-        sourmash gather {input.sig} {input.db} -o {output.csv} \
-          --threshold-bp {params.threshold_bp} \
-          --picklist {input.picklist}::prefetch \
-          -k {params.ksize} {params.moltype} \
-          --save-matches {output.matches} > {output.out}
+        sourmash scripts fastgather {input.sig} {input.db} \
+          -k {params.ksize} -m {SOURMASH_COMPUTE_TYPE} -o {output.csv} \
+          --threshold-bp {params.threshold_bp} > {output.out}
+        sourmash sig cat --picklist {output.csv}::prefetch {input.db} \\
+          -o {output.matches}
     """
 
 # run sourmash tax annotate on the gather results
