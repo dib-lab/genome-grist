@@ -1,3 +1,5 @@
+.PHONY: all flakes black clean-test clean-gather test install
+
 all: clean-test test
 
 flakes:
@@ -5,6 +7,9 @@ flakes:
 
 black:
 	black .
+
+install:
+	pip install -e .
 
 clean-test:
 	rm -fr outputs.test/

@@ -677,6 +677,7 @@ rule count_trimmed_reads_wc:
 # map trimmed reads and produce a bam
 rule minimap_wc:
     input:
+        dep = f"{outdir}/genomes/.genomes.{{sample}}",
         query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
         metagenome = outdir + "/trim/{sample}.trim.fq.gz",
     output:
