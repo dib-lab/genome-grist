@@ -1008,6 +1008,7 @@ rule sourmash_gather_wc:
     params:
         ksize = SOURMASH_DB_KSIZE,
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
+    threads: 64
     shell: """
         filesize=$(wc -c <{input.picklist})
         if [ $filesize -lt 100 ]; then
@@ -1016,7 +1017,7 @@ rule sourmash_gather_wc:
             echo "** You'll need to change either your database or remove this sample from the config. :("
             exit 1
         fi
-        sourmash scripts fastgather {input.sig} {input.db} \
+        sourmash scripts fastgather {input.sig} {input.db} -c {threads} \
           -k {params.ksize} -m {SOURMASH_COMPUTE_TYPE} -o {output.csv} \
           --threshold-bp {params.threshold_bp} > {output.out}
         sourmash sig cat --picklist {output.csv}::prefetch {input.db} \\
