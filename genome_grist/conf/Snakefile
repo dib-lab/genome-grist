@@ -799,11 +799,11 @@ rule smash_trim_wc:
     params:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
                                    scaled=SOURMASH_COMPUTE_SCALED),
-        action = "translate" if SOURMASH_COMPUTE_TYPE == "protein" else "dna"
+    threads: 64
     shell: """
-        sourmash sketch {params.action} -p {params.param_str} \
-           {input} -o {output} \
-           --name {wildcards.sample}
+        sourmash scripts singlesketch -p {params.param_str} \
+           -o {output} --name {wildcards.sample} {input.metagenome} \
+           -c {threads} --input-moltype={SOURMASH_COMPUTE_TYPE}
     """
 
 # configure ipython kernel for papermill
