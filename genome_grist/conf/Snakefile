@@ -799,11 +799,11 @@ rule smash_trim_wc:
     params:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
                                    scaled=SOURMASH_COMPUTE_SCALED),
-    threads: 64
+    threads: 1
     shell: """
         sourmash scripts singlesketch -p {params.param_str} \
            -o {output} --name {wildcards.sample} {input.metagenome} \
-           -c {threads} --input-moltype={SOURMASH_COMPUTE_TYPE}
+           --input-moltype={SOURMASH_COMPUTE_TYPE}
     """
 
 # configure ipython kernel for papermill
