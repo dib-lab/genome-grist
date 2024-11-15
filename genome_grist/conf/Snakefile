@@ -997,7 +997,7 @@ rule report_query_known_unknown_wc:
         moltype = SOURMASH_COMPUTE_TYPE,
     shell: """
          python -Werror -Wignore::DeprecationWarning -m genome_grist.summarize_gather_hashes \
-          --query {input.query} --gather {input.gather_csv} --db {input.db} \
+          --query {input.query} --picklist {input.gather_csv}::prefetch --db {input.db} \
           -k {params.ksize} --moltype {params.moltype} --report {output.report}
     """
 
