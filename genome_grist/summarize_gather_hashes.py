@@ -14,9 +14,9 @@ from sourmash.logging import notify
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('query_sig')
-    p.add_argument('known_sig')
-    p.add_argument('unknown_sig')
+    p.add_argument('--query-sig', required=True)
+    p.add_argument('--picklist', required=True)
+    p.add_argument('--db', required=True)
 
     p.add_argument("-k", "--ksize", type=int, default=31, help="ksize for analysis")
     p.add_argument("--moltype", default="DNA", help="molecule type for analysis")
@@ -30,15 +30,28 @@ def main():
     query_sig = sourmash.load_file_as_signatures(args.query_sig,
                                                  ksize=ksize,
                                                  select_moltype=moltype)
-    query_sig = list(query_sig)[0]
-    known_sig = sourmash.load_file_as_signatures(args.known_sig)
-    known_sig = list(known_sig)[0]
-    unknown_sig = sourmash.load_file_as_signatures(args.unknown_sig)
-    unknown_sig = list(unknown_sig)[0]
+    query_sig = list(query_sig)
+    assert len(query_sig) == 1
+    query_sig = query_sig[0]
+
+    db = sourmash.load_file_as_index(args.db)
+
+    picklist = sourmash_args.load_picklist(args)
+    db = db.select(ksize=ksize, moltype=moltype, picklist=picklist)
 
     query_mh = query_sig.minhash
-    known_mh = known_sig.minhash
-    unknown_mh = unknown_sig.minhash
+
+    # iterate over matches and merge into one sketch
+    known_mh = query_mh.copy_and_clear()
+    print(f"merging {len(db)} signatures")
+    for sig in db.signatures():
+        known_mh += sig.minhash
+
+    known_mh = query_mh.flatten().intersection(known_mh.flatten())
+    #known_mh = known_mh.inflate(query_mh)
+    unknown_mh = query_mh.flatten().copy().to_mutable()
+    unknown_mh.remove_many(known_mh)
+    #unknown_mh = unknown_mh.inflate(query_mh)
 
     assert query_mh.ksize == known_mh.ksize
     assert query_mh.moltype == known_mh.moltype

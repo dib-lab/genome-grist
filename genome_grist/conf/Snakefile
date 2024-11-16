@@ -77,7 +77,7 @@ SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
 SOURMASH_COMPUTE_TYPE = config.get('sourmash_sigtype', 'DNA')
 assert SOURMASH_COMPUTE_TYPE in ('DNA', 'protein')
 
-PREFETCH_MEMORY = float(config.get('prefetch_memory', '100e9'))
+PREFETCH_MEMORY = float(config.get('prefetch_memory', '20e9'))
 
 if config.get('database_taxonomy'):
     print(f"ERROR: this is an old config file. Please use 'taxonomies' instead of 'database_taxonomy'.",
@@ -794,16 +794,20 @@ rule smash_trim_wc:
     input:
         metagenome = ancient(outdir + "/trim/{sample}.trim.fq.gz"),
     output:
-        sig = outdir + "/sigs/{sample}.trim.sig.zip"
+        sig = outdir + "/sigs/{sample}.trim.sig.zip",
+        json_out = temporary(outdir + "/sigs/{sample}.trim.sig.gz"),
     conda: "env/sourmash.yml"
     params:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
                                    scaled=SOURMASH_COMPUTE_SCALED),
-        action = "translate" if SOURMASH_COMPUTE_TYPE == "protein" else "dna"
+    threads: 1
     shell: """
-        sourmash sketch {params.action} -p {params.param_str} \
-           {input} -o {output} \
-           --name {wildcards.sample}
+        sourmash scripts singlesketch -p {params.param_str} \
+           -o {output.json_out} --name {wildcards.sample} {input.metagenome} \
+           --input-moltype={SOURMASH_COMPUTE_TYPE}
+
+        # convert to sig.zip
+        sourmash sig cat {output.json_out} -o {output.sig}
     """
 
 # configure ipython kernel for papermill
@@ -922,20 +926,12 @@ rule map_leftover_reads_wc:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
-# run sourmash search x genbank and find anything matching.
-rule sourmash_prefetch_wc:
-    message: """
-       Find all potentially relevant database matches for {wildcards.sample}
-    """
+# build a combined manifest CSV of sourmash databases
+rule sourmash_collect_wc:
     input:
-        sig = outdir + "/sigs/{sample}.trim.sig.zip",
         db = SOURMASH_DB_LIST,
     output:
-        csv = touch(outdir + "/gather/{sample}.prefetch.csv.gz"),
-        known = touch(outdir + "/gather/{sample}.known.sig.zip"),
-        unknown = touch(outdir + "/gather/{sample}.unknown.sig.zip"),
-    resources:
-        mem_mb=int(PREFETCH_MEMORY / 1e6)
+        mf_csv = outdir + "/gather/db.mf.csv",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
@@ -943,12 +939,45 @@ rule sourmash_prefetch_wc:
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
         picklist = f"--picklist {PICKLIST}" if PICKLIST else ""
     shell: """
-        echo "DB is {input.db}"
-        sourmash prefetch {input.sig} {input.db} -k {params.ksize} \
-          --threshold-bp={params.threshold_bp} {params.moltype} \
-          --save-matching-hashes={output.known} \
-          --save-unmatched-hashes={output.unknown} \
-          {params.picklist} -o {output.csv}
+        sourmash sig collect -F csv -k {params.ksize} {params.moltype} \
+           {params.picklist} {input.db} -o {output.mf_csv} --abspath
+    """
+        
+# run sourmash gather with known hashes on prefetched matches.
+rule sourmash_gather_wc:
+    message: """
+       Run gather for {wildcards.sample}
+    """
+    input:
+        sig = outdir + "/sigs/{sample}.trim.sig.zip",
+        db = outdir + "/gather/db.mf.csv",
+    output:
+        prefetch_csv = outdir + "/gather/{sample}.prefetch.csv.gz",
+        gather_csv = outdir + "/gather/{sample}.gather.csv.gz",
+        matches = outdir + "/gather/{sample}.matches.sig.zip",
+        out = outdir + "/gather/{sample}.gather.out",
+    conda: "env/sourmash.yml"
+    params:
+        ksize = SOURMASH_DB_KSIZE,
+        threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
+        prefetch_csv_ungz = outdir + "/gather/{sample}.prefetch.csv",
+        gather_csv_ungz = outdir + "/gather/{sample}.gather.csv",
+    resources:
+        mem_mb=int(PREFETCH_MEMORY / 1e6)
+    threads: 64
+    shell: """
+        sourmash scripts fastgather {input.sig} {input.db} -c {threads} \
+          -k {params.ksize} -m {SOURMASH_COMPUTE_TYPE} \
+          -o {params.gather_csv_ungz} \
+          --output-prefetch {params.prefetch_csv_ungz} \
+          --threshold-bp {params.threshold_bp} | tee {output.out}
+
+        # gzip CSV files
+        gzip {params.gather_csv_ungz} {params.prefetch_csv_ungz}
+
+        # extract matches
+        sourmash sig cat --picklist {output.gather_csv}::prefetch {input.db} \
+          -o {output.matches}
     """
 
 # report on known and unknown hashes
@@ -958,8 +987,8 @@ rule report_query_known_unknown_wc:
     """
     input:
         query = outdir + "/sigs/{sample}.trim.sig.zip",
-        known = outdir + "/gather/{sample}.known.sig.zip",
-        unknown = outdir + "/gather/{sample}.unknown.sig.zip",
+        gather_csv = outdir + "/gather/{sample}.gather.csv.gz",
+        db = outdir + "/gather/db.mf.csv",
     output:
         report = outdir + "/gather/{sample}.prefetch.report.txt",
     conda: "env/sourmash.yml"
@@ -968,41 +997,8 @@ rule report_query_known_unknown_wc:
         moltype = SOURMASH_COMPUTE_TYPE,
     shell: """
          python -Werror -Wignore::DeprecationWarning -m genome_grist.summarize_gather_hashes \
-          {input.query} {input.known} {input.unknown}  \
+          --query {input.query} --picklist {input.gather_csv}::prefetch --db {input.db} \
           -k {params.ksize} --moltype {params.moltype} --report {output.report}
-    """
-
-# run sourmash gather with known hashes on prefetched matches.
-rule sourmash_gather_wc:
-    message: """
-       Run gather for {wildcards.sample}
-    """
-    input:
-        sig = outdir + "/sigs/{sample}.trim.sig.zip",
-        picklist = outdir + "/gather/{sample}.prefetch.csv.gz",
-        db = SOURMASH_DB_LIST,
-    output:
-        csv = outdir + "/gather/{sample}.gather.csv.gz",
-        matches = outdir + "/gather/{sample}.matches.sig.zip",
-        out = outdir + "/gather/{sample}.gather.out",
-    conda: "env/sourmash.yml"
-    params:
-        ksize = SOURMASH_DB_KSIZE,
-        moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
-        threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
-    shell: """
-        filesize=$(wc -c <{input.picklist})
-        if [ $filesize -lt 100 ]; then
-            echo "** ERROR: prefetch didn't find anything for sample '{wildcards.sample}'."
-            echo "** That means there are no matches in the database for this sample!"
-            echo "** You'll need to change either your database or remove this sample from the config. :("
-            exit 1
-        fi
-        sourmash gather {input.sig} {input.db} -o {output.csv} \
-          --threshold-bp {params.threshold_bp} \
-          --picklist {input.picklist}::prefetch \
-          -k {params.ksize} {params.moltype} \
-          --save-matches {output.matches} > {output.out}
     """
 
 # run sourmash tax annotate on the gather results
