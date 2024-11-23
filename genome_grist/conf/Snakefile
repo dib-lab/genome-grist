@@ -267,7 +267,7 @@ class Checkpoint_GatherResults:
 
         genome_idents = []
         for row in load_gather_csv(gather_csv):
-            ident = row['name'].split()[0]
+            ident = row['match_name'].split()[0]
 
             # skip identifiers we've been asked to ignore in 'skip_genomes'
             if ident in IGNORE_IDENTS:
@@ -357,7 +357,7 @@ class ListGatherGenomes(Checkpoint_GatherResults):
         assert os.path.exists(gather_csv), f"gather output does not exist for {sample}!?"
 
         for row in load_csv(gather_csv):
-            ident = row['name'].split()[0]
+            ident = row['match_name'].split()[0]
 
             # skip identifiers we've been asked to ignore in 'skip_genomes'
             if ident in IGNORE_IDENTS:
@@ -543,17 +543,17 @@ rule download_sra_wc:
         # now process the files and move to a permanent location
         echo processing R1...
         seqtk seq -C {output.temp_r1} | \
-            perl -ne 's/\\.([12])$/\/$1/; print $_' | \
+            perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.r1} &
 
         echo processing R2...
         seqtk seq -C {output.temp_r2} | \
-            perl -ne 's/\\.([12])$/\/$1/; print $_' | \
+            perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.r2} &
 
         echo processing unpaired...
         seqtk seq -C {output.temp_unp} | \
-            perl -ne 's/\\.([12])$/\/$1/; print $_' | \
+            perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.unp} &
         wait
         echo finished downloading raw reads
@@ -855,7 +855,7 @@ rule make_taxonomy_notebook_wc:
     input:
         nb = srcdir('../notebooks/report-taxonomy.ipynb'),
         taxcsv = ancient(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv.gz'),
-        kernel_set = rules.set_kernel.output,
+        kernel_set = f'{outdir}/.kernel.set'
     output:
         nb = outdir + f'/reports/report-taxonomy-{{sample}}.ipynb',
         html = outdir + f'/reports/report-taxonomy-{{sample}}.html',
@@ -864,6 +864,7 @@ rule make_taxonomy_notebook_wc:
         outdir = outdir,
     conda: 'env/papermill.yml'
     shell: """
+        ls -la {input.kernel_set}
         papermill {input.nb} {output.nb} -k genome_grist \
               -p sample_id {wildcards.sample:q} -p render '' -p outdir {outdir:q}\
               --cwd {params.cwd}
