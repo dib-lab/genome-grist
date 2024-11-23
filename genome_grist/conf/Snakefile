@@ -801,6 +801,8 @@ rule smash_trim_wc:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
                                    scaled=SOURMASH_COMPUTE_SCALED),
     threads: 1
+    benchmark:
+        outdir + "/benchmarks/sketch_{sample}.txt"
     shell: """
         sourmash scripts singlesketch -p {params.param_str} \
            -o {output.json_out} --name {wildcards.sample} {input.metagenome} \
