@@ -37,6 +37,9 @@ def run_snakemake(
 
     # snakemake sometimes seems to want a default -j; set it to 1 for now.
     # can overridden later on command line.
+    # @CTB revisit: for single-machine execution, --cores == --jobs,
+    # but different for multi-machine/cluster execution.
+    # @CTB how do we allow better override/user notification!?
     cmd += ["-j", "1"]
 
     # add --use-conda
