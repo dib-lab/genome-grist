@@ -829,7 +829,7 @@ rule set_kernel:
 # from being run over and over!
 rule make_gather_notebook_wc:
     input:
-        nb = srcdir('../notebooks/report-gather.ipynb'),
+        nb = srcdir('notebooks/report-gather.ipynb'),
         gather_csv = f'{outdir}/gather/{{sample}}.gather.csv.gz',
         genomes_info_csv = ancient(f"{outdir}/gather/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
@@ -853,7 +853,7 @@ rule make_gather_notebook_wc:
 # from being run over and over!
 rule make_taxonomy_notebook_wc:
     input:
-        nb = srcdir('../notebooks/report-taxonomy.ipynb'),
+        nb = srcdir('notebooks/report-taxonomy.ipynb'),
         taxcsv = ancient(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv.gz'),
         kernel_set = f'{outdir}/.kernel.set'
     output:
@@ -877,7 +877,7 @@ rule make_taxonomy_notebook_wc:
 # from being run over and over!
 rule make_mapping_notebook_wc:
     input:
-        nb = srcdir('../notebooks/report-mapping.ipynb'),
+        nb = srcdir('notebooks/report-mapping.ipynb'),
         all_csv = ancient(f"{outdir}/mapping/{{sample}}.summary.csv"),
         depth_csv = ancient(f"{outdir}/leftover/{{sample}}.summary.csv"),
         gather_csv = f'{outdir}/gather/{{sample}}.gather.csv.gz',
