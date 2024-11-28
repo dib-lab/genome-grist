@@ -508,6 +508,8 @@ rule download_sra_wc:
     params:
         do_not_run_me = 1 if config.get("prevent_sra_download", False) else 0,
         outdir = outdir,
+    benchmark:
+        outdir + "/benchmarks/download_sra_{sample}.txt"
     threads: 6
     conda: "env/sra.yml"
     resources:
@@ -560,6 +562,7 @@ rule download_sra_wc:
         '''
 
 # compute sourmash signature from raw reads
+# @CTB: switch to using singlesketch?
 rule smash_raw_reads_wc:
     input:
         r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
@@ -572,6 +575,8 @@ rule smash_raw_reads_wc:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
                                    scaled=SOURMASH_COMPUTE_SCALED),
         action = "translate" if SOURMASH_COMPUTE_TYPE == "protein" else "dna"
+    benchmark:
+        outdir + "/benchmarks/sketch_raw_{sample}.txt"
     shell: """
         sourmash sketch {params.action} -p {params.param_str} \
            {input} -o {output} --name 'rawreads:{wildcards.sample}'
@@ -587,6 +592,8 @@ rule trim_adapters_wc:
         json=outdir + "/trim/{sample}.trim.json",
         html=outdir + "/trim/{sample}.trim.html",
     conda: 'env/trim.yml'
+    benchmark:
+        outdir + "/benchmarks/trim_{sample}.txt"
     threads: 4
     resources:
         mem_mb=5000,
@@ -629,6 +636,8 @@ rule kmer_trim_reads_wc:
     output:
         protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
     conda: 'env/abundtrim.yml'
+    benchmark:
+        outdir + "/benchmarks/kmertrim_{sample}.txt"
     resources:
         mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
     params:
@@ -965,6 +974,8 @@ rule sourmash_gather_wc:
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
         prefetch_csv_ungz = outdir + "/gather/{sample}.prefetch.csv",
         gather_csv_ungz = outdir + "/gather/{sample}.gather.csv",
+    benchmark:
+        outdir + "/benchmarks/gather_{sample}.txt"
     resources:
         mem_mb=int(PREFETCH_MEMORY / 1e6)
     threads: 64
