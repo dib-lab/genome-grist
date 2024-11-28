@@ -3,22 +3,30 @@ name = "genome-grist"
 description = "tools to support genome and metagenome analysis"
 readme = "README.md"
 requires-python = ">=3.12"
-version = "0.10.0"
-#classifiers = [
-#]
+version = "0.11.0"
 authors = [
   { name="C. Titus Brown" },
   { name="Luiz Irber" },
   { name="N. Tessa Pierce-Ward" },
   { name="Taylor Reiter" },
 ]
-dependencies = ["snakemake", "click>=7,<9", "lxml==4.9.3",
+dependencies = ["snakemake",
+                "click>=7,<9",
+                "lxml==4.9.3",
                 "pandas>1,<3"]
-
-# @CTB classifiers=CLASSIFIERS,
+classifiers = [
+    "Environment :: Console",
+    "Environment :: MacOS X",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 
 [project.scripts]
-hello-world = "timmins:hello_world"
 genome-grist = "genome_grist.__main__:main"
 
 [project.optional-dependencies]
@@ -33,10 +41,3 @@ packages = ["genome_grist"]
 
 [metadata]
 license = { text = "GNU Affero General Public License v3" }
-
-# @CTB    entry_points={"console_scripts": ["genome-grist  = genome_grist.__main__:main"]},
-#    include_package_data=True,
-#    package_data={"genome_grist": ["Snakefile", "*.yml", "*.ipynb"]},
-#    tests_require=["pytest", "pytest-dependency==0.5.1"],
-#    long_description=long_description,
-#    long_description_content_type="text/markdown",
