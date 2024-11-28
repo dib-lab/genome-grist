@@ -161,11 +161,11 @@ def toplevel(fn):
     _toplevel_rules.append(fn.__name__[2:])
     return fn
 
-onsuccess:
-    shutil.rmtree(base_tempdir, ignore_errors=True)
+#onsuccess:
+#    shutil.rmtree(base_tempdir, ignore_errors=True)
 
-onerror:
-    shutil.rmtree(base_tempdir, ignore_errors=True)
+#onerror:
+#    shutil.rmtree(base_tempdir, ignore_errors=True)
 
 wildcard_constraints:
     size="\\d+",
@@ -494,23 +494,17 @@ rule zip:
     """
 
 
-# download SRA IDs.
-rule download_sra_wc:
+# download SRA IDs with prefetch
+rule download_sra_prefetch_wc:
     output:
-        r1  = protected(outdir + "/raw/{sample}_1.fastq.gz"),
-        r2  = protected(outdir + "/raw/{sample}_2.fastq.gz"),
-        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
         # temporary output
         temp_dir = temp(directory(f"{base_tempdir}/{{sample}}.d")),
-        temp_r1 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_1.fastq",
-        temp_r2 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_2.fastq",
-        temp_unp = f"{base_tempdir}/{{sample}}.d/{{sample}}.fastq",
     params:
-        do_not_run_me = 1 if config.get("prevent_sra_download", False) else 0,
         outdir = outdir,
+        do_not_run_me = 1 if config.get("prevent_sra_download", False) else 0,
+        sralite = f"{base_tempdir}/{{sample}}.d/{{sample}}.sralite",
     benchmark:
         outdir + "/benchmarks/download_sra_{sample}.txt"
-    threads: 6
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
@@ -522,39 +516,68 @@ rule download_sra_wc:
             exit -1
         fi
 
-        echo tmp directory: {output.temp_dir}
+        echo 'configuring SRA toolkit to use sra-lite format'
+        vdb-config -Q yes
+
+        echo 'tmp directory: {output.temp_dir}'
+        echo 'running sra prefetch for {wildcards.sample}'
+        prefetch {wildcards.sample} -O {output.temp_dir} --eliminate-quals
+        '''
+
+# process output of SRA prefetch
+rule download_sra_process_wc:
+    input:
+        temp_dir = f"{base_tempdir}/{{sample}}.d",
+    output:
+        r1  = protected(outdir + "/raw/{sample}_1.fastq.gz"),
+        r2  = protected(outdir + "/raw/{sample}_2.fastq.gz"),
+        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+    params:
+        outdir = outdir,
+        temp_r1 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_1.fastq",
+        temp_r2 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_2.fastq",
+        temp_unp = f"{base_tempdir}/{{sample}}.d/{{sample}}.fastq",
+        sralite = f"{base_tempdir}/{{sample}}.d/{{sample}}/{{sample}}.sralite",
+    benchmark:
+        outdir + "/benchmarks/download_sra_{sample}.txt"
+    threads: 6
+    conda: "env/sra.yml"
+    resources:
+        mem_mb=40000,
+    shell: '''
+        echo 'tmp directory: {input.temp_dir}'
         echo running fasterq-dump for {wildcards.sample}
 
-        fasterq-dump {wildcards.sample} -O {output.temp_dir} \
-        -t {output.temp_dir} -e {threads} -p --split-files
-        ls -h {output.temp_dir}
+        fasterq-dump {params.sralite} -O {input.temp_dir} \
+           -t {input.temp_dir} -e {threads} -p --split-files
+        ls -h {input.temp_dir}
 
         # make unpaired file if needed
-        if [ -f {output.temp_r1} -a -f {output.temp_r2} -a \\! -f {output.temp_unp} ];
+        if [ -f {params.temp_r1} -a -f {params.temp_r2} -a \\! -f {params.temp_unp} ];
           then
-            echo "no unpaired; creating empty unpaired file {output.unp} for simplicity"
-            touch {output.temp_unp}
+            echo "no unpaired; creating empty unpaired file {params.temp_unp} for simplicity"
+            touch {params.temp_unp}
           # make r1, r2 files if needed
-        elif [ -f {output.temp_unp} -a \\! -f {output.temp_r1} -a \\! -f {output.temp_r2} ];
+        elif [ -f {params.temp_unp} -a \\! -f {params.temp_r1} -a \\! -f {params.temp_r2} ];
           then
-            echo "unpaired file found; creating empty r1 ({output.temp_r1}) and r2 ({output.temp_r2}) files for simplicity"
-            touch {output.temp_r1}
-            touch {output.temp_r2}
+            echo "unpaired file found; creating empty r1 ({params.temp_r1}) and r2 ({params.temp_r2}) files for simplicity"
+            touch {params.temp_r1}
+            touch {params.temp_r2}
         fi
 
         # now process the files and move to a permanent location
         echo processing R1...
-        seqtk seq -C {output.temp_r1} | \
+        seqtk seq -C {params.temp_r1} | \
             perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.r1} &
 
         echo processing R2...
-        seqtk seq -C {output.temp_r2} | \
+        seqtk seq -C {params.temp_r2} | \
             perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.r2} &
 
         echo processing unpaired...
-        seqtk seq -C {output.temp_unp} | \
+        seqtk seq -C {params.temp_unp} | \
             perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.unp} &
         wait
