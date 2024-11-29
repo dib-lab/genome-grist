@@ -33,20 +33,6 @@ outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
 print('outdir:', outdir, file=sys.stderr)
 
-base_tempdir = None
-try_temp_locations = config.get('tempdir', [])
-for temp_loc in try_temp_locations:
-    try:
-        base_tempdir = tempfile.mkdtemp(dir=temp_loc)
-    except FileNotFoundError:
-        pass
-
-if not base_tempdir:
-    print(f"Could not create a temporary directory in any of {try_temp_locations}", file=sys.stderr)
-    print("Please set 'tempdir' in the config.", file=sys.stderr)
-    sys.exit(-1)
-print(f'base_tempdir: {base_tempdir}', file=sys.stderr)
-
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
 GENBANK_CACHE = config.get('genbank_cache', './genbank_cache/')
@@ -160,12 +146,6 @@ def toplevel(fn):
     assert fn.__name__.startswith('__')
     _toplevel_rules.append(fn.__name__[2:])
     return fn
-
-onsuccess:
-    shutil.rmtree(base_tempdir, ignore_errors=True)
-
-onerror:
-    shutil.rmtree(base_tempdir, ignore_errors=True)
 
 wildcard_constraints:
     size="\\d+",
@@ -495,15 +475,12 @@ rule zip:
 
 
 # download SRA IDs with prefetch
-# @CTB: make it possible to feed in sralite files directly?
+# @CTB: make it possible to feed in sralite files directly in the config?
 rule download_sra_prefetch_wc:
     output:
-        # temporary output
-        temp_dir = temp(directory(f"{base_tempdir}/{{sample}}.d")),
+        sralite = temp(outdir + f"/sra/{{sample}}.sralite"),
     params:
-        outdir = outdir,
         do_not_run_me = 1 if config.get("prevent_sra_download", False) else 0,
-        sralite = f"{base_tempdir}/{{sample}}.d/{{sample}}.sralite",
     benchmark:
         outdir + "/benchmarks/download_sra_{sample}.txt"
     conda: "env/sra.yml"
@@ -513,32 +490,27 @@ rule download_sra_prefetch_wc:
         if [ "{params.do_not_run_me}" = 1 ]; then
             echo "** genome-grist is trying to download from SRA for sample {wildcards.sample},"
             echo "** but 'prevent_sra_download' is set to true in config."
-            echo "** Does '{params.outdir}/trim/{wildcards.sample}.trim.fq.gz' exist?"
+            echo "** Does '{outdir}/trim/{wildcards.sample}.trim.fq.gz' exist?"
             exit -1
         fi
 
         echo 'configuring SRA toolkit to use sra-lite format'
         vdb-config -Q yes
 
-        echo 'tmp directory: {output.temp_dir}'
         echo 'running sra prefetch for {wildcards.sample}'
-        prefetch {wildcards.sample} -O {output.temp_dir} --eliminate-quals
+        prefetch {wildcards.sample} -o {output.sralite} --eliminate-quals
         '''
 
-# process output of SRA prefetch
-rule download_sra_process_wc:
+# extract reads from SRA prefetch file
+rule download_sra_extract_wc:
     input:
-        temp_dir = f"{base_tempdir}/{{sample}}.d",
+        sralite = outdir + f"/sra/{{sample}}.sralite",
     output:
-        r1  = protected(outdir + "/raw/{sample}_1.fastq.gz"),
-        r2  = protected(outdir + "/raw/{sample}_2.fastq.gz"),
-        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+        temp_r1 =  temp(outdir + f"/sra/{{sample}}_1.fastq"),
+        temp_r2 =  temp(outdir + f"/sra/{{sample}}_2.fastq"),
+        temp_unp = temp(outdir + f"/sra/{{sample}}.fastq"),
     params:
-        outdir = outdir,
-        temp_r1 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_1.fastq",
-        temp_r2 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_2.fastq",
-        temp_unp = f"{base_tempdir}/{{sample}}.d/{{sample}}.fastq",
-        sralite = f"{base_tempdir}/{{sample}}.d/{{sample}}/{{sample}}.sralite",
+        sra_dir = outdir + f"/sra"
     benchmark:
         outdir + "/benchmarks/download_sra_{sample}.txt"
     threads: 6
@@ -546,43 +518,59 @@ rule download_sra_process_wc:
     resources:
         mem_mb=40000,
     shell: '''
-        echo 'tmp directory: {input.temp_dir}'
         echo running fasterq-dump for {wildcards.sample}
 
-        fasterq-dump {params.sralite} -O {input.temp_dir} \
-           -t {input.temp_dir} -e {threads} -p --split-files
-        ls -h {input.temp_dir}
+        fasterq-dump {input.sralite} -e {threads} -p --split-files \
+           -O {params.sra_dir}
 
         # make unpaired file if needed
-        if [ -f {params.temp_r1} -a -f {params.temp_r2} -a \\! -f {params.temp_unp} ];
+        if [ -f {output.temp_r1} -a -f {output.temp_r2} -a \\! -f {output.temp_unp} ];
           then
-            echo "no unpaired; creating empty unpaired file {params.temp_unp} for simplicity"
-            touch {params.temp_unp}
+            echo "no unpaired; creating empty unpaired file {output.temp_unp} for simplicity"
+            touch {output.temp_unp}
           # make r1, r2 files if needed
-        elif [ -f {params.temp_unp} -a \\! -f {params.temp_r1} -a \\! -f {params.temp_r2} ];
+        elif [ -f {output.temp_unp} -a \\! -f {output.temp_r1} -a \\! -f {output.temp_r2} ];
           then
-            echo "unpaired file found; creating empty r1 ({params.temp_r1}) and r2 ({params.temp_r2}) files for simplicity"
-            touch {params.temp_r1}
-            touch {params.temp_r2}
+            echo "unpaired file found; creating empty r1 ({output.temp_r1}) and r2 ({output.temp_r2}) files for simplicity"
+            touch {output.temp_r1}
+            touch {output.temp_r2}
         fi
 
+        echo "finished extracting raw reads from SRAlite file."
+        '''
+
+# process output of SRA prefetch/dump
+rule download_sra_process_wc:
+    input:
+        temp_r1 =  outdir + f"/sra/{{sample}}_1.fastq",
+        temp_r2 =  outdir + f"/sra/{{sample}}_2.fastq",
+        temp_unp = outdir + f"/sra/{{sample}}.fastq",
+    output:
+        r1  = protected(outdir + "/raw/{sample}_1.fastq.gz"),
+        r2  = protected(outdir + "/raw/{sample}_2.fastq.gz"),
+        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+    benchmark:
+        outdir + "/benchmarks/download_sra_{sample}.txt"
+    threads: 6
+    conda: "env/sra.yml"
+    shell: '''
         # now process the files and move to a permanent location
         echo processing R1...
-        seqtk seq -C {params.temp_r1} | \
+        seqtk seq -C {input.temp_r1} | \
             perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.r1} &
 
         echo processing R2...
-        seqtk seq -C {params.temp_r2} | \
+        seqtk seq -C {input.temp_r2} | \
             perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.r2} &
 
         echo processing unpaired...
-        seqtk seq -C {params.temp_unp} | \
+        seqtk seq -C {input.temp_unp} | \
             perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.unp} &
         wait
-        echo finished downloading raw reads
+        echo "finished extracting raw reads from SRAlite file."
         '''
 
 # compute sourmash signature from raw reads
@@ -691,6 +679,8 @@ rule estimate_distinct_kmers_wc:
         report = outdir + "/trim/{sample}.trim.fq.gz.kmer-report.txt",
     params:
         ksize = SOURMASH_DB_KSIZE,
+    benchmark:
+        outdir + "/benchmarks/countkmers_{sample}.txt"
     shell: """
         unique-kmers.py {input} -k {params.ksize} -R {output.report}
     """
@@ -724,6 +714,8 @@ rule minimap_wc:
         bam = outdir + "/mapping/{sample}.x.{ident}.bam",
     conda: "env/minimap2.yml"
     threads: 4
+    benchmark:
+        outdir + "/benchmarks/minimap_{sample}_{ident}.txt"
     shell: """
         minimap2 -ax sr -t {threads} {input.query} {input.metagenome} | \
             samtools view -b -F 4 - | samtools sort - > {output.bam}
@@ -948,6 +940,8 @@ rule extract_leftover_reads_wc:
     conda: "env/sourmash.yml"
     params:
         outdir = outdir,
+    benchmark:
+        outdir + "/benchmarks/subtract_gather_{sample}.txt",
     shell: """
         python -Werror -Wignore::DeprecationWarning -m genome_grist.subtract_gather \
             {wildcards.sample:q} {input.csv} --outdir={params.outdir:q}
@@ -962,6 +956,8 @@ rule map_leftover_reads_wc:
     output:
         bam=outdir + "/leftover/{sample}.x.{ident}.bam",
     conda: "env/minimap2.yml"
+    benchmark:
+        outdir + "/benchmarks/leftovermap_{sample}_{ident}.txt"
     threads: 4
     shell: """
         minimap2 -ax sr -t {threads} {input.query} \
