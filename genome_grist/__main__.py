@@ -5,7 +5,8 @@ import subprocess
 
 import click
 
-from genome_grist.version import version
+from importlib.metadata import version as get_version
+version = get_version("genome-grist")
 
 def get_snakefile_path(name):
     thisdir = os.path.dirname(__file__)
