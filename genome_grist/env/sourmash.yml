@@ -9,4 +9,5 @@ dependencies:
  - sourmash_plugin_branchwater==0.9.11
  - pip
  - pip:
-   - git+https://github.com/dib-lab/genome-grist.git#egg=genome-grist
+#   - git+https://github.com/dib-lab/genome-grist.git#egg=genome-grist
+    - git+https://github.com/dib-lab/genome-grist.git@ntp-patch
