@@ -26,10 +26,9 @@ jobs:
       - name: Setup Mambaforge
         uses: conda-incubator/setup-miniconda@v2
         with:
-          miniforge-variant: Mambaforge
           miniforge-version: latest
           activate-environment: anaconda-client-env
-          use-mamba: true
+          use-mamba: false
           python-version: ${{ matrix.python }}
 
       - name: Get Date
