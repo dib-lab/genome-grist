@@ -177,7 +177,7 @@ def test_gather_reads_with_picklist():
 
     gather_results = list(utils.load_csv(gather_output))
     assert len(gather_results) == 1
-    assert gather_results[0]['name'].startswith('GCF_902167755.1 ')
+    assert gather_results[0]['match_name'].startswith('GCF_902167755.1 ')
 
     # make sure the picklist version of the CSVs is cleaned up!
     os.unlink(prefetch_output)

@@ -480,14 +480,14 @@ rule download_sra_prefetch_wc:
     output:
         sralite = temp(outdir + f"/sra/{{sample}}.sralite"),
     params:
-        do_not_run_me = 1 if config.get("prevent_sra_download", False) else 0,
+        do_not_run_me = "true" if config.get("prevent_sra_download", False) else "false",
     benchmark:
         outdir + "/benchmarks/download_sra_{sample}.txt"
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
     shell: '''
-        if [ "{params.do_not_run_me}" = 1 ]; then
+        if {params.do_not_run_me}; then
             echo "** genome-grist is trying to download from SRA for sample {wildcards.sample},"
             echo "** but 'prevent_sra_download' is set to true in config."
             echo "** Does '{outdir}/trim/{wildcards.sample}.trim.fq.gz' exist?"
@@ -976,10 +976,18 @@ rule sourmash_collect_wc:
         ksize = SOURMASH_DB_KSIZE,
         moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
-        picklist = f"--picklist {PICKLIST}" if PICKLIST else ""
+        picklist = f"--picklist {PICKLIST}" if PICKLIST else "",
+        run_sig_check = "true" if PICKLIST else "false"
+    # here, 'collect' does not take a picklist, but 'check' does. so
+    # pick which one we run based on whehter we have a picklist.
     shell: """
-        sourmash sig collect -F csv -k {params.ksize} {params.moltype} \
-           {params.picklist} {input.db} -o {output.mf_csv} --abspath
+        if {params.run_sig_check}; then
+           sourmash sig check -F csv -k {params.ksize} {params.moltype} \
+              {params.picklist} {input.db} -m {output.mf_csv} --abspath
+        else
+           sourmash sig collect -F csv -k {params.ksize} {params.moltype} \
+              {input.db} -o {output.mf_csv} --abspath
+        fi
     """
         
 # run sourmash gather with known hashes on prefetched matches.
@@ -1012,6 +1020,11 @@ rule sourmash_gather_wc:
           -o {params.gather_csv_ungz} \
           --output-prefetch {params.prefetch_csv_ungz} \
           --threshold-bp {params.threshold_bp} | tee {output.out}
+
+        if [ ! -f {params.gather_csv_ungz} ]; then
+             echo "** ERROR: gather didn't find anything for sample '{wildcards.sample}'. Failing."
+             exit 1
+        fi
 
         # gzip CSV files
         gzip {params.gather_csv_ungz} {params.prefetch_csv_ungz}

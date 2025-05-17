@@ -85,8 +85,7 @@ def test_gather_reads_nomatches():
     print('STDOUT:', pinfo.stdout)
     print('STDERR:', pinfo.stderr)
 
-    assert "DB is tests/test-data/SRR5950647-genomes/acidulo.zip" in pinfo.stdout
-    assert "** ERROR: prefetch didn't find anything for sample 'SRR5950647_subset'." in pinfo.stdout
+    assert "** ERROR: gather didn't find anything for sample 'SRR5950647_subset'." in pinfo.stdout
 
 
 def test_missing_genbank_genome_fail():
