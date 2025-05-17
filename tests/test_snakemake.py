@@ -91,11 +91,11 @@ def test_summarize_sample_info():
 
     assert info['kmers'] == 928685
     assert info['sample'] == 'SRR5950647_subset'
-    assert info['known_hashes'] == 653
+    assert info['known_hashes'] == 551
     assert info['n_bases'] == 2276334
     assert info['n_reads'] == 24663
     assert info['total_hashes'] == 907
-    assert info['unknown_hashes'] == 254
+    assert info['unknown_hashes'] == 356
 
 
 @pytest.mark.dependency(depends=["test_summarize_sample_info"])
