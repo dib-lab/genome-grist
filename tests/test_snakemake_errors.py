@@ -106,7 +106,6 @@ def test_missing_genbank_genome_fail():
 
     pinfo = run_snakemake(
         conf,
-        no_use_conda=True,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
@@ -117,8 +116,8 @@ def test_missing_genbank_genome_fail():
     print('STDERR')
     print(pinfo.stderr)
 
-    assert "Cannot download genome from URL:" in pinfo.stderr
-    assert "Is it missing? If so, consider adding 'GCF_000020205.1' to 'skip_genomes' list in config file." in pinfo.stderr
+    assert "cannot get corresponding genome file for GCF_000020205.1; send help." in pinfo.stderr
+    #assert "Is it missing? If so, consider adding 'GCF_000020205.1' to 'skip_genomes' list in config file." in pinfo.stderr
 
     assert pinfo.returncode != 0
 
