@@ -140,7 +140,6 @@ def test_missing_genbank_genome_skip():
 
     pinfo = run_snakemake(
         conf,
-        no_use_conda=True,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
