@@ -1,8 +1,7 @@
-name: sra-download
 channels:
  - conda-forge
  - bioconda
  - defaults
 dependencies:
- - sra-tools>=2.10.0,<3
- - seqtk=1.3
+ - fastp=0.23.4
+ - seqtk=1.4

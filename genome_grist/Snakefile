@@ -1,5 +1,8 @@
 # see README or genome_grist/__main__.py for top-level targets.
 import snakemake
+srcdir = workflow.source_path
+
+import urllib
 import os, csv, tempfile, shutil, sys, gzip
 from functools import lru_cache
 
@@ -29,20 +32,6 @@ if fail:
 outdir = config.get('outdir', 'outputs/')
 outdir = outdir.rstrip('/')
 print('outdir:', outdir, file=sys.stderr)
-
-base_tempdir = None
-try_temp_locations = config.get('tempdir', [])
-for temp_loc in try_temp_locations:
-    try:
-        base_tempdir = tempfile.mkdtemp(dir=temp_loc)
-    except FileNotFoundError:
-        pass
-
-if not base_tempdir:
-    print(f"Could not create a temporary directory in any of {try_temp_locations}", file=sys.stderr)
-    print("Please set 'tempdir' in the config.", file=sys.stderr)
-    sys.exit(-1)
-print(f'base_tempdir: {base_tempdir}', file=sys.stderr)
 
 ABUNDTRIM_MEMORY = float(config.get('metagenome_trim_memory', '1e9'))
 
@@ -74,7 +63,7 @@ SOURMASH_COMPUTE_SCALED = config.get('sourmash_scaled', '1000')
 SOURMASH_COMPUTE_TYPE = config.get('sourmash_sigtype', 'DNA')
 assert SOURMASH_COMPUTE_TYPE in ('DNA', 'protein')
 
-PREFETCH_MEMORY = float(config.get('prefetch_memory', '100e9'))
+PREFETCH_MEMORY = float(config.get('prefetch_memory', '20e9'))
 
 if config.get('database_taxonomy'):
     print(f"ERROR: this is an old config file. Please use 'taxonomies' instead of 'database_taxonomy'.",
@@ -158,14 +147,8 @@ def toplevel(fn):
     _toplevel_rules.append(fn.__name__[2:])
     return fn
 
-onsuccess:
-    shutil.rmtree(base_tempdir, ignore_errors=True)
-
-onerror:
-    shutil.rmtree(base_tempdir, ignore_errors=True)
-
 wildcard_constraints:
-    size="\d+",
+    size="\\d+",
     sample='[^./]+'                   # should be everything but /.
 
 @toplevel
@@ -264,7 +247,7 @@ class Checkpoint_GatherResults:
 
         genome_idents = []
         for row in load_gather_csv(gather_csv):
-            ident = row['name'].split()[0]
+            ident = row['match_name'].split()[0]
 
             # skip identifiers we've been asked to ignore in 'skip_genomes'
             if ident in IGNORE_IDENTS:
@@ -354,7 +337,7 @@ class ListGatherGenomes(Checkpoint_GatherResults):
         assert os.path.exists(gather_csv), f"gather output does not exist for {sample}!?"
 
         for row in load_csv(gather_csv):
-            ident = row['name'].split()[0]
+            ident = row['match_name'].split()[0]
 
             # skip identifiers we've been asked to ignore in 'skip_genomes'
             if ident in IGNORE_IDENTS:
@@ -491,87 +474,131 @@ rule zip:
     """
 
 
-# download SRA IDs.
-rule download_sra_wc:
+# download SRA IDs with prefetch
+# @CTB: make it possible to feed in sralite files directly in the config?
+rule download_sra_prefetch_wc:
     output:
-        r1  = protected(outdir + "/raw/{sample}_1.fastq.gz"),
-        r2  = protected(outdir + "/raw/{sample}_2.fastq.gz"),
-        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
-        # temporary output
-        temp_dir = temp(directory(f"{base_tempdir}/{{sample}}.d")),
-        temp_r1 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_1.fastq",
-        temp_r2 =  f"{base_tempdir}/{{sample}}.d/{{sample}}_2.fastq",
-        temp_unp = f"{base_tempdir}/{{sample}}.d/{{sample}}.fastq",
+        sralite = temp(outdir + f"/sra/{{sample}}.sralite"),
     params:
-        do_not_run_me = 1 if config.get("prevent_sra_download", False) else 0,
-        outdir = outdir,
+        do_not_run_me = "true" if config.get("prevent_sra_download", False) else "false",
+    benchmark:
+        outdir + "/benchmarks/download_sra_{sample}.txt"
+    conda: "env/sra.yml"
+    resources:
+        mem_mb=40000,
+    shell: '''
+        if {params.do_not_run_me}; then
+            echo "** genome-grist is trying to download from SRA for sample {wildcards.sample},"
+            echo "** but 'prevent_sra_download' is set to true in config."
+            echo "** Does '{outdir}/trim/{wildcards.sample}.trim.fq.gz' exist?"
+            exit -1
+        fi
+
+        echo 'configuring SRA toolkit to use sra-lite format'
+        vdb-config -Q yes
+
+        echo 'running sra prefetch for {wildcards.sample}'
+        prefetch {wildcards.sample} -o {output.sralite} --eliminate-quals
+        '''
+
+# extract reads from SRA prefetch file
+rule download_sra_extract_wc:
+    input:
+        sralite = outdir + f"/sra/{{sample}}.sralite",
+    output:
+        temp_r1 =  temp(outdir + f"/sra/{{sample}}_1.fastq"),
+        temp_r2 =  temp(outdir + f"/sra/{{sample}}_2.fastq"),
+        temp_unp = temp(outdir + f"/sra/{{sample}}.fastq"),
+    params:
+        sra_dir = outdir + f"/sra"
+    benchmark:
+        outdir + "/benchmarks/download_sra_{sample}.txt"
     threads: 6
     conda: "env/sra.yml"
     resources:
         mem_mb=40000,
     shell: '''
-        if [ "{params.do_not_run_me}" = 1 ]; then
-            echo "** genome-grist is trying to download from SRA for sample {wildcards.sample},"
-            echo "** but 'prevent_sra_download' is set to true in config."
-            echo "** Does '{params.outdir}/trim/{wildcards.sample}.trim.fq.gz' exist?"
-            exit -1
-        fi
-
-        echo tmp directory: {output.temp_dir}
         echo running fasterq-dump for {wildcards.sample}
 
-        fasterq-dump {wildcards.sample} -O {output.temp_dir} \
-        -t {output.temp_dir} -e {threads} -p --split-files
-        ls -h {output.temp_dir}
+        fasterq-dump {input.sralite} -e {threads} -p --split-files \
+           -O {params.sra_dir}
 
         # make unpaired file if needed
-        if [ -f {output.temp_r1} -a -f {output.temp_r2} -a \! -f {output.temp_unp} ];
+        if [ -f {output.temp_r1} -a -f {output.temp_r2} -a \\! -f {output.temp_unp} ];
           then
-            echo "no unpaired; creating empty unpaired file {output.unp} for simplicity"
+            echo "no unpaired; creating empty unpaired file {output.temp_unp} for simplicity"
             touch {output.temp_unp}
           # make r1, r2 files if needed
-        elif [ -f {output.temp_unp} -a \! -f {output.temp_r1} -a \! -f {output.temp_r2} ];
+        elif [ -f {output.temp_unp} -a \\! -f {output.temp_r1} -a \\! -f {output.temp_r2} ];
           then
             echo "unpaired file found; creating empty r1 ({output.temp_r1}) and r2 ({output.temp_r2}) files for simplicity"
             touch {output.temp_r1}
             touch {output.temp_r2}
         fi
 
+        echo "finished extracting raw reads from SRAlite file."
+        '''
+
+# process output of SRA prefetch/dump
+rule download_sra_process_wc:
+    input:
+        temp_r1 =  outdir + f"/sra/{{sample}}_1.fastq",
+        temp_r2 =  outdir + f"/sra/{{sample}}_2.fastq",
+        temp_unp = outdir + f"/sra/{{sample}}.fastq",
+    output:
+        r1  = protected(outdir + "/raw/{sample}_1.fastq.gz"),
+        r2  = protected(outdir + "/raw/{sample}_2.fastq.gz"),
+        unp = protected(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+    benchmark:
+        outdir + "/benchmarks/download_sra_{sample}.txt"
+    threads: 6
+    conda: "env/sra.yml"
+    shell: '''
         # now process the files and move to a permanent location
         echo processing R1...
-        seqtk seq -C {output.temp_r1} | \
-            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+        seqtk seq -C {input.temp_r1} | \
+            perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.r1} &
 
         echo processing R2...
-        seqtk seq -C {output.temp_r2} | \
-            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+        seqtk seq -C {input.temp_r2} | \
+            perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.r2} &
 
         echo processing unpaired...
-        seqtk seq -C {output.temp_unp} | \
-            perl -ne 's/\.([12])$/\/$1/; print $_' | \
+        seqtk seq -C {input.temp_unp} | \
+            perl -ne 's/\\.([12])$/\\/$1/; print $_' | \
             gzip -c > {output.unp} &
         wait
-        echo finished downloading raw reads
+        echo "finished extracting raw reads from SRAlite file."
         '''
 
 # compute sourmash signature from raw reads
+# @CTB: switch to using singlesketch?
 rule smash_raw_reads_wc:
     input:
         r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
-        unp = ancient(outdir + "/raw/{sample}_unpaired.fastq.gz"),
+        #unp = ancient(outdir + "/raw/{sample}_unpaired.fastq.gz"),
     output:
-        sig = outdir + "/raw/{sample}.raw.sig.zip"
+        r1 = temp(outdir + "/raw/{sample}.raw.r1.sig.gz"),
+        r2 = temp(outdir + "/raw/{sample}.raw.r2.sig.gz"),
+        #unp = temp(outdir + "/raw/{sample}.raw.unp.sig.gz"),
+        merged = outdir + "/raw/{sample}.raw.sig.zip",
     conda: "env/sourmash.yml"
     params:
-        param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
+        param_str = make_param_str(ksizes=[SOURMASH_DB_KSIZE],
                                    scaled=SOURMASH_COMPUTE_SCALED),
-        action = "translate" if SOURMASH_COMPUTE_TYPE == "protein" else "dna"
+        #action = "translate" if SOURMASH_COMPUTE_TYPE == "protein" else "dna"
+    benchmark:
+        outdir + "/benchmarks/sketch_raw_{sample}.txt"
     shell: """
-        sourmash sketch {params.action} -p {params.param_str} \
-           {input} -o {output} --name 'rawreads:{wildcards.sample}'
+        sourmash scripts singlesketch --input-moltype dna \
+            -p {params.param_str} {input.r1} -o {output.r1}
+        sourmash scripts singlesketch --input-moltype dna \
+            -p {params.param_str} {input.r2} -o {output.r2}
+        sourmash sig merge {output.r1} {output.r2} \
+           -o {output.merged} --name 'rawreads:{wildcards.sample}'
     """
 
 # adapter trimming
@@ -584,6 +611,8 @@ rule trim_adapters_wc:
         json=outdir + "/trim/{sample}.trim.json",
         html=outdir + "/trim/{sample}.trim.html",
     conda: 'env/trim.yml'
+    benchmark:
+        outdir + "/benchmarks/trim_{sample}.txt"
     threads: 4
     resources:
         mem_mb=5000,
@@ -626,6 +655,8 @@ rule kmer_trim_reads_wc:
     output:
         protected(outdir + "/abundtrim/{sample}.abundtrim.fq.gz")
     conda: 'env/abundtrim.yml'
+    benchmark:
+        outdir + "/benchmarks/kmertrim_{sample}.txt"
     resources:
         mem_mb = int(ABUNDTRIM_MEMORY / 1e6),
     params:
@@ -648,6 +679,8 @@ rule estimate_distinct_kmers_wc:
         report = outdir + "/trim/{sample}.trim.fq.gz.kmer-report.txt",
     params:
         ksize = SOURMASH_DB_KSIZE,
+    benchmark:
+        outdir + "/benchmarks/countkmers_{sample}.txt"
     shell: """
         unique-kmers.py {input} -k {params.ksize} -R {output.report}
     """
@@ -674,12 +707,15 @@ rule count_trimmed_reads_wc:
 # map trimmed reads and produce a bam
 rule minimap_wc:
     input:
+        dep = f"{outdir}/genomes/.genomes.{{sample}}",
         query = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz"),
         metagenome = outdir + "/trim/{sample}.trim.fq.gz",
     output:
         bam = outdir + "/mapping/{sample}.x.{ident}.bam",
     conda: "env/minimap2.yml"
     threads: 4
+    benchmark:
+        outdir + "/benchmarks/minimap_{sample}_{ident}.txt"
     shell: """
         minimap2 -ax sr -t {threads} {input.query} {input.metagenome} | \
             samtools view -b -F 4 - | samtools sort - > {output.bam}
@@ -790,16 +826,22 @@ rule smash_trim_wc:
     input:
         metagenome = ancient(outdir + "/trim/{sample}.trim.fq.gz"),
     output:
-        sig = outdir + "/sigs/{sample}.trim.sig.zip"
+        sig = outdir + "/sigs/{sample}.trim.sig.zip",
+        json_out = temporary(outdir + "/sigs/{sample}.trim.sig.gz"),
     conda: "env/sourmash.yml"
     params:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
                                    scaled=SOURMASH_COMPUTE_SCALED),
-        action = "translate" if SOURMASH_COMPUTE_TYPE == "protein" else "dna"
+    threads: 1
+    benchmark:
+        outdir + "/benchmarks/sketch_{sample}.txt"
     shell: """
-        sourmash sketch {params.action} -p {params.param_str} \
-           {input} -o {output} \
-           --name {wildcards.sample}
+        sourmash scripts singlesketch -p {params.param_str} \
+           -o {output.json_out} --name {wildcards.sample} {input.metagenome} \
+           --input-moltype={SOURMASH_COMPUTE_TYPE}
+
+        # convert to sig.zip
+        sourmash sig cat {output.json_out} -o {output.sig}
     """
 
 # configure ipython kernel for papermill
@@ -819,7 +861,7 @@ rule set_kernel:
 # from being run over and over!
 rule make_gather_notebook_wc:
     input:
-        nb = srcdir('../notebooks/report-gather.ipynb'),
+        nb = srcdir('notebooks/report-gather.ipynb'),
         gather_csv = f'{outdir}/gather/{{sample}}.gather.csv.gz',
         genomes_info_csv = ancient(f"{outdir}/gather/{{sample}}.genomes.info.csv"),
         kernel_set = rules.set_kernel.output,
@@ -843,9 +885,9 @@ rule make_gather_notebook_wc:
 # from being run over and over!
 rule make_taxonomy_notebook_wc:
     input:
-        nb = srcdir('../notebooks/report-taxonomy.ipynb'),
+        nb = srcdir('notebooks/report-taxonomy.ipynb'),
         taxcsv = ancient(f'{outdir}/gather/{{sample}}.gather.with-lineages.csv.gz'),
-        kernel_set = rules.set_kernel.output,
+        kernel_set = f'{outdir}/.kernel.set'
     output:
         nb = outdir + f'/reports/report-taxonomy-{{sample}}.ipynb',
         html = outdir + f'/reports/report-taxonomy-{{sample}}.html',
@@ -854,6 +896,7 @@ rule make_taxonomy_notebook_wc:
         outdir = outdir,
     conda: 'env/papermill.yml'
     shell: """
+        ls -la {input.kernel_set}
         papermill {input.nb} {output.nb} -k genome_grist \
               -p sample_id {wildcards.sample:q} -p render '' -p outdir {outdir:q}\
               --cwd {params.cwd}
@@ -866,7 +909,7 @@ rule make_taxonomy_notebook_wc:
 # from being run over and over!
 rule make_mapping_notebook_wc:
     input:
-        nb = srcdir('../notebooks/report-mapping.ipynb'),
+        nb = srcdir('notebooks/report-mapping.ipynb'),
         all_csv = ancient(f"{outdir}/mapping/{{sample}}.summary.csv"),
         depth_csv = ancient(f"{outdir}/leftover/{{sample}}.summary.csv"),
         gather_csv = f'{outdir}/gather/{{sample}}.gather.csv.gz',
@@ -897,6 +940,8 @@ rule extract_leftover_reads_wc:
     conda: "env/sourmash.yml"
     params:
         outdir = outdir,
+    benchmark:
+        outdir + "/benchmarks/subtract_gather_{sample}.txt",
     shell: """
         python -Werror -Wignore::DeprecationWarning -m genome_grist.subtract_gather \
             {wildcards.sample:q} {input.csv} --outdir={params.outdir:q}
@@ -911,6 +956,8 @@ rule map_leftover_reads_wc:
     output:
         bam=outdir + "/leftover/{sample}.x.{ident}.bam",
     conda: "env/minimap2.yml"
+    benchmark:
+        outdir + "/benchmarks/leftovermap_{sample}_{ident}.txt"
     threads: 4
     shell: """
         minimap2 -ax sr -t {threads} {input.query} \
@@ -918,33 +965,73 @@ rule map_leftover_reads_wc:
             samtools view -b -F 4 - | samtools sort - > {output.bam}
     """
 
-# run sourmash search x genbank and find anything matching.
-rule sourmash_prefetch_wc:
-    message: """
-       Find all potentially relevant database matches for {wildcards.sample}
-    """
+# build a combined manifest CSV of sourmash databases
+rule sourmash_collect_wc:
     input:
-        sig = outdir + "/sigs/{sample}.trim.sig.zip",
         db = SOURMASH_DB_LIST,
     output:
-        csv = touch(outdir + "/gather/{sample}.prefetch.csv.gz"),
-        known = touch(outdir + "/gather/{sample}.known.sig.zip"),
-        unknown = touch(outdir + "/gather/{sample}.unknown.sig.zip"),
-    resources:
-        mem_mb=int(PREFETCH_MEMORY / 1e6)
+        mf_csv = outdir + "/gather/db.mf.csv",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
         moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
         threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
-        picklist = f"--picklist {PICKLIST}" if PICKLIST else ""
+        picklist = f"--picklist {PICKLIST}" if PICKLIST else "",
+        run_sig_check = "true" if PICKLIST else "false"
+    # here, 'collect' does not take a picklist, but 'check' does. so
+    # pick which one we run based on whehter we have a picklist.
     shell: """
-        echo "DB is {input.db}"
-        sourmash prefetch {input.sig} {input.db} -k {params.ksize} \
-          --threshold-bp={params.threshold_bp} {params.moltype} \
-          --save-matching-hashes={output.known} \
-          --save-unmatched-hashes={output.unknown} \
-          {params.picklist} -o {output.csv}
+        if {params.run_sig_check}; then
+           sourmash sig check -F csv -k {params.ksize} {params.moltype} \
+              {params.picklist} {input.db} -m {output.mf_csv} --abspath
+        else
+           sourmash sig collect -F csv -k {params.ksize} {params.moltype} \
+              {input.db} -o {output.mf_csv} --abspath
+        fi
+    """
+        
+# run sourmash gather with known hashes on prefetched matches.
+rule sourmash_gather_wc:
+    message: """
+       Run gather for {wildcards.sample}
+    """
+    input:
+        sig = outdir + "/sigs/{sample}.trim.sig.zip",
+        db = outdir + "/gather/db.mf.csv",
+    output:
+        prefetch_csv = outdir + "/gather/{sample}.prefetch.csv.gz",
+        gather_csv = outdir + "/gather/{sample}.gather.csv.gz",
+        matches = outdir + "/gather/{sample}.matches.sig.zip",
+        out = outdir + "/gather/{sample}.gather.out",
+    conda: "env/sourmash.yml"
+    params:
+        ksize = SOURMASH_DB_KSIZE,
+        threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
+        prefetch_csv_ungz = outdir + "/gather/{sample}.prefetch.csv",
+        gather_csv_ungz = outdir + "/gather/{sample}.gather.csv",
+    benchmark:
+        outdir + "/benchmarks/gather_{sample}.txt"
+    resources:
+        mem_mb=int(PREFETCH_MEMORY / 1e6)
+    threads: 64
+    shell: """
+        sourmash scripts fastgather {input.sig} {input.db} -c {threads} \
+          -k {params.ksize} -m {SOURMASH_COMPUTE_TYPE} \
+          -o {params.gather_csv_ungz} \
+          --output-prefetch {params.prefetch_csv_ungz} \
+          --threshold-bp {params.threshold_bp} | tee {output.out}
+
+        if [ ! -f {params.gather_csv_ungz} ]; then
+             echo "** ERROR: gather didn't find anything for sample '{wildcards.sample}'. Failing."
+             exit 1
+        fi
+
+        # gzip CSV files
+        gzip {params.gather_csv_ungz} {params.prefetch_csv_ungz}
+
+        # extract matches
+        sourmash sig cat --picklist {output.gather_csv}::prefetch {input.db} \
+          -o {output.matches}
     """
 
 # report on known and unknown hashes
@@ -954,8 +1041,8 @@ rule report_query_known_unknown_wc:
     """
     input:
         query = outdir + "/sigs/{sample}.trim.sig.zip",
-        known = outdir + "/gather/{sample}.known.sig.zip",
-        unknown = outdir + "/gather/{sample}.unknown.sig.zip",
+        gather_csv = outdir + "/gather/{sample}.gather.csv.gz",
+        db = outdir + "/gather/db.mf.csv",
     output:
         report = outdir + "/gather/{sample}.prefetch.report.txt",
     conda: "env/sourmash.yml"
@@ -964,41 +1051,8 @@ rule report_query_known_unknown_wc:
         moltype = SOURMASH_COMPUTE_TYPE,
     shell: """
          python -Werror -Wignore::DeprecationWarning -m genome_grist.summarize_gather_hashes \
-          {input.query} {input.known} {input.unknown}  \
+          --query {input.query} --picklist {input.gather_csv}::prefetch --db {input.db} \
           -k {params.ksize} --moltype {params.moltype} --report {output.report}
-    """
-
-# run sourmash gather with known hashes on prefetched matches.
-rule sourmash_gather_wc:
-    message: """
-       Run gather for {wildcards.sample}
-    """
-    input:
-        sig = outdir + "/sigs/{sample}.trim.sig.zip",
-        picklist = outdir + "/gather/{sample}.prefetch.csv.gz",
-        db = SOURMASH_DB_LIST,
-    output:
-        csv = outdir + "/gather/{sample}.gather.csv.gz",
-        matches = outdir + "/gather/{sample}.matches.sig.zip",
-        out = outdir + "/gather/{sample}.gather.out",
-    conda: "env/sourmash.yml"
-    params:
-        ksize = SOURMASH_DB_KSIZE,
-        moltype = f"--{SOURMASH_COMPUTE_TYPE.lower()}",
-        threshold_bp = SOURMASH_DATABASE_THRESHOLD_BP,
-    shell: """
-        filesize=$(wc -c <{input.picklist})
-        if [ $filesize -lt 100 ]; then
-            echo "** ERROR: prefetch didn't find anything for sample '{wildcards.sample}'."
-            echo "** That means there are no matches in the database for this sample!"
-            echo "** You'll need to change either your database or remove this sample from the config. :("
-            exit 1
-        fi
-        sourmash gather {input.sig} {input.db} -o {output.csv} \
-          --threshold-bp {params.threshold_bp} \
-          --picklist {input.picklist}::prefetch \
-          -k {params.ksize} {params.moltype} \
-          --save-matches {output.matches} > {output.out}
     """
 
 # run sourmash tax annotate on the gather results
@@ -1020,13 +1074,13 @@ rule summarize_tax_wc:
     """
 
 
-# download genbank genome details; make an info.csv file for entry.
-rule make_genbank_info_csv:
+# download genbank genome & make an info.csv file for entry.
+rule download_genbank_genomes_wc:
     output:
-        csvfile = f'{GENBANK_CACHE}/{{ident}}.info.csv'
+        csvfile = f'{GENBANK_CACHE}/{{ident}}.info.csv',
+        genome = f'{GENBANK_CACHE}/{{ident}}_genomic.fna.gz'
     shell: """
-        python -Werror -Wignore::DeprecationWarning -m genome_grist.genbank_genomes {wildcards.ident} \
-            --output {output.csvfile}
+        sourmash scripts get-genomes {wildcards.ident} --output-dir {GENBANK_CACHE}
     """
 
 # copy genbank + local genomes for this sample into output dir
@@ -1054,35 +1108,6 @@ rule make_combined_info_csv_wc:
              --fields ident,display_name \
              {input.csvs} > {output}
     """
-
-# download actual genomes from genbank!
-rule download_matching_genome_wc:
-    input:
-        csvfile = ancient(f'{GENBANK_CACHE}/{{ident}}.info.csv')
-    output:
-        genome = f"{GENBANK_CACHE}/{{ident}}_genomic.fna.gz",
-    retries: 2
-    run:
-        rows = list(load_csv(input.csvfile))
-        assert len(rows) == 1
-        row = rows[0]
-        ident = row['ident']
-        assert wildcards.ident.startswith(ident)
-        url = row['genome_url']
-        name = row['display_name']
-
-        print(f"downloading genome for ident {ident}/{name} from NCBI...",
-              file=sys.stderr)
-        with open(output.genome, 'wb') as outfp:
-            try:
-                with urllib.request.urlopen(url) as response:
-                    content = response.read()
-                    outfp.write(content)
-                    print(f"...wrote {len(content)} bytes to {output.genome}",
-                          file=sys.stderr)
-            except urllib.request.HTTPError:
-                print(f"Cannot download genome from URL:\n  {url}\nIs it missing? If so, consider adding '{ident}' to 'skip_genomes' list in config file.", file=sys.stderr)
-                raise Exception("Genbank genome not found")
 
 # summarize_reads_info
 rule summarize_reads_info_wc:

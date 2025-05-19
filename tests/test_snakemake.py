@@ -91,11 +91,11 @@ def test_summarize_sample_info():
 
     assert info['kmers'] == 928685
     assert info['sample'] == 'SRR5950647_subset'
-    assert info['known_hashes'] == 653
+    assert info['known_hashes'] == 551
     assert info['n_bases'] == 2276334
     assert info['n_reads'] == 24663
     assert info['total_hashes'] == 907
-    assert info['unknown_hashes'] == 254
+    assert info['unknown_hashes'] == 356
 
 
 @pytest.mark.dependency(depends=["test_summarize_sample_info"])
@@ -177,7 +177,7 @@ def test_gather_reads_with_picklist():
 
     gather_results = list(utils.load_csv(gather_output))
     assert len(gather_results) == 1
-    assert gather_results[0]['name'].startswith('GCF_902167755.1 ')
+    assert gather_results[0]['match_name'].startswith('GCF_902167755.1 ')
 
     # make sure the picklist version of the CSVs is cleaned up!
     os.unlink(prefetch_output)

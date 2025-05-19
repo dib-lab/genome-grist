@@ -5,11 +5,12 @@ import subprocess
 
 import click
 
-from genome_grist.version import version
+from importlib.metadata import version as get_version
+version = get_version("genome-grist")
 
 def get_snakefile_path(name):
     thisdir = os.path.dirname(__file__)
-    snakefile = os.path.join(thisdir, "conf", name)
+    snakefile = os.path.join(thisdir, name)
     return snakefile
 
 
@@ -37,6 +38,9 @@ def run_snakemake(
 
     # snakemake sometimes seems to want a default -j; set it to 1 for now.
     # can overridden later on command line.
+    # @CTB revisit: for single-machine execution, --cores == --jobs,
+    # but different for multi-machine/cluster execution.
+    # @CTB how do we allow better override/user notification!?
     cmd += ["-j", "1"]
 
     # add --use-conda

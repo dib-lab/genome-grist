@@ -36,7 +36,7 @@ def main():
     pairs = []
     fail = False
     for row in rows:
-        acc = row["name"].split()[0]
+        acc = row["match_name"].split()[0]
 
         filename = f"{outdir}/mapping/{sample_id}.x.{acc}.mapped.fq.gz"
         overlapping = f"{outdir}/mapping/{sample_id}.x.{acc}.overlap.fq.gz"

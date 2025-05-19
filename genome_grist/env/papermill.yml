@@ -1,0 +1,14 @@
+# conda environment configuration for snakemake --use-conda
+channels:
+    - conda-forge
+    - bioconda
+    - defaults
+dependencies:
+    - papermill
+    - notebook
+    - ipykernel
+    - matplotlib
+    - numpy
+    - pandas
+    - sourmash>=4.9.0,<5
+    - python>=3.12,<3.13

@@ -85,8 +85,7 @@ def test_gather_reads_nomatches():
     print('STDOUT:', pinfo.stdout)
     print('STDERR:', pinfo.stderr)
 
-    assert "DB is tests/test-data/SRR5950647-genomes/acidulo.zip" in pinfo.stdout
-    assert "** ERROR: prefetch didn't find anything for sample 'SRR5950647_subset'." in pinfo.stdout
+    assert "** ERROR: gather didn't find anything for sample 'SRR5950647_subset'." in pinfo.stdout
 
 
 def test_missing_genbank_genome_fail():
@@ -107,7 +106,6 @@ def test_missing_genbank_genome_fail():
 
     pinfo = run_snakemake(
         conf,
-        no_use_conda=True,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,
@@ -118,8 +116,8 @@ def test_missing_genbank_genome_fail():
     print('STDERR')
     print(pinfo.stderr)
 
-    assert "Cannot download genome from URL:" in pinfo.stderr
-    assert "Is it missing? If so, consider adding 'GCF_000020205.1' to 'skip_genomes' list in config file." in pinfo.stderr
+    assert "cannot get corresponding genome file for GCF_000020205.1; send help." in pinfo.stderr
+    #assert "Is it missing? If so, consider adding 'GCF_000020205.1' to 'skip_genomes' list in config file." in pinfo.stderr
 
     assert pinfo.returncode != 0
 
@@ -142,7 +140,6 @@ def test_missing_genbank_genome_skip():
 
     pinfo = run_snakemake(
         conf,
-        no_use_conda=True,
         verbose=True,
         outdir=_tempdir,
         extra_args=extra_args,

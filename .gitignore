@@ -16,3 +16,4 @@ genbank_cache
 site
 .DS_Store
 bak
+.ipynb_checkpoints
