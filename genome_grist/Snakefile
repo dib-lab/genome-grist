@@ -574,7 +574,6 @@ rule download_sra_process_wc:
         '''
 
 # compute sourmash signature from raw reads
-# @CTB: switch to using singlesketch?
 rule smash_raw_reads_wc:
     input:
         r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
@@ -1075,6 +1074,7 @@ rule download_genbank_genomes_wc:
     output:
         csvfile = f'{GENBANK_CACHE}/{{ident}}.info.csv',
         genome = f'{GENBANK_CACHE}/{{ident}}_genomic.fna.gz'
+    retries: 3
     shell: """
         sourmash scripts get-genomes {wildcards.ident} --output-dir {GENBANK_CACHE}
     """
