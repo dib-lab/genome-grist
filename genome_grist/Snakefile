@@ -574,15 +574,14 @@ rule download_sra_process_wc:
         '''
 
 # compute sourmash signature from raw reads
-# @CTB: switch to using singlesketch?
 rule smash_raw_reads_wc:
     input:
         r1 = ancient(outdir + "/raw/{sample}_1.fastq.gz"),
         r2 = ancient(outdir + "/raw/{sample}_2.fastq.gz"),
         #unp = ancient(outdir + "/raw/{sample}_unpaired.fastq.gz"),
     output:
-        r1 = temp(outdir + "/raw/{sample}.raw.r1.sig.gz"),
-        r2 = temp(outdir + "/raw/{sample}.raw.r2.sig.gz"),
+        r1 = temp(outdir + "/raw/{sample}.raw.r1.sig.zip"),
+        r2 = temp(outdir + "/raw/{sample}.raw.r2.sig.zip"),
         #unp = temp(outdir + "/raw/{sample}.raw.unp.sig.gz"),
         merged = outdir + "/raw/{sample}.raw.sig.zip",
     conda: "env/sourmash.yml"
@@ -827,7 +826,6 @@ rule smash_trim_wc:
         metagenome = ancient(outdir + "/trim/{sample}.trim.fq.gz"),
     output:
         sig = outdir + "/sigs/{sample}.trim.sig.zip",
-        json_out = temporary(outdir + "/sigs/{sample}.trim.sig.gz"),
     conda: "env/sourmash.yml"
     params:
         param_str = make_param_str(ksizes=SOURMASH_COMPUTE_KSIZES,
@@ -837,11 +835,8 @@ rule smash_trim_wc:
         outdir + "/benchmarks/sketch_{sample}.txt"
     shell: """
         sourmash scripts singlesketch -p {params.param_str} \
-           -o {output.json_out} --name {wildcards.sample} {input.metagenome} \
+           -o {output.sig} --name {wildcards.sample} {input.metagenome} \
            --input-moltype={SOURMASH_COMPUTE_TYPE}
-
-        # convert to sig.zip
-        sourmash sig cat {output.json_out} -o {output.sig}
     """
 
 # configure ipython kernel for papermill
@@ -1079,6 +1074,7 @@ rule download_genbank_genomes_wc:
     output:
         csvfile = f'{GENBANK_CACHE}/{{ident}}.info.csv',
         genome = f'{GENBANK_CACHE}/{{ident}}_genomic.fna.gz'
+    retries: 3
     shell: """
         sourmash scripts get-genomes {wildcards.ident} --output-dir {GENBANK_CACHE}
     """
