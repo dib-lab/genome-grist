@@ -249,10 +249,6 @@ class Checkpoint_GatherResults:
         for row in load_gather_csv(gather_csv):
             ident = row['match_name'].split()[0]
 
-            # skip identifiers we've been asked to ignore in 'skip_genomes'
-            if ident in IGNORE_IDENTS:
-                print(f"Skipping identifier '{ident}' because it is in 'skip_genomes'")
-                continue
             genome_idents.append(ident)
 
         return genome_idents
@@ -338,11 +334,6 @@ class ListGatherGenomes(Checkpoint_GatherResults):
 
         for row in load_csv(gather_csv):
             ident = row['match_name'].split()[0]
-
-            # skip identifiers we've been asked to ignore in 'skip_genomes'
-            if ident in IGNORE_IDENTS:
-                print(f"Skipping identifier '{ident}' because it is in 'skip_genomes'")
-                continue
 
             # if in local information, use that as genome source.
             if ident in local_info:
@@ -965,7 +956,7 @@ rule sourmash_collect_wc:
     input:
         db = SOURMASH_DB_LIST,
     output:
-        mf_csv = outdir + "/gather/db.mf.csv",
+        mf_csv = outdir + "/gather/db.collect.mf.csv",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
@@ -984,7 +975,21 @@ rule sourmash_collect_wc:
               {input.db} -o {output.mf_csv} --abspath
         fi
     """
-        
+
+# eliminate IGNORE_IDENTs in the input manifest
+rule sourmash_ignore_idents_wc:
+    input:
+        mf_csv = outdir + "/gather/db.collect.mf.csv",
+    output:
+        mf_csv = outdir + "/gather/db.mf.csv",
+    params:
+        idents = ",".join(IGNORE_IDENTS) if IGNORE_IDENTS else ' '
+    shell:
+        """
+        python -Werror -Wignore::DeprecationWarning -m genome_grist.remove_idents_from_manifest \
+            --idents {params.idents:q} {input} -o {output}
+    """
+
 # run sourmash gather with known hashes on prefetched matches.
 rule sourmash_gather_wc:
     message: """
