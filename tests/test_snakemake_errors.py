@@ -150,7 +150,8 @@ def test_missing_genbank_genome_skip():
     print('STDERR')
     print(pinfo.stderr)
 
-    assert "Cannot download genome from URL:" not in pinfo.stderr
-    assert "Is it missing? If so, consider adding 'GCF_000020205.1' to 'skip_genomes' list in config file." not in pinfo.stderr
+    assert "loaded: 1 idents to remove." in pinfo.stdout
+    assert "found 1 idents of 1 total." in pinfo.stdout
+    assert "remove_idents_from_manifest: SUCCESS!" in pinfo.stdout
 
     assert pinfo.returncode == 0

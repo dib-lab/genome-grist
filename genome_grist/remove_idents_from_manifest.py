@@ -16,7 +16,7 @@ def main():
         idents = set()
     else:
         idents = set(args.idents.split(','))
-    print(f'loaded: {len(idents)} idents to remove.')
+    print(f'remove_idents_from_manifest: loaded: {len(idents)} idents to remove.')
     
     found = set()
     n_read = 0
@@ -25,11 +25,12 @@ def main():
     with open(args.mf_in, 'r', newline='') as fp:
         outfp = open(args.output, 'w', newline='')
 
-        version = fp.readline()
+        version = fp.readline().strip()
         print(version, file=outfp)
 
         r = csv.DictReader(fp)
         w = csv.DictWriter(outfp, fieldnames=r.fieldnames)
+        w.writeheader()
 
         for row in r:
             n_read += 1
@@ -59,7 +60,7 @@ def main():
         print('* ', "\n* ".join(missing), file=sys.stderr)
         sys.exit(-1)
     else:
-        print('SUCCESS!')
+        print('remove_idents_from_manifest: SUCCESS!')
 
 
 if __name__ == '__main__':
