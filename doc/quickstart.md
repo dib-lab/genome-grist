@@ -9,12 +9,12 @@ We suggest installing in an isolated conda environment. The following will creat
 
 Run:
 ```shell
-conda create -y -n grist python=3.9 pip
+conda create -y -n grist python=3.12 pip
 conda activate grist
 python -m pip install genome-grist
 ```
 
-Note: genome-grist should run in Python 3.8 onwards (as of Sep 2022).
+Note: genome-grist should run in Python 3.11 onwards (as of June 2025).
 
 ## Running genome-grist
 
