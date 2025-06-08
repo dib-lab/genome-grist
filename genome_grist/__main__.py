@@ -183,8 +183,6 @@ def showconf(configfile):
 @click.command()
 def info():
     "provide basic install/config file info"
-    from .version import version
-
     print(
         f"""
 This is genome-grist version v{version}
