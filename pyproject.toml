@@ -3,7 +3,7 @@ name = "genome-grist"
 description = "tools to support genome and metagenome analysis"
 readme = "README.md"
 requires-python = ">=3.12"
-version = "0.11.3"
+version = "0.11.4"
 authors = [
   { name="C. Titus Brown" },
   { name="Luiz Irber" },
@@ -42,7 +42,7 @@ packages = ["genome_grist"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-genome_grist = ["Snakefile"]
+genome_grist = ["Snakefile", "env/*.yml"]
 
 [metadata]
 license = { text = "GNU Affero General Public License v3" }

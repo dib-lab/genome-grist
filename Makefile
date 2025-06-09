@@ -1,6 +1,9 @@
-.PHONY: all flakes black clean-test clean-gather test install
+.PHONY: all flakes black clean-test clean-gather test install dist
 
 all: clean-test test
+
+dist:
+	python -m build
 
 flakes:
 	flake8 --ignore=E501 genome_grist/ tests/
