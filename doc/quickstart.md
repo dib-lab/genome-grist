@@ -9,12 +9,12 @@ We suggest installing in an isolated conda environment. The following will creat
 
 Run:
 ```shell
-conda create -y -n grist python=3.9 pip
+conda create -y -n grist python=3.12 pip
 conda activate grist
 python -m pip install genome-grist
 ```
 
-Note: genome-grist should run in Python 3.8 onwards (as of Sep 2022).
+Note: genome-grist should run in Python 3.11 onwards (as of June 2025).
 
 ## Running genome-grist
 
@@ -38,10 +38,10 @@ Note, genome-grist works entirely within the current working directory and temp 
 
 ### Download a small example database
 
-Download the GTDB R07 rs207 set of ~48,000 guide genomes, in a
+Download the [GTDB rs226](https://gtdb.ecogenomic.org/stats/r226) set of 143,614 species-level genomes, in a
 pre-prepared sourmash database format:
 ```
-curl -LO https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db/gtdb-rs207/gtdb-rs207.genomic-reps.dna.k31.zip
+curl -LO https://farm.cse.ucdavis.edu/~ctbrown/sourmash-db/gtdb-rs226/gtdb-rs226-reps.k31.sig.zip
 ```
 You can use any sourmash database with Genbank identifiers with genome-grist; see
 [available databases](https://sourmash.readthedocs.io/en/latest/databases.html)
@@ -57,7 +57,7 @@ samples:
 outdir: outputs.tutorial/
 
 sourmash_databases:
-- gtdb-rs207.genomic-reps.dna.k31.zip
+- gtdb-rs226-reps.k31.sig.zip
 ```
 
 ### Do your first real run!
