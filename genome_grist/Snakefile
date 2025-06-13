@@ -131,7 +131,7 @@ def load_csv(filename):
         for row in r:
             yield row
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=None)        # @CTB check me
 def load_gather_csv(filename):
     rows = list(load_csv(filename))
     print(f"Loaded {len(rows)} identifiers from '{filename}'",
@@ -1002,7 +1002,6 @@ rule sourmash_gather_wc:
         prefetch_csv = outdir + "/gather/{sample}.prefetch.csv.gz",
         gather_csv = outdir + "/gather/{sample}.gather.csv.gz",
         matches = outdir + "/gather/{sample}.matches.sig.zip",
-        out = outdir + "/gather/{sample}.gather.out",
     conda: "env/sourmash.yml"
     params:
         ksize = SOURMASH_DB_KSIZE,
@@ -1019,7 +1018,7 @@ rule sourmash_gather_wc:
           -k {params.ksize} -m {SOURMASH_COMPUTE_TYPE} \
           -o {params.gather_csv_ungz} \
           --output-prefetch {params.prefetch_csv_ungz} \
-          --threshold-bp {params.threshold_bp} | tee {output.out}
+          --threshold-bp {params.threshold_bp}
 
         if [ ! -f {params.gather_csv_ungz} ]; then
              echo "** ERROR: gather didn't find anything for sample '{wildcards.sample}'. Failing."
