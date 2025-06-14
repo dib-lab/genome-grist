@@ -220,7 +220,8 @@ checkpoint gather_reads:
 
 checkpoint gather_reads_wc:
     input:
-        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv.gz'
+        gather_csv = f'{outdir}/gather/{{sample}}.gather.csv.gz',
+        gather_pq = f'{outdir}/gather/{{sample}}.gather.parquet',
     output:
         touch(f"{outdir}/gather/.gather.{{sample}}")   # checkpoints need an output ;)
 
@@ -918,6 +919,7 @@ rule make_mapping_notebook_wc:
 rule extract_leftover_reads_wc:
     input:
         csv = f'{outdir}/gather/{{sample}}.gather.csv.gz',
+        pq = f'{outdir}/gather/{{sample}}.gather.parquet',
         mapped = Checkpoint_GatherResults(f"{outdir}/mapping/{{sample}}.x.{{ident}}.mapped.fq.gz"),
     output:
         touch(f"{outdir}/leftover/.leftover.{{sample}}")
@@ -1049,6 +1051,7 @@ rule report_query_known_unknown_wc:
     input:
         query = outdir + "/sigs/{sample}.trim.sig.zip",
         gather_csv = outdir + "/gather/{sample}.gather.csv.gz",
+        gather_pq = outdir + "/gather/{sample}.gather.parquet",
         db = outdir + "/gather/db.mf.csv",
     output:
         report = outdir + "/gather/{sample}.prefetch.report.txt",
@@ -1156,6 +1159,7 @@ rule summarize_reads_info_wc:
 rule create_sgc_conf_wc:
     input:
         csv = outdir + "/gather/{sample}.gather.csv.gz",
+        pq = outdir + "/gather/{sample}.gather.parquet",
         queries = Checkpoint_GenomeFiles(f"{outdir}/genomes/{{ident}}_genomic.fna.gz")
     output:
         conf = outdir + "/sgc/{sample}.conf"
