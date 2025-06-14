@@ -40,6 +40,10 @@ test = [
 
 [tool.setuptools]
 packages = ["genome_grist"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+genome_grist = ["Snakefile", "env/*.yml"]
 
 [metadata]
 license = { text = "GNU Affero General Public License v3" }
