@@ -5,6 +5,7 @@ srcdir = workflow.source_path
 import urllib
 import os, csv, tempfile, shutil, sys, gzip
 from functools import lru_cache
+import polars
 
 if config.get('sample'):
     print(f"ERROR: this is an old config file. Please use 'samples' instead of 'sample'.",
@@ -131,13 +132,6 @@ def load_csv(filename):
         for row in r:
             yield row
 
-@lru_cache(maxsize=None)        # @CTB check me
-def load_gather_csv(filename):
-    rows = list(load_csv(filename))
-    print(f"Loaded {len(rows)} identifiers from '{filename}'",
-          file=sys.stderr)
-    return rows
-
 ###
 
 # mark top-level rules:
@@ -220,7 +214,9 @@ rule abundtrim_reads:
 checkpoint gather_reads:
     input:
         expand(f'{outdir}/gather/{{sample}}.gather.csv.gz',
-               sample=SAMPLES)
+               sample=SAMPLES),
+        expand(f'{outdir}/gather/{{sample}}.gather.parquet',
+               sample=SAMPLES),
 
 checkpoint gather_reads_wc:
     input:
@@ -242,13 +238,14 @@ class Checkpoint_GatherResults:
         self.samples = samples
 
     def get_genome_idents(self, sample):
-        gather_csv = f'{outdir}/gather/{sample}.gather.csv.gz'
-        assert os.path.exists(gather_csv), "gather output does not exist!?"
+        gather_parquet = f'{outdir}/gather/{sample}.gather.parquet'
+        assert os.path.exists(gather_parquet), "gather output does not exist!?"
+
+        df = polars.read_parquet(gather_parquet, columns=['match_name'])
 
         genome_idents = []
-        for row in load_gather_csv(gather_csv):
-            ident = row['match_name'].split()[0]
-
+        for name in df.select('match_name')['match_name']:
+            ident = name.split()[0]
             genome_idents.append(ident)
 
         return genome_idents
@@ -329,11 +326,12 @@ class ListGatherGenomes(Checkpoint_GatherResults):
         local_info = self._load_local_database_info()
         genome_filenames = []
 
-        gather_csv = f'{outdir}/gather/{sample}.gather.csv.gz'
-        assert os.path.exists(gather_csv), f"gather output does not exist for {sample}!?"
+        gather_parquet = f'{outdir}/gather/{sample}.gather.parquet'
+        assert os.path.exists(gather_parquet), f"gather output does not exist for {sample}!?"
 
-        for row in load_csv(gather_csv):
-            ident = row['match_name'].split()[0]
+        df = polars.read_parquet(gather_parquet)
+        for name in df.select('match_name')['match_name']:
+            ident = name.split()[0]
 
             # if in local information, use that as genome source.
             if ident in local_info:
@@ -1032,6 +1030,16 @@ rule sourmash_gather_wc:
         sourmash sig cat --picklist {output.gather_csv}::prefetch {input.db} \
           -o {output.matches}
     """
+
+# convert csv.gz to parquet
+rule convert_csv_to_parquet:
+    input:
+        csv = "{filename}.csv.gz",
+    output:
+        parquet = "{filename}.parquet",
+    run:
+        df = polars.scan_csv(input[0])
+        df.sink_parquet(output[0], compression="zstd")
 
 # report on known and unknown hashes
 rule report_query_known_unknown_wc:
