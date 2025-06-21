@@ -459,7 +459,7 @@ rule zip:
         zip -r $ZIPFILE {outdir}/leftover/*.summary.csv \
                 {outdir}/mapping/*.summary.csv {outdir}/*.yaml \
                 {outdir}/gather/*.csv.gz {outdir}/gather/*.out \
-                {outdir}/reports/
+                {outdir}/gather/*.genomes.info.csv {outdir}/reports/
         echo "Created $ZIPFILE"
     """
 
