@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description" content="None">
+        
+        
+        <link rel="shortcut icon" href="img/favicon.ico">
+        <title>genome-grist docs</title>
+        <link href="css/bootstrap.min.css" rel="stylesheet">
+        <link href="css/fontawesome.min.css" rel="stylesheet">
+        <link href="css/brands.min.css" rel="stylesheet">
+        <link href="css/solid.min.css" rel="stylesheet">
+        <link href="css/v4-font-face.min.css" rel="stylesheet">
+        <link href="css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body class="homepage">
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href=".">genome-grist docs</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="." class="nav-link active" aria-current="page">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="quickstart/" class="nav-link">Quickstart</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="configuring/" class="nav-link">Configuring</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="output-guide/" class="nav-link">Output files</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" class="nav-link disabled">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="quickstart/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#welcome-to-genome-grist" class="nav-link">Welcome to genome-grist!</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#what-can-genome-grist-do" class="nav-link">What can genome-grist do?</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#quickstart" class="nav-link">Quickstart</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#example-figures-and-output" class="nav-link">Example figures and output</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#configuring-genome-grist" class="nav-link">Configuring genome-grist</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#running-genome-grist" class="nav-link">Running genome-grist</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#additional-information" class="nav-link">Additional information</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#what-software-and-databases-does-genome-grist-use" class="nav-link">What software and databases does genome-grist use?</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#support-and-funding" class="nav-link">Support and funding</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="welcome-to-genome-grist">Welcome to genome-grist!</h1>
+<!-- CTB: this is doc/index.md in dib-lab/genome-grist -->
+
+<p><a href="https://pypi.org/project/genome-grist/"><img alt="PyPI" src="https://badge.fury.io/py/genome-grist.svg"></a>
+<img alt="License: 3-Clause BSD" src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg"></p>
+<p>genome-grist is software that automates a number of tedious metagenome
+tasks related to reference-based analyses of Illumina metagenomes.</p>
+<h2 id="what-can-genome-grist-do">What can genome-grist do?</h2>
+<p>You can use genome-grist to:</p>
+<ul>
+<li>
+<p>find out what genomes are in a metagenome!</p>
+</li>
+<li>
+<p>estimate how much of the metagenome will map to reference genomes!</p>
+</li>
+<li>
+<p>map reads to each genome and summarize the results across genomes!</p>
+</li>
+<li>
+<p>summarize the taxonomic composition of a metagenome!</p>
+</li>
+</ul>
+<p>genome-grist automates the analysis of public data, and will automatically
+access metagenomes from the SRA and genomes from Genbank.
+genome-grist supports both the NCBI and GTDB taxonomies. You can also
+use your own metagenomes and genomes.</p>
+<h2 id="quickstart">Quickstart</h2>
+<p>Please see <a href="quickstart/">a genome-grist quickstart</a>.</p>
+<h2 id="example-figures-and-output">Example figures and output</h2>
+<p>The figure below shows the strain composition of a gut microbiome from
+the <a href="https://www.hmpdacc.org/ihmp/">iHMP</a>.  This figure was
+autogenerated by genome-grist; the metagenome and all relevant genomes
+were downloaded and processed automatically.</p>
+<p><img alt="an example image made with genome-grist" src="gather-vs-mapping.png" /></p>
+<h2 id="configuring-genome-grist"><a href="configuring/">Configuring genome-grist</a></h2>
+<p>Please see <a href="configuring/">Configuring a genome-grist project</a>.</p>
+<h2 id="running-genome-grist">Running genome-grist</h2>
+<p>You can run genome-grist on a config file like so:</p>
+<pre><code>genome-grist run &lt;config file&gt; &lt;target&gt; [ &lt;target&gt; ... ]
+</code></pre>
+<p>The four top-level targets are:</p>
+<ul>
+<li><code>summarize_gather</code> - summarize metagenome contents using sourmash &amp; k-mers</li>
+<li><code>summarize_mapping</code> - summarize metagenome contents using mapping</li>
+<li><code>summarize_tax</code> - summarize metagenome contents using k-mer-based taxonomy</li>
+<li><code>summarize</code> - run <code>summarize_gather</code>, <code>summarize_mapping</code>, and <code>summarize_tax</code></li>
+</ul>
+<p>These all produce reports in the <code>reports/</code> subdir of the configured output dir.</p>
+<p>You can print out a list of documented targets by omitting the target altogether:</p>
+<pre><code>genome-grist run &lt;config file&gt;
+</code></pre>
+<p>genome-grist has many undocumented intermediate targets. You can print them all out by using <code>run</code> with the target <code>print_rules</code></p>
+<pre><code>genome-grist run &lt;config file&gt; print_rules
+</code></pre>
+<h3 id="output-files">Output files</h3>
+<p>genome-grist produces many different output files with lots of useful
+information - please see
+<a href="output-guide/">A guide to genome-grist output files</a>!</p>
+<h2 id="additional-information">Additional information</h2>
+<h3 id="preprints-and-publications">Preprints and publications</h3>
+<p>genome-grist was used extensively in the preprint <a href="https://dib-lab.github.io/2020-paper-sourmash-gather/">Lightweight compositional analysis of metagenomes with FracMinHash and minimum metagenome covers</a>, Irber et al., 2022.</p>
+<p>For now, Irber et al., 2022 is the primary citation for genome-grist. Any use of genome-grist should be cited as follows:</p>
+<blockquote>
+<p><strong>Lightweight compositional analysis of metagenomes with FracMinHash and minimum metagenome covers.</strong></p>
+<p>Luiz Carlos Irber, Phillip T Brooks, Taylor E Reiter, N Tessa Pierce-Ward, Mahmudur Rahman Hera, David Koslicki, C. Titus Brown.</p>
+<p>bioRxiv 2022.01.11.475838; <a href="https://doi.org/10.1101/2022.01.11.475838">doi:10.1101/2022.01.11.475838 </a></p>
+</blockquote>
+<h3 id="resource-requirements">Resource requirements</h3>
+<p><strong>Disk space:</strong> genome-grist makes about 3-4 copies of each SRA metagenome analyzed.</p>
+<p><strong>Memory:</strong> the genbank search step on all of genbank takes ~120 GB of RAM. On GTDB, it's much, much less. Other than that, the other steps are all under 10 GB of RAM.</p>
+<p><strong>Time:</strong> This is largely dependent on the size of the metagenome; 100m reads takes a few hours. The processing of multiple data sets can be done in parallel with <code>-j</code>, as well, although you probably want to specify resource limits. For example, here is the command that we use on our HPC:</p>
+<pre><code>genome-grist run &lt;config&gt; -k --resources mem_mb=145000 -j 16
+</code></pre>
+<p>to run in 150GB of RAM, which will run at most one Genbank search at a time.</p>
+<h3 id="support-and-help">Support and help</h3>
+<p>We like to support our software!</p>
+<p>That having been said, genome-grist is still in beta. Please be patient and kind :).</p>
+<p>Please ask questions and add comments <a href="https://github.com/dib-lab/genome-grist/issues">on the github issue tracker for genome-grist</a>.</p>
+<h3 id="why-the-name-grist">Why the name <code>grist</code>?</h3>
+<p>'grist' is in the sourmash family of names (sourmash, wort, distillerycats, etc.) See <a href="https://en.wikipedia.org/wiki/Grist">Grist in Wikipedia</a>.</p>
+<p>(It is not named for the <a href="https://en.wikipedia.org/wiki/Grist_(computing)">computing grist</a>!)</p>
+<h3 id="installing-in-developer-mode">Installing in developer mode</h3>
+<p>You can run genome-grist from a working directory (e.g. a clone of the git repository) by using pip to install it in editable mode:</p>
+<pre><code>pip install -e .
+</code></pre>
+<p>in which case your genome-grist installation will track changes and updates in the working directory.</p>
+<p>Or you can pip install the latest version from Github like so:</p>
+<pre><code>pip install git+https://github.com/dib-lab/genome-grist.git
+</code></pre>
+<h2 id="what-software-and-databases-does-genome-grist-use">What software and databases does genome-grist use?</h2>
+<p>genome-grist uses
+<a href="https://sourmash.readthedocs.io/">the sourmash software</a> extensively,
+and is built in Python on top of
+<a href="https://snakemake.readthedocs.io/">the snakemake workflow system</a>.</p>
+<p>genome-grist uses <a href="https://github.com/OpenGene/fastp">fastp</a> and
+<a href="https://academic.oup.com/bioinformatics/article/34/18/3094/4994778">minimap</a>
+to do error trimming and short-read mapping.</p>
+<p>Output reports are constructed using <a href="https://jupyter.org/">Jupyter Notebook</a>
+and <a href="https://matplotlib.org/">matplotlib</a>.</p>
+<p>The default search databases used for genome-grist are based on
+sequences from <a href="https://www.ncbi.nlm.nih.gov/genbank/">Genbank</a> and
+taxonomies from Genbank and <a href="https://gtdb.ecogenomic.org/">GTDB</a>. The
+databases are provided by
+<a href="https://sourmash.readthedocs.io/en/latest/databases.html">the sourmash project</a>.</p>
+<p>We develop genome-grist at
+<a href="https://github.com/dib-lab/genome-grist">github.com/dib-lab/genome-grist</a>.</p>
+<h2 id="support-and-funding">Support and funding</h2>
+<p>genome-grist was developed with support from Grant GBMF4551 from the
+Gordon and Betty Moore Foundation, Grant R01HG007513 from the NIH
+NHGRI, and Grant R03OD030596 from the NIH Common Fund.</p>
+<hr />
+<p><a href="https://twitter.com/ctitusbrown/">CTB</a> September 2022</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = ".",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="js/base.js"></script>
+        <script src="search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
+
+<!--
+MkDocs version : 1.6.1
+Build Date UTC : 2025-06-21 13:56:34.484152+00:00
+-->
