@@ -240,7 +240,8 @@ class Checkpoint_GatherResults:
 
     def get_genome_idents(self, sample):
         gather_parquet = f'{outdir}/gather/{sample}.gather.parquet'
-        assert os.path.exists(gather_parquet), "gather output does not exist!?"
+        if not os.path.exists(gather_parquet):
+            print(f"gather parquet output file does not exist!? '{gather_parquet}'")
 
         df = polars.read_parquet(gather_parquet, columns=['match_name'])
 
@@ -328,7 +329,8 @@ class ListGatherGenomes(Checkpoint_GatherResults):
         genome_filenames = []
 
         gather_parquet = f'{outdir}/gather/{sample}.gather.parquet'
-        assert os.path.exists(gather_parquet), f"gather output does not exist for {sample}!?"
+        if not os.path.exists(gather_parquet):
+            print(f"gather parquet output file does not exist!? '{gather_parquet}'")
 
         df = polars.read_parquet(gather_parquet)
         for name in df.select('match_name')['match_name']:
