@@ -64,6 +64,7 @@ def main():
         mapcount = prefix + '.count_mapped_reads.txt'
         assert os.path.exists(mapcount)
 
+        print(f"item {n+1} of {len(args.depth_txts)}:")
         print(f"reading from '{vcf_gz}'", file=sys.stderr)
         _, n_chrom, n_snps = summarize_vcf(vcf_gz)
 
